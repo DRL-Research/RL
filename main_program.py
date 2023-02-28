@@ -60,7 +60,6 @@ if __name__ == '__main__':
         if value == 1:
             car2speed = 0.75
 
-
         print(car2speed)
 
         episode_counter += 1
