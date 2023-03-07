@@ -108,7 +108,7 @@ if __name__ == '__main__':
 
     RL.local_network.save_weights('working_model_weights_reverse_3_no_learn.h5')
 
-    print("change")
+    print("chasnge")
     print(collision_counter)
 
 
