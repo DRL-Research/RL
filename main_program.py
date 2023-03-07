@@ -37,13 +37,12 @@ if __name__ == '__main__':
     RL = RL.RL(learning_rate=0.003,
                verbose=0,
                with_per=True)
-    max_episodes = 400
+    max_episodes = 80
     max_steps = 500
     only_local = True
     # frequency = 40  # the higher the "frequency" -> the slower the samples are taken.
 
-
-
+    RL.local_network.load_weights('working_model_weights_3.h5')
 
 
 
@@ -53,12 +52,14 @@ if __name__ == '__main__':
     steps_counter = 0
     for episode in range(max_episodes):
 
-        value = np.random.randint(2, size=(1,1))
+        value = np.random.randint(3, size=(1,1))
 
         if value == 0:
             car2speed = 0.65
         if value == 1:
-            car2speed = 0.75
+            car2speed = 0.73
+        if value == 2:
+            car2speed = 0.8
 
         print(car2speed)
 
@@ -102,6 +103,9 @@ if __name__ == '__main__':
             car_controls = airsim.CarControls()
             car_controls.throttle = car2speed
             airsim_client.setCarControls(car_controls, "Car2")
+
+
+    RL.local_network.save_weights('working_model_weights_reverse_3_no_learn.h5')
 
 
     print(collision_counter)
