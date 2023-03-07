@@ -95,6 +95,7 @@ if __name__ == '__main__':
 
                 break
 
+
             # update controls of Car 1 based on the RL algorithm:
             airsim_client.setCarControls(updated_controls, "Car1")
 
@@ -107,7 +108,7 @@ if __name__ == '__main__':
 
     RL.local_network.save_weights('working_model_weights_reverse_3_no_learn.h5')
 
-
+    print("change")
     print(collision_counter)
 
 
