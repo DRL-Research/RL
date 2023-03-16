@@ -37,12 +37,13 @@ if __name__ == '__main__':
     RL = RL.RL(learning_rate=0.003,
                verbose=0,
                with_per=True)
-    max_episodes = 80
+    max_episodes = 120
     max_steps = 500
     only_local = True
     # frequency = 40  # the higher the "frequency" -> the slower the samples are taken.
 
-    RL.local_network.load_weights('working_model_weights_3.h5')
+
+    #RL.local_network.load_weights('working_model_weights_3.h5')
 
 
 
