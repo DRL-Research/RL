@@ -47,7 +47,7 @@
     "Car2": {
       "VehicleType": "PhysXCar",
       "X": 0,
-      "Y": -20,
+      "Y": -10,
       "Z": 0,
       "Yaw": 90
     }

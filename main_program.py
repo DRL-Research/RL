@@ -61,7 +61,7 @@ if __name__ == '__main__':
     Do not override a converged run's weights file! Load it but save under another path so you'll be able to
     revert back to it in case the following run did not converge. E.g.: <...weights_1.h5>, <...weights_2.h5>
     """
-    #RL.local_network.load_weights('ido_9_params_18_03_23_first.h5')
+    RL.local_network.load_weights('11_fifth_right.h5')
 
 
 
@@ -128,7 +128,7 @@ if __name__ == '__main__':
     For runs which load prior converged runs' weights, update the save path in order not to override the saved weights.
     E.g.: <...weights_1.h5>, <...weights_2.h5>
     """
-    RL.local_network.save_weights('ido_9_params_18_03_23_first.h5')
+    RL.local_network.save_weights('12_sixth_right.h5')
 
     print("@@@@ Run Ended @@@@")
     print(collision_counter)

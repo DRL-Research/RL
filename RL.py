@@ -121,6 +121,7 @@ class RL:
         collision = False
         collision_info = airsim_client.simGetCollisionInfo()
         if collision_info.has_collided:
+            print("Collided!")
             collision = True
             return collision, None, None, -1000
 
@@ -166,7 +167,7 @@ class RL:
         target[0][action] += self.learning_rate*(reward + (q_future * 0.95) - target[0][action])
 
         loss_local = self.local_network.fit(self.c1_state, target, epochs=1, verbose=0)
-        print(loss_local.history["loss"][-1])
+        print(f'Loss = {loss_local.history["loss"][-1]}')
 
         if not reached_target:
             with self.tensorboard.as_default():
@@ -174,7 +175,7 @@ class RL:
 
         if (self.step_counter % 5) == 0:
             self.epsilon *= self.epsilon_decay
-            print(self.epsilon)
+            print(f"Epsilon = {self.epsilon}")
 
         # Set controls based action selected:
         current_controls = airsim_client.getCarControls()
@@ -205,6 +206,7 @@ class RL:
         collision = False
         collision_info = airsim_client.simGetCollisionInfo()
         if collision_info.has_collided:
+            print("Collided!")
             collision = True
             reward, reached_target = self.calc_reward(collision)
             return collision, None, None, reward
@@ -212,8 +214,7 @@ class RL:
         # sample action:
         action = self.sample_action_global()
         target = self.local_and_global_network.predict([self.global_state, self.c1_state], verbose=self.verbose)
-        print("target:")
-        print(target)
+        print(f"Target: {target}")
 
         # time.sleep(0.3)  # in seconds.
         # this makes sure that significant amount of time passed between state and new_state, for the DQN formula.
@@ -239,9 +240,8 @@ class RL:
 
         # get experience from experience replay:
         state, action, reward, done, new_state, idx = self.experiences.sample(batch_size=1)
-        print("idx")
-        print(idx)
-        print()
+        print(f"idx: {idx}\n")
+
         # if not using batch:
         state = state[0]
         action = action[0]
@@ -254,7 +254,7 @@ class RL:
         target[0][action] += self.learning_rate * (reward + (q_future * 0.95) - target[0][action])
 
         loss_local = self.local_and_global_network.fit([self.global_state, self.c1_state], target, epochs=1, verbose=0)
-        print(loss_local.history["loss"][-1])
+        print(f'Loss: {loss_local.history["loss"][-1]}')
 
         if not reached_target:
             with self.tensorboard.as_default():
@@ -297,24 +297,24 @@ class RL:
         if np.random.binomial(1, p=self.epsilon):
             # pick random action
             rand_action = np.random.randint(2, size=(1,1))[0][0]
-            print(rand_action)
+            print(f"Random Action: {rand_action}")
             return rand_action
         else:
             # pick the action based on the highest q value
             action_selected = self.local_network.predict(self.c1_state, verbose=self.verbose).argmax()
-            print(action_selected)
+            print(f"Selected Action: {action_selected}")
             return action_selected
 
     def sample_action_global(self):
         if np.random.binomial(1, p=self.epsilon):
             # pick random action
             rand_action = np.random.randint(2, size=(1,1))[0][0]
-            print(rand_action)
+            print(f"Random Action: {rand_action}")
             return rand_action
         else:
             # pick the action based on the highest q value
             action_selected = self.local_and_global_network.predict([self.global_state,self.c1_state], verbose=self.verbose).argmax()
-            print(action_selected)
+            print(f"Selected Action: {action_selected}")
             return action_selected
 
     # translate index of action to controls in car:
