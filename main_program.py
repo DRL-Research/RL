@@ -7,8 +7,21 @@ import numpy as np
 
 if __name__ == '__main__':
 
-    # activate tensor board (tensorboard)
-    # in Terminal, in pycharm, run: python -m tensorboard.main --logdir=old_logs/
+    # activate tensor board (tensorboard). TODO: Change to your logdir!
+    # in Terminal, in pycharm, run: python -m tensorboard.main --logdir=logs_ido_9_param_states_18_03_23/
+
+    """
+    How to Speedup the simulation:
+    1. Unreal - downfacing arrow by the Play button - Advanced Settings - 
+       Search for "Use less CPU in the background" and disable it
+    2. Unreal - Settings - Engine Scalability Settings - Low
+    3. Unreal - Shrink Simulation window inside Unreal Editor as much as possible so the simulation will consume fewer resources
+       (thus crashes should be prevented)
+    4. AirSim settings.json - Replace your file with the one in the git repo  (settings - original.json kept for reference)
+       If the Unreal Editor Crashes - Decrease ClockSpeed in settings.json - max possible value depends on your HW specs).
+       Ido stabilized the simulation at ClockSpeed = 3, but don't be afraid to explore higher speeds.
+       If you do not have an Nvidia GPU, delete the blocks starting with GpuId and UseNvidiaHardwareEncoder.
+    """
 
     # Create an airsim client instance:
     airsim_client = airsim.CarClient()
@@ -27,23 +40,28 @@ if __name__ == '__main__':
     car_controls.throttle = 1
     airsim_client.setCarControls(car_controls, "Car2")
 
-    log_dir = "logs/rewards/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+    # TODO: Change to your logdir!
+    log_dir = "logs_ido_9_param_states_18_03_23/rewards/" + datetime.now().strftime("%Y%m%d-%H%M%S")
     tensorboard = tf.summary.create_file_writer(log_dir)
 
 
 
     # define object of RL
     # Define here the parameters of the experiment:
-    RL = RL.RL(learning_rate=0.003,
+    RL = RL(learning_rate=0.003,
                verbose=0,
                with_per=True)
-    max_episodes = 120
+    max_episodes = 100
     max_steps = 500
     only_local = True
     # frequency = 40  # the higher the "frequency" -> the slower the samples are taken.
 
-
-    #RL.local_network.load_weights('working_model_weights_3.h5')
+    """
+    Change to the desired .h5 weights file, comment out the next line on first run & runs that did not converge.
+    Do not override a converged run's weights file! Load it but save under another path so you'll be able to
+    revert back to it in case the following run did not converge. E.g.: <...weights_1.h5>, <...weights_2.h5>
+    """
+    #RL.local_network.load_weights('ido_9_params_18_03_23_first.h5')
 
 
 
@@ -66,7 +84,7 @@ if __name__ == '__main__':
 
         episode_counter += 1
         episode_sum_of_rewards = 0
-        print("new episode")
+        print(f"@@@@ Episode #{episode} @@@@")
 
         for step in range(max_steps):
 
@@ -106,10 +124,13 @@ if __name__ == '__main__':
             car_controls.throttle = car2speed
             airsim_client.setCarControls(car_controls, "Car2")
 
+    """
+    For runs which load prior converged runs' weights, update the save path in order not to override the saved weights.
+    E.g.: <...weights_1.h5>, <...weights_2.h5>
+    """
+    RL.local_network.save_weights('ido_9_params_18_03_23_first.h5')
 
-    RL.local_network.save_weights('working_model_weights_reverse_3_no_learn.h5')
-
-    print("chasnge")
+    print("@@@@ Run Ended @@@@")
     print(collision_counter)
 
 

@@ -1,0 +1,60 @@
+{
+ "SettingsVersion": 1.2,
+    "SimMode": "Car",
+    "ClockSpeed": 3.0,
+    "TerrainRandomSeed": 12345,
+    "ShadowMapSize": 256,
+    "CameraDefaults": {
+        "CaptureSettings": [
+            {
+                "ImageType": 0,
+                "Width": 640,
+                "Height": 480,
+                "FOV_Degrees": 90,
+                "TargetGamma": 2.2
+            }
+        ],
+        "NoiseSettings": [
+            {
+                "Name": "Grain",
+                "Enabled": false,
+                "Mean": 0.0,
+                "StandardDeviation": 0.05
+            }
+        ],
+         "GpuId": 0,
+         "ImageType": 1,
+         "X": 0.7,
+         "Y": 0,
+         "Z": 1.6,
+         "Pitch": 0,
+         "Roll": 0,
+         "Yaw": 0
+    },
+    "RecordingSettings": {
+        "RecordOnMove": false,
+        "RecordInterval": 0.1,
+        "RecordDirectory": ""
+    },
+  "Vehicles": {
+    "Car1": {
+      "VehicleType": "PhysXCar",
+      "X": -20,
+      "Y": 0,
+      "Z": 0,
+      "Yaw": 0
+    },
+    "Car2": {
+      "VehicleType": "PhysXCar",
+      "X": 0,
+      "Y": -20,
+      "Z": 0,
+      "Yaw": 90
+    }
+  },
+  "UseNvidiaHardwareEncoder": true,
+    "SegmentationSettings": {
+        "Mode": "None",
+        "Cameras": ["CameraDefaults"]
+  }
+}

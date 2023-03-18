@@ -47,7 +47,8 @@ class RL:
         # https://pyimagesearch.com/2019/02/04/keras-multiple-inputs-and-mixed-data/
 
         # define the input of global network:
-        input_global = Input(shape=(4,))  # (x_car1, y_car1, x_car2, y_car2) = input of global
+        #input_global = Input(shape=(4,))  # (x_car1, y_car1, x_car2, y_car2) = input of global
+        input_global = Input(shape=(9,))  # (x_car, y_car, v_car1, v_car2, up_car2,down_car2,right_car2,left_car2, dist_c1_c2)
         # define the global network layers:
         x = Dense(16, activation="relu")(input_global)
         x = Dense(8, activation="relu")(x)
@@ -55,7 +56,7 @@ class RL:
         x = Model(inputs=input_global, outputs=x)  # (emb1, emb2) = output of global
 
         #input_local = Input(shape=(4,))  # (x_car, y_car, v_car1, dist_c1_c2) = input of local
-        input_local = Input(shape=(9,))  # (x_car, y_car, v_car1, dist_c1_c2) = input of local
+        input_local = Input(shape=(9,))  # (x_car, y_car, v_car1, v_car2, up_car2,down_car2,right_car2,left_car2, dist_c1_c2)
         combined = concatenate([x.output, input_local])  # combine embedding of global & input of local
 
         z = Dense(16, activation="relu")(combined)
@@ -106,8 +107,8 @@ class RL:
                                    self.env_state["y_c1"],
                                    self.env_state["v_c1"],
                                    self.env_state["v_c2"],
-                                   self.env_state["dist_c1_c2"]
-                                   ,self.env_state["right"],
+                                   self.env_state["dist_c1_c2"],
+                                   self.env_state["right"],
                                    self.env_state["left"],
                                    self.env_state["forward"],
                                    self.env_state["backward"]
@@ -324,6 +325,7 @@ class RL:
             current_controls.throttle = 0.4
         return current_controls  # called current_controls - but it is updated controls
 
+    # TODO: Icorporate a reward mechanism for higher speeds
     def calc_reward(self, collision):
         # constant punish for every step taken, big punish for collision, big reward for reaching the target.
         # reward = 0
@@ -351,9 +353,6 @@ class RL:
         if self.c1_state[0][0] > self.c1_desire[0]:  # if went over the desired
             reward += 1000
             reached_target = True
-            print("Reached Target!!!")
-            print("Reached Target!!!")
-            print("Reached Target!!!")
             print("Reached Target!!!")
 
         return reward, reached_target
