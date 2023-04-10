@@ -37,15 +37,14 @@ if __name__ == '__main__':
     max_episodes = 100
     max_steps = 500
     only_local = True
-    # frequency = 40  # the higher the "frequency" -> the slower the samples are taken.
 
     """
     Change to the desired .h5 weights file, comment out the next line on first run & runs that did not converge.
     Do not override a converged run's weights file! Load it but save under another path so you'll be able to
     revert back to it in case the following run did not converge. E.g.: <...weights_1.h5>, <...weights_2.h5>
     """
-    # RL.local_network.load_weights('11_fifth_right.h5')
-    # RL.local_network.load_weights('working_model_weights_3.h5')
+    RL.local_network.load_weights('exp1/weights/12_sixth_right.h5')
+
 
     # Start the experiment:
     collision_counter = 0
@@ -108,7 +107,7 @@ if __name__ == '__main__':
     For runs which load prior converged runs' weights, update the save path in order not to override the saved weights.
     E.g.: <...weights_1.h5>, <...weights_2.h5>
     """
-    RL.local_network.save_weights('12_sixth_right.h5')
+    # RL.local_network.save_weights('12_sixth_right.h5')
 
     print("@@@@ Run Ended @@@@")
     print(collision_counter)

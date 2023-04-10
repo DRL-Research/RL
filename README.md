@@ -30,6 +30,8 @@ Here's a blank template to get started: To avoid retyping too much info. Do a se
 This is an example of how you may give instructions on setting up your project locally.
 To get a local copy up and running follow these simple example steps.
 
+<br>
+<br>
 
 <h3 style="color:green;">View Results</h3>
 
@@ -68,18 +70,52 @@ change the json settings file in the path:
 
     This PC/Documents/AirSim/settings.json
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+<br>
+<br>
+<h3 style="color:green;">Commit to GitHub</h3>
+
+when offered to commit and push, pay attention to changing:
+
+    master -> origin : master
+
+To:
+
+    master -> origin : main
+
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
 
 ## Experiments:
 
-These are the tests
+### Exp1:
+
+Car2 coming from LTR 3 times, and then from RTL 3 times,
+Then once again the same thing (3 LTR followed by 3 RTL).
+Each time the model keeps training on prev version.
+
+| Parameters     | Values                          | Notes                       |
+|----------------|---------------------------------|-----------------------------|
+| Location Car1  | [-20,0]                         |                             |
+| Location Car2  | [0,-10] / [0,10]                | Car2 coming from RTL or LTR |
+| Learning rate  | 0.003                           |                             |
+| Local / Global | Local in Car1, no global at all |                             |
 
 
 
 
+
+
+
+
+
+
+
+
+<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
+<br><br><br><br><br><br><br>
 
 ### Prerequisites
 
