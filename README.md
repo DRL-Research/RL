@@ -30,15 +30,23 @@ Here's a blank template to get started: To avoid retyping too much info. Do a se
 This is an example of how you may give instructions on setting up your project locally.
 To get a local copy up and running follow these simple example steps.
 
-<h3 style="color:green;">View Results
-</h3>
+
+<h3 style="color:green;">View Results</h3>
+
+Activate tensor board (tensorboard) in Terminal, in pycharm:
+
+    python -m tensorboard.main --logdir=logs/
+
+Go to the following URL in the browser:
+
+    http://localhost:6006/
 
 
-activate tensor board (tensorboard). TODO: Change to your logdir!
-    # in Terminal, in pycharm, run: python -m tensorboard.main --logdir=logs_ido_9_param_states_18_03_23/
+<br>
+<br>
 
 
-### How to Speedup the simulation:
+<h3 style="color:green;"> How to Speedup the simulation:</h3>
 
     1. Unreal - downfacing arrow by the Play button - Advanced Settings - 
        Search for "Use less CPU in the background" and disable it (tick is on)
@@ -51,8 +59,14 @@ activate tensor board (tensorboard). TODO: Change to your logdir!
        If you do not have an Nvidia GPU, delete the blocks starting with GpuId and UseNvidiaHardwareEncoder.
 
 
+<br>
+<br>
 
+<h3 style="color:green;">Change settings of airsim</h3>
 
+change the json settings file in the path:
+
+    This PC/Documents/AirSim/settings.json
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
