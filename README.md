@@ -16,52 +16,30 @@
 
 
 
-
-<!-- TABLE OF CONTENTS -->
-<details>
-  <summary>Table of Contents</summary>
-  <ol>
-    <li>
-      <a href="#about-the-project">About The Project</a>
-      <ul>
-        <li><a href="#built-with">Built With</a></li>
-      </ul>
-    </li>
-    <li>
-      <a href="#getting-started">Getting Started</a>
-      <ul>
-        <li><a href="#prerequisites">Prerequisites</a></li>
-        <li><a href="#installation">Installation</a></li>
-      </ul>
-    </li>
-    <li><a href="#usage">Usage</a></li>
-    <li><a href="#roadmap">Roadmap</a></li>
-    <li><a href="#contributing">Contributing</a></li>
-    <li><a href="#license">License</a></li>
-    <li><a href="#contact">Contact</a></li>
-    <li><a href="#acknowledgments">Acknowledgments</a></li>
-  </ol>
-</details>
-
-
-
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
 Here's a blank template to get started: To avoid retyping too much info. Do a search and replace with your text editor for the following: `github_username`, `repo_name`, `twitter_handle`, `linkedin_username`, `email_client`, `email`, `project_title`, `project_description`
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
 
 
 <!-- GETTING STARTED -->
-## Getting Started
+## Features
 
 This is an example of how you may give instructions on setting up your project locally.
 To get a local copy up and running follow these simple example steps.
 
-<b> How to Speedup the simulation:</b>
+<h3 style="color:green;">View Results
+</h3>
+
+
+activate tensor board (tensorboard). TODO: Change to your logdir!
+    # in Terminal, in pycharm, run: python -m tensorboard.main --logdir=logs_ido_9_param_states_18_03_23/
+
+
+### How to Speedup the simulation:
 
     1. Unreal - downfacing arrow by the Play button - Advanced Settings - 
        Search for "Use less CPU in the background" and disable it (tick is on)
@@ -72,7 +50,15 @@ To get a local copy up and running follow these simple example steps.
        If the Unreal Editor Crashes - Decrease ClockSpeed in settings.json - max possible value depends on your HW specs).
        Ido stabilized the simulation at ClockSpeed = 3, but don't be afraid to explore higher speeds.
        If you do not have an Nvidia GPU, delete the blocks starting with GpuId and UseNvidiaHardwareEncoder.
-    
+
+
+
+
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+
 
 ## Experiments:
 

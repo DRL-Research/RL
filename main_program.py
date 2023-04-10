@@ -7,10 +7,6 @@ import numpy as np
 
 if __name__ == '__main__':
 
-    # activate tensor board (tensorboard). TODO: Change to your logdir!
-    # in Terminal, in pycharm, run: python -m tensorboard.main --logdir=logs_ido_9_param_states_18_03_23/
-
-
     # Create an airsim client instance:
     airsim_client = airsim.CarClient()
     airsim_client.confirmConnection()
@@ -31,7 +27,6 @@ if __name__ == '__main__':
     # TODO: Change to your logdir!
     log_dir = "logs_ido_9_param_states_18_03_23/rewards/" + datetime.now().strftime("%Y%m%d-%H%M%S")
     tensorboard = tf.summary.create_file_writer(log_dir)
-
 
 
     # define object of RL

@@ -9,10 +9,6 @@ from tensorflow import keras
 import os
 import time
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-# tf.compat.v1.disable_eager_execution() # if turned on - the old_logs does not work.
-from keras.losses import categorical_crossentropy
-
 
 class RL:
 
