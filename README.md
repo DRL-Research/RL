@@ -26,11 +26,24 @@
 <br>
 <br>
 
-<h3 style="color:green;">View TensorBoard logs</h3>
+<h3 style="color:green;">Save Experiments logs</h3>
 
-Activate TensorBoard in Terminal, in pycharm (pay attention to directory =logs/):
+In <b>main.py</b> change the log directory 
 
-    python -m tensorboard.main --logdir=logs/
+    log_directory = "exp2"
+
+In this folder the rewards and losses will be saved
+
+
+
+<br>
+<br>
+
+<h3 style="color:green;">View logs in TensorBoard</h3>
+
+Activate TensorBoard in Terminal, in pycharm (pay attention to directory =exp2/):
+
+    python -m tensorboard.main --logdir=exp2/
 
 Go to the following URL in the browser:
 

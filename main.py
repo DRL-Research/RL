@@ -2,10 +2,12 @@
 from datetime import datetime
 import airsim
 import tensorflow as tf
-# from RL import RL_2_local
+from RL import RL
 import numpy as np
 
 if __name__ == '__main__':
+
+    log_directory = "exp2"
 
     # Create an airsim client instance:
     airsim_client = airsim.CarClient()
@@ -24,24 +26,26 @@ if __name__ == '__main__':
     car_controls.throttle = 1
     airsim_client.setCarControls(car_controls, "Car2")
 
-    log_dir = "logs/rewards/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+    log_dir = log_directory+"/rewards/" + datetime.now().strftime("%Y%m%d-%H%M%S")
     tensorboard = tf.summary.create_file_writer(log_dir)
-
-
 
     # define object of RL
     # Define here the parameters of the experiment:
-    RL = RL_2_local.RL_2_local(learning_rate=0.003,
+    RL = RL(learning_rate=0.003,
                verbose=0,
-               with_per=True)
-    max_episodes = 120
+               with_per=True,
+               log_directory=log_directory)
+    max_episodes = 100
     max_steps = 500
     only_local = True
-    # frequency = 40  # the higher the "frequency" -> the slower the samples are taken.
+    two_cars_local = False
 
-    # RL.local_network.load_weights('working_model_weights_3.h5')
-    RL.local_network.load_weights('working_model_weights_reverse_2_no_learn.h5')
-
+    """
+    Change to the desired .h5 weights file, comment out the next line on first run & runs that did not converge.
+    Do not override a converged run's weights file! Load it but save under another path so you'll be able to
+    revert back to it in case the following run did not converge. E.g.: <...weights_1.h5>, <...weights_2.h5>
+    """
+    RL.local_network.load_weights('exp1/weights/12_sixth_right.h5')
 
 
     # Start the experiment:
@@ -50,7 +54,7 @@ if __name__ == '__main__':
     steps_counter = 0
     for episode in range(max_episodes):
 
-        value = np.random.randint(3, size=(1,1))
+        value = np.random.randint(3, size=(1, 1))
 
         if value == 0:
             car2speed = 0.65
@@ -63,14 +67,14 @@ if __name__ == '__main__':
 
         episode_counter += 1
         episode_sum_of_rewards = 0
-        print("new episode")
+        print(f"@@@@ Episode #{episode} @@@@")
 
         for step in range(max_steps):
 
             steps_counter += 1
             # perform a step in the environment, and get feedback about collision and updated controls:
             if only_local:
-                done, reached_target, updated_controls1, updated_controls2, reward = RL.step_only_local(airsim_client, steps_counter)
+                done, reached_target, updated_controls, reward = RL.step_only_local(airsim_client, steps_counter)
             else:
                 done, reached_target, updated_controls, reward = RL.step_with_global(airsim_client, steps_counter)
 
@@ -83,8 +87,8 @@ if __name__ == '__main__':
                 # log
                 # if I want using avg reward:
                 # if episode > 98:
-                    # Check if solved
-                    # average_rewards = np.mean(episode_rewards[(episode - 99):episode + 1])
+                # Check if solved
+                # average_rewards = np.mean(episode_rewards[(episode - 99):episode + 1])
                 #
                 with tensorboard.as_default():
                     tf.summary.scalar('episode_sum_of_rewards', episode_sum_of_rewards, step=episode_counter)
@@ -94,23 +98,22 @@ if __name__ == '__main__':
                 break
 
 
-            # update controls of Car 1 based on the RL algorithm:
-            airsim_client.setCarControls(updated_controls1, "Car1")
+            if two_cars_local:
+                print("a")
+            else:
+                # update controls of Car 1 based on the RL algorithm:
+                airsim_client = RL.updateControls(airsim_client, ["Car1"], [updated_controls])
 
-            # update controls of Car 2 based on the RL algorithm:
-            airsim_client.setCarControls(updated_controls2, "Car2")
+                # update controls of Car 2:
+                car_controls = airsim.CarControls()
+                car_controls.throttle = car2speed
+                airsim_client.setCarControls(car_controls, "Car2")
 
-            #
-            # # update controls of Car 2:
-            # car_controls = airsim.CarControls()
-            # car_controls.throttle = car2speed
-            # airsim_client.setCarControls(car_controls, "Car2")
+    """
+    For runs which load prior converged runs' weights, update the save path in order not to override the saved weights.
+    E.g.: <...weights_1.h5>, <...weights_2.h5>
+    """
+    # RL.local_network.save_weights('12_sixth_right.h5')
 
-
-    RL.local_network.save_weights('2_local_run1.h5')
-
-    print("chasnge")
+    print("@@@@ Run Ended @@@@")
     print(collision_counter)
-
-
-

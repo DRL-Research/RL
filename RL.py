@@ -12,7 +12,7 @@ import time
 
 class RL:
 
-    def __init__(self, learning_rate, verbose, with_per):
+    def __init__(self, learning_rate, verbose, with_per, log_directory):
         self.step_counter = 0
         self.verbose = verbose
         self.learning_rate = learning_rate
@@ -33,7 +33,7 @@ class RL:
         self.epsilon = 0.9
         self.epsilon_decay = 0.99
 
-        log_dir = "logs/loss/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+        log_dir = log_directory+"/loss/" + datetime.now().strftime("%Y%m%d-%H%M%S")
         self.tensorboard = tf.summary.create_file_writer(log_dir)
         self.train_global_counter = 0
         self.train_global_loss_sum = 0
@@ -376,6 +376,12 @@ class RL:
         env_state["dist_c1_c2"] = np.sum(np.square(np.array([[env_state["x_c1"],env_state["y_c1"]]]) - np.array([[env_state["x_c2"],env_state["y_c2"]]])))
         return env_state
 
-    def check_gradient_zero(self, model):
-        return True
+    def updateControls(self, airsim_client, carNamesListToUpdate, controlsListToUpdate):
+
+        for i in range(0, len(carNamesListToUpdate)):
+            airsim_client.setCarControls(controlsListToUpdate[i], carNamesListToUpdate[i])
+
+        return airsim_client
+
+
 
