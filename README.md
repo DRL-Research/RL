@@ -2,7 +2,7 @@
 
 
 
-<h2 align="center">Novel distributed learning-based approach for joint navigation in local environments</h2>
+<h1 align="center">Novel distributed learning-based approach for joint navigation in local environments</h1>
   <p align="center">
     project_description
     <br />
@@ -20,7 +20,6 @@
 ## About The Project
 
 Here's a blank template to get started: To avoid retyping too much info. Do a search and replace with your text editor for the following: `github_username`, `repo_name`, `twitter_handle`, `linkedin_username`, `email_client`, `email`, `project_title`, `project_description`
-
 
 
 
