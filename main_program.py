@@ -10,18 +10,6 @@ if __name__ == '__main__':
     # activate tensor board (tensorboard). TODO: Change to your logdir!
     # in Terminal, in pycharm, run: python -m tensorboard.main --logdir=logs_ido_9_param_states_18_03_23/
 
-    """
-    How to Speedup the simulation:
-    1. Unreal - downfacing arrow by the Play button - Advanced Settings - 
-       Search for "Use less CPU in the background" and disable it
-    2. Unreal - Settings - Engine Scalability Settings - Low
-    3. Unreal - Shrink Simulation window inside Unreal Editor as much as possible so the simulation will consume fewer resources
-       (thus crashes should be prevented)
-    4. AirSim settings.json - Replace your file with the one in the git repo  (settings - original.json kept for reference)
-       If the Unreal Editor Crashes - Decrease ClockSpeed in settings.json - max possible value depends on your HW specs).
-       Ido stabilized the simulation at ClockSpeed = 3, but don't be afraid to explore higher speeds.
-       If you do not have an Nvidia GPU, delete the blocks starting with GpuId and UseNvidiaHardwareEncoder.
-    """
 
     # Create an airsim client instance:
     airsim_client = airsim.CarClient()
@@ -61,9 +49,8 @@ if __name__ == '__main__':
     Do not override a converged run's weights file! Load it but save under another path so you'll be able to
     revert back to it in case the following run did not converge. E.g.: <...weights_1.h5>, <...weights_2.h5>
     """
-    RL.local_network.load_weights('11_fifth_right.h5')
-
-
+    # RL.local_network.load_weights('11_fifth_right.h5')
+    # RL.local_network.load_weights('working_model_weights_3.h5')
 
     # Start the experiment:
     collision_counter = 0
@@ -71,7 +58,7 @@ if __name__ == '__main__':
     steps_counter = 0
     for episode in range(max_episodes):
 
-        value = np.random.randint(3, size=(1,1))
+        value = np.random.randint(3, size=(1, 1))
 
         if value == 0:
             car2speed = 0.65
@@ -104,8 +91,8 @@ if __name__ == '__main__':
                 # log
                 # if I want using avg reward:
                 # if episode > 98:
-                    # Check if solved
-                    # average_rewards = np.mean(episode_rewards[(episode - 99):episode + 1])
+                # Check if solved
+                # average_rewards = np.mean(episode_rewards[(episode - 99):episode + 1])
                 #
                 with tensorboard.as_default():
                     tf.summary.scalar('episode_sum_of_rewards', episode_sum_of_rewards, step=episode_counter)
@@ -114,10 +101,8 @@ if __name__ == '__main__':
 
                 break
 
-
             # update controls of Car 1 based on the RL algorithm:
             airsim_client.setCarControls(updated_controls, "Car1")
-
 
             # update controls of Car 2:
             car_controls = airsim.CarControls()
@@ -132,6 +117,3 @@ if __name__ == '__main__':
 
     print("@@@@ Run Ended @@@@")
     print(collision_counter)
-
-
-

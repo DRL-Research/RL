@@ -71,7 +71,7 @@ class RL:
 
     def init_network(self):
         network = keras.Sequential([
-            #keras.layers.InputLayer(input_shape=(4,)),  # (x_car, y_car, v_car1, dist_c1_c2)
+            # keras.layers.InputLayer(input_shape=(4,)),  # (x_car, y_car, v_car1, dist_c1_c2)
             keras.layers.InputLayer(input_shape=(9,)),  # (x_car, y_car, v_car1, v_car2, up_car2,down_car2,right_car2,left_car2, dist_c1_c2)
             keras.layers.Normalization(axis=-1),
             keras.layers.Dense(units=16, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform()),
@@ -325,7 +325,7 @@ class RL:
             current_controls.throttle = 0.4
         return current_controls  # called current_controls - but it is updated controls
 
-    # TODO: Icorporate a reward mechanism for higher speeds
+    # TODO: Incorporate a reward mechanism for higher speeds
     def calc_reward(self, collision):
         # constant punish for every step taken, big punish for collision, big reward for reaching the target.
         # reward = 0

@@ -2,7 +2,7 @@
 from datetime import datetime
 import airsim
 import tensorflow as tf
-from RL import RL_2_local
+# from RL import RL_2_local
 import numpy as np
 
 if __name__ == '__main__':
@@ -42,7 +42,8 @@ if __name__ == '__main__':
     only_local = True
     # frequency = 40  # the higher the "frequency" -> the slower the samples are taken.
 
-    RL.local_network.load_weights('working_model_weights_3.h5')
+    # RL.local_network.load_weights('working_model_weights_3.h5')
+    RL.local_network.load_weights('working_model_weights_reverse_2_no_learn.h5')
 
 
 
