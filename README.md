@@ -102,14 +102,30 @@ Car2 coming from LTR 3 times, and then from RTL 3 times,
 Then once again the same thing (3 LTR followed by 3 RTL).
 Each time the model keeps training on prev version.
 
-| Parameters     | Values                          | Notes                       |
-|----------------|---------------------------------|-----------------------------|
-| Location Car1  | [-20,0]                         |                             |
-| Location Car2  | [0,-10] / [0,10]                | Car2 coming from RTL or LTR |
-| Learning rate  | 0.003                           |                             |
-| Local / Global | Local in Car1, no global at all |                             |
+| Parameters    | Values                | Notes                       |
+|---------------|-----------------------|-----------------------------|
+| Location Car1 | [-20,0]               |                             |
+| Location Car2 | [0,-10] / [0,10]      | Car2 coming from RTL or LTR |
+| Learning rate | 0.003                 |                             |
+| Local         | Local network in Car1 |                             |
+| Global        | False                 |                             |
 
 
+<br>
+
+### Exp2:
+
+Car2 coming from LTR 3 times, and then from RTL 3 times,
+Then once again the same thing (3 LTR followed by 3 RTL).
+Each time the model keeps training on prev version.
+
+| Parameters    | Values                       | Notes |
+|---------------|------------------------------|-------|
+| Location Car1 | [-20,0]                      |       |
+| Location Car2 | [0,-20]                      |       |
+| Learning rate | 0.003                        |       |
+| Local         | Local network in: Car1, Car2 |       |
+| Global        | False                        |       |
 
 
 

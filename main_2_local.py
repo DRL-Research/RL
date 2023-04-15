@@ -31,7 +31,7 @@ if __name__ == '__main__':
 
     # define object of RL
     # Define here the parameters of the experiment:
-    RL = RL_2_local.RL_2_local(learning_rate=0.003,
+    RL = RL.RL_2_local(learning_rate=0.003,
                verbose=0,
                with_per=True)
     max_episodes = 120

@@ -31,14 +31,16 @@ if __name__ == '__main__':
 
     # define object of RL
     # Define here the parameters of the experiment:
-    RL = RL(learning_rate=0.003,
-               verbose=0,
-               with_per=True,
-               log_directory=log_directory)
     max_episodes = 100
     max_steps = 500
     only_local = True
-    two_cars_local = False
+    two_cars_local = True  # two cars using the local network / only one
+    RL = RL(learning_rate=0.003,
+            verbose=0,
+            with_per=True,
+            two_cars_local=two_cars_local,
+            log_directory=log_directory)
+
 
     """
     Change to the desired .h5 weights file, comment out the next line on first run & runs that did not converge.
@@ -56,14 +58,14 @@ if __name__ == '__main__':
 
         value = np.random.randint(3, size=(1, 1))
 
-        if value == 0:
-            car2speed = 0.65
-        if value == 1:
-            car2speed = 0.73
-        if value == 2:
-            car2speed = 0.8
-
-        print(car2speed)
+        if not two_cars_local:
+            if value == 0:
+                car2speed = 0.65
+            if value == 1:
+                car2speed = 0.73
+            if value == 2:
+                car2speed = 0.8
+            print(car2speed)
 
         episode_counter += 1
         episode_sum_of_rewards = 0
@@ -73,10 +75,10 @@ if __name__ == '__main__':
 
             steps_counter += 1
             # perform a step in the environment, and get feedback about collision and updated controls:
-            if only_local:
+            if not two_cars_local:
                 done, reached_target, updated_controls, reward = RL.step_only_local(airsim_client, steps_counter)
             else:
-                done, reached_target, updated_controls, reward = RL.step_with_global(airsim_client, steps_counter)
+                done, reached_target, updated_controls_car1, updated_controls_car2, reward = RL.step_only_local_2_cars(airsim_client, steps_counter)
 
             # log
             episode_sum_of_rewards += reward
@@ -85,11 +87,6 @@ if __name__ == '__main__':
                 # reset the environment in case of a collision:
                 airsim_client.reset()
                 # log
-                # if I want using avg reward:
-                # if episode > 98:
-                # Check if solved
-                # average_rewards = np.mean(episode_rewards[(episode - 99):episode + 1])
-                #
                 with tensorboard.as_default():
                     tf.summary.scalar('episode_sum_of_rewards', episode_sum_of_rewards, step=episode_counter)
                 if done:
@@ -99,11 +96,12 @@ if __name__ == '__main__':
 
 
             if two_cars_local:
-                print("a")
+                airsim_client.setCarControls(updated_controls_car1, "Car1")
+                airsim_client.setCarControls(updated_controls_car2, "Car2")
             else:
                 # update controls of Car 1 based on the RL algorithm:
-                airsim_client = RL.updateControls(airsim_client, ["Car1"], [updated_controls])
-
+                airsim_client.setCarControls(updated_controls, "Car1")
+                # airsim_client = RL.updateControls(airsim_client, ["Car1"], [updated_controls])
                 # update controls of Car 2:
                 car_controls = airsim.CarControls()
                 car_controls.throttle = car2speed
@@ -113,7 +111,7 @@ if __name__ == '__main__':
     For runs which load prior converged runs' weights, update the save path in order not to override the saved weights.
     E.g.: <...weights_1.h5>, <...weights_2.h5>
     """
-    # RL.local_network.save_weights('12_sixth_right.h5')
+    RL.local_network.save_weights('exp2/weights/first_run.h5')
 
     print("@@@@ Run Ended @@@@")
     print(collision_counter)
