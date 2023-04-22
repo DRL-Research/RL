@@ -490,12 +490,5 @@ class RL:
 
         return env_state
 
-    # def updateControls(self, airsim_client, carNamesListToUpdate, controlsListToUpdate):
-    #
-    #     for i in range(0, len(carNamesListToUpdate)):
-    #         airsim_client.setCarControls(controlsListToUpdate[i], carNamesListToUpdate[i])
-    #
-    #     return airsim_client
-
 
 
