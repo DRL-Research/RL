@@ -1,4 +1,4 @@
-
+import copy
 from datetime import datetime
 import airsim
 import tensorflow as tf
@@ -7,7 +7,7 @@ import numpy as np
 
 if __name__ == '__main__':
 
-    log_directory = "exp2"
+    log_directory = "exp3"
 
     # Create an airsim client instance:
     airsim_client = airsim.CarClient()
@@ -35,11 +35,15 @@ if __name__ == '__main__':
     max_steps = 500
     only_local = True
     two_cars_local = True  # two cars using the local network / only one
+    alternate_training = True
+    alternate_car = 1
     RL = RL(learning_rate=0.003,
             verbose=0,
             with_per=True,
             two_cars_local=two_cars_local,
-            log_directory=log_directory)
+            log_directory=log_directory,
+            alternate_training=alternate_training,
+            alternate_car=alternate_car)
 
 
     """
@@ -49,6 +53,8 @@ if __name__ == '__main__':
     """
     RL.local_network.load_weights('exp1/weights/12_sixth_right.h5')
 
+    if alternate_training:
+        RL.alternate_training_network = copy.deepcopy(RL.local_network)
 
     # Start the experiment:
     collision_counter = 0
@@ -70,6 +76,14 @@ if __name__ == '__main__':
         episode_counter += 1
         episode_sum_of_rewards = 0
         print(f"@@@@ Episode #{episode} @@@@")
+
+        if episode_counter % 20 == 0:
+            if alternate_car == 1:
+                RL.alternate_car = 2
+                RL.alternate_training_network = copy.deepcopy(RL.local_network)
+            else:
+                RL.alternate_car = 1
+                RL.alternate_training_network = copy.deepcopy(RL.local_network)
 
         for step in range(max_steps):
 
