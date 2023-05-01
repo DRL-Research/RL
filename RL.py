@@ -35,7 +35,10 @@ class RL:
         self.epsilon_decay = 0.99
         ###
         self.alternate_training = alternate_training
-        self.alternate_training_network = None
+        if not alternate_training:
+            self.alternate_training_network = None
+        else:
+            self.alternate_training_network = self.init_network()
         self.alternate_car = alternate_car  # The car which continues to train
 
         log_dir = log_directory+"/loss/" + datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -79,7 +82,11 @@ class RL:
             keras.layers.Dense(units=2, activation='linear')  # (q_value1, q_value2)
         ])
         network.compile(optimizer=tf.keras.optimizers.legacy.Adam(learning_rate=self.learning_rate), loss="mse")
+
         return network
+
+    def copy_network(self, network):
+        return keras.models.clone_model(network)
 
     def memorize(self, state, action, reward, done, new_state):
         """ Store experience in memory buffer

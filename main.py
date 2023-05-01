@@ -4,10 +4,14 @@ import airsim
 import tensorflow as tf
 from RL import RL
 import numpy as np
+import os
 
 if __name__ == '__main__':
 
     log_directory = "exp3"
+    load_weight = 'exp2/weights/12_sixth_right.h5'
+    save_weights_directory = log_directory + "/weights"
+    save_weight = '/1_first_left.h5'
 
     # Create an airsim client instance:
     airsim_client = airsim.CarClient()
@@ -26,7 +30,7 @@ if __name__ == '__main__':
     car_controls.throttle = 1
     airsim_client.setCarControls(car_controls, "Car2")
 
-    log_dir = log_directory+"/rewards/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+    log_dir = log_directory + "/rewards/" + datetime.now().strftime("%Y%m%d-%H%M%S")
     tensorboard = tf.summary.create_file_writer(log_dir)
 
     # define object of RL
@@ -37,7 +41,7 @@ if __name__ == '__main__':
     two_cars_local = True  # two cars using the local network / only one
     alternate_training = True
     alternate_car = 1
-    RL = RL(learning_rate=0.003,
+    rl = RL(learning_rate=0.003,
             verbose=0,
             with_per=True,
             two_cars_local=two_cars_local,
@@ -51,10 +55,7 @@ if __name__ == '__main__':
     Do not override a converged run's weights file! Load it but save under another path so you'll be able to
     revert back to it in case the following run did not converge. E.g.: <...weights_1.h5>, <...weights_2.h5>
     """
-    RL.local_network.load_weights('exp1/weights/12_sixth_right.h5')
-
-    if alternate_training:
-        RL.alternate_training_network = copy.deepcopy(RL.local_network)
+    rl.local_network.load_weights(load_weight)
 
     # Start the experiment:
     collision_counter = 0
@@ -79,20 +80,21 @@ if __name__ == '__main__':
 
         if episode_counter % 20 == 0:
             if alternate_car == 1:
-                RL.alternate_car = 2
-                RL.alternate_training_network = copy.deepcopy(RL.local_network)
+                rl.alternate_car = 2
+                rl.alternate_training_network = rl.copy_network(rl.local_network)
             else:
-                RL.alternate_car = 1
-                RL.alternate_training_network = copy.deepcopy(RL.local_network)
+                rl.alternate_car = 1
+                rl.alternate_training_network = rl.copy_network(rl.local_network)
 
         for step in range(max_steps):
 
             steps_counter += 1
             # perform a step in the environment, and get feedback about collision and updated controls:
             if not two_cars_local:
-                done, reached_target, updated_controls, reward = RL.step_only_local(airsim_client, steps_counter)
+                done, reached_target, updated_controls, reward = rl.step_only_local(airsim_client, steps_counter)
             else:
-                done, reached_target, updated_controls_car1, updated_controls_car2, reward = RL.step_only_local_2_cars(airsim_client, steps_counter)
+                done, reached_target, updated_controls_car1, updated_controls_car2, reward = rl.step_only_local_2_cars(
+                    airsim_client, steps_counter)
 
             # log
             episode_sum_of_rewards += reward
@@ -107,7 +109,6 @@ if __name__ == '__main__':
                     collision_counter += 1
 
                 break
-
 
             if two_cars_local:
                 airsim_client.setCarControls(updated_controls_car1, "Car1")
@@ -125,7 +126,9 @@ if __name__ == '__main__':
     For runs which load prior converged runs' weights, update the save path in order not to override the saved weights.
     E.g.: <...weights_1.h5>, <...weights_2.h5>
     """
-    RL.local_network.save_weights('exp2/weights/first_run.h5')
+    if not os.path.exists(save_weights_directory):
+        os.makedirs(save_weights_directory)
+    rl.local_network.save_weights(save_weights_directory + save_weight)
 
     print("@@@@ Run Ended @@@@")
     print(collision_counter)
