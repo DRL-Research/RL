@@ -6,10 +6,23 @@ import numpy as np
 import os
 
 
+def init_log_directories(log_directory):
+    log_directory = "experiments/" + log_directory
+    save_weights_directory = log_directory + "/weights"
+    log_dir = log_directory + "/rewards/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+    tensorboard = tf.summary.create_file_writer(log_dir)
+    return save_weights_directory, tensorboard
+
+
+
 log_directory = "exp4"
-load_weight = 'exp2/weights/12_sixth_right.h5'
-save_weights_directory = log_directory + "/weights"
+load_weight = 'experiments/exp2/weights/12_sixth_right.h5'
 save_weight = '/1_first_left.h5'
+
+
+# init loss, reward, weight, tensorboard directories.
+save_weights_directory, tensorboard = init_log_directories(log_directory)
+
 
 # Create an airsim client instance (to connect to simulator):
 airsim_client = airsim.CarClient()
@@ -28,12 +41,10 @@ car_controls = airsim.CarControls()
 car_controls.throttle = 1
 airsim_client.setCarControls(car_controls, "Car2")
 
-log_dir = log_directory + "/rewards/" + datetime.now().strftime("%Y%m%d-%H%M%S")
-tensorboard = tf.summary.create_file_writer(log_dir)
 
 # define object of RL
 # Define here the parameters of the experiment:
-max_episodes = 100
+max_episodes = 2
 max_steps = 500
 only_local = True
 two_cars_local = True  # two cars using the local network / only one
@@ -131,4 +142,7 @@ rl.local_network.save_weights(save_weights_directory + save_weight)
 print("@@@@ Run Ended @@@@")
 print(collision_counter)
 
-print("test")
+
+
+
+

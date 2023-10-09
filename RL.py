@@ -1,6 +1,5 @@
 from keras import Input, Model
 from keras.layers import Dense, concatenate
-
 from experience import experience
 from datetime import datetime
 import numpy as np
@@ -38,9 +37,10 @@ class RL:
         else:
             self.alternate_training_network = self.init_network()
         self.alternate_car = alternate_car  # The car which continues to train
-
-        log_dir = log_directory+"/loss/" + datetime.now().strftime("%Y%m%d-%H%M%S")
-        self.tensorboard = tf.summary.create_file_writer(log_dir)
+        # define log directory for loss + init tensor board for loss graph
+        log_dir_for_tensorboard = "experiments/"+log_directory+"/loss/"+datetime.now().strftime("%Y%m%d-%H%M%S")
+        self.tensorboard = tf.summary.create_file_writer(log_dir_for_tensorboard)
+        #
         self.train_global_counter = 0
         self.train_global_loss_sum = 0
 
