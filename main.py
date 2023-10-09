@@ -130,3 +130,5 @@ rl.local_network.save_weights(save_weights_directory + save_weight)
 
 print("@@@@ Run Ended @@@@")
 print(collision_counter)
+
+print("test")
