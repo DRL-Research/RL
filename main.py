@@ -11,7 +11,7 @@ load_weight = 'exp2/weights/12_sixth_right.h5'
 save_weights_directory = log_directory + "/weights"
 save_weight = '/1_first_left.h5'
 
-# Create an airsim client instance:
+# Create an airsim client instance (to connect to simulator):
 airsim_client = airsim.CarClient()
 airsim_client.confirmConnection()
 airsim_client.enableApiControl(True, "Car1")
