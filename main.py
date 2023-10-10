@@ -12,38 +12,27 @@ def init_log_directories(log_directory):
     log_dir = log_directory + "/rewards/" + datetime.now().strftime("%Y%m%d-%H%M%S")
     tensorboard = tf.summary.create_file_writer(log_dir)
     return save_weights_directory, tensorboard
+def init_airsim_client():
+    airsim_client = airsim.CarClient()
+    airsim_client.confirmConnection()
+    airsim_client.enableApiControl(True, "Car1")
+    airsim_client.enableApiControl(True, "Car2")
+    #
+    car_controls = airsim.CarControls()
+    car_controls.throttle = 1
+    airsim_client.setCarControls(car_controls, "Car1")
+    # set car 2:
+    car_controls = airsim.CarControls()
+    car_controls.throttle = 1
+    airsim_client.setCarControls(car_controls, "Car2")
+    return airsim_client
 
 
-
-log_directory = "exp4"
-load_weight = 'experiments/exp2/weights/12_sixth_right.h5'
+# define parameters of the experiment:
+log_directory = "exp3"
+load_weight = 'experiments/exp1/weights/12_sixth_right.h5'
 save_weight = '/1_first_left.h5'
 
-
-# init loss, reward, weight, tensorboard directories.
-save_weights_directory, tensorboard = init_log_directories(log_directory)
-
-
-# Create an airsim client instance (to connect to simulator):
-airsim_client = airsim.CarClient()
-airsim_client.confirmConnection()
-airsim_client.enableApiControl(True, "Car1")
-airsim_client.enableApiControl(True, "Car2")
-
-# initialize params:
-# set car 1:
-print("start testing:")
-car_controls = airsim.CarControls()
-car_controls.throttle = 1
-airsim_client.setCarControls(car_controls, "Car1")
-# set car 2:
-car_controls = airsim.CarControls()
-car_controls.throttle = 1
-airsim_client.setCarControls(car_controls, "Car2")
-
-
-# define object of RL
-# Define here the parameters of the experiment:
 max_episodes = 2
 max_steps = 500
 only_local = True
@@ -57,6 +46,13 @@ rl = RL(learning_rate=0.003,
         log_directory=log_directory,
         alternate_training=alternate_training,
         alternate_car=alternate_car)
+
+
+# init loss, reward, weight, tensorboard directories.
+save_weights_directory, tensorboard = init_log_directories(log_directory)
+
+# init airsim client instance + enable control (currently 2 cars):
+airsim_client = init_airsim_client()
 
 
 """
