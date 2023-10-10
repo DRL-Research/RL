@@ -139,14 +139,14 @@ class RL:
         self.env_state = self.get_state_from_env(airsim_client, "Car1")
         # get new state of car1 after performing the :
         new_state = np.array([[self.env_state["x_c1"],
-                              self.env_state["y_c1"],
-                              self.env_state["v_c1"],
-                              self.env_state["v_c2"],
-                              self.env_state["dist_c1_c2"]
-                              ,self.env_state["right"],
-                              self.env_state["left"],
-                              self.env_state["forward"],
-                              self.env_state["backward"]
+                               self.env_state["y_c1"],
+                               self.env_state["v_c1"],
+                               self.env_state["v_c2"],
+                               self.env_state["dist_c1_c2"]
+                                  ,self.env_state["right"],
+                               self.env_state["left"],
+                               self.env_state["forward"],
+                               self.env_state["backward"]
                                ]])
         reward, reached_target = self.calc_reward(collision)
 
@@ -315,114 +315,114 @@ class RL:
 
         return collision, reached_target, updated_controls_car1, updated_controls_car2, reward
 
-    # def step_with_global(self, airsim_client, steps_counter):
-    #
-    #     self.step_counter += 1
-    #     # get state from environment of car1 and car2
-    #     self.env_state = self.get_state_from_env(airsim_client)
-    #
-    #     # update state of car1 (to be fed as input to the DNN):
-    #     self.c1_state = np.array([[self.env_state["x_c1"],
-    #                                self.env_state["y_c1"],
-    #                                self.env_state["v_c1"],
-    #                                self.env_state["dist_c1_c2"]
-    #                                ]])  # has to be [[]] to enter as input to the DNN
-    #
-    #     self.global_state = np.array([[self.env_state["x_c1"],
-    #                                    self.env_state["y_c1"],
-    #                                    self.env_state["x_c2"],
-    #                                    self.env_state["y_c2"]
-    #                                    ]])  # has to be [[]] to enter as input to the DNN
-    #
-    #     # Detect Collision:
-    #
-    #     collision = False
-    #     collision_info = airsim_client.simGetCollisionInfo()
-    #     if collision_info.has_collided:
-    #         print("Collided!")
-    #         collision = True
-    #         reward, reached_target = self.calc_reward(collision)
-    #         return collision, None, None, reward
-    #
-    #     # sample action:
-    #     action = self.sample_action_global()
-    #     target = self.local_and_global_network.predict([self.global_state, self.c1_state], verbose=self.verbose)
-    #     print(f"Target: {target}")
-    #
-    #     # time.sleep(0.3)  # in seconds.
-    #     # this makes sure that significant amount of time passed between state and new_state, for the DQN formula.
-    #     # it seems that it is sufficient to not use sleep. (& it makes the finish intersection problematic)
-    #
-    #     self.env_state = self.get_state_from_env(airsim_client)
-    #     # get new state of car1 after performing the :
-    #     new_state = np.array([[self.env_state["x_c1"],
-    #                            self.env_state["y_c1"],
-    #                            self.env_state["v_c1"],
-    #                            self.env_state["dist_c1_c2"]
-    #                            ]])
-    #     new_global = np.array([[self.env_state["x_c1"],
-    #                             self.env_state["y_c1"],
-    #                             self.env_state["x_c2"],
-    #                             self.env_state["y_c2"]
-    #                             ]])
-    #
-    #
-    #     reward, reached_target = self.calc_reward(collision)
-    #     # add experience to experience replay:
-    #     self.memorize(self.c1_state, action, reward, collision, new_state)
-    #
-    #     # get experience from experience replay:
-    #     state, action, reward, done, new_state, idx = self.experiences.sample(batch_size=1)
-    #     print(f"idx: {idx}\n")
-    #
-    #     # if not using batch:
-    #     state = state[0]
-    #     action = action[0]
-    #     reward = reward[0]
-    #     done = done[0]
-    #     new_state = new_state[0]
-    #
-    #     # update q values
-    #     q_future = np.max(self.local_and_global_network.predict([new_global, new_state], verbose=self.verbose)[0])
-    #     target[0][action] += self.learning_rate * (reward + (q_future * 0.95) - target[0][action])
-    #
-    #     loss_local = self.local_and_global_network.fit([self.global_state, self.c1_state], target, epochs=1, verbose=0)
-    #     print(f'Loss: {loss_local.history["loss"][-1]}')
-    #
-    #     if not reached_target:
-    #         with self.tensorboard.as_default():
-    #             tf.summary.scalar('loss', loss_local.history["loss"][-1], step=steps_counter)
-    #
-    #     # Set controls based action selected:
-    #     current_controls = airsim_client.getCarControls()
-    #     updated_controls = self.action_to_controls(current_controls, action)
-    #     return collision, reached_target, updated_controls, reward
-    #
-    #     # # with tf.GradientTape() as tape:
-    #     # #     pred = self.global_network(input)
-    #     # #     print("omg:")
-    #     # #     print(pred)
-    #     # #     loss = categorical_crossentropy(np.array([[emb1,emb2]]), pred)
-    #     # #     loss = tf.constant(0.05)
-    #     # #     loss = tf.Variable(tf.constant(0.05))
-    #     # #     print(type(loss))
-    #     # #     print(type(tf.constant(0.05)))
-    #     # # grads = tape.gradient(loss, self.global_network.trainable_variables)
-    #     # # print(grads)
-    #     # # self.opt.apply_gradients(zip(grads, self.global_network.trainable_variables))
-    #     # # print("success!!")
-    #     # # loss_global = self.global_network.fit(input, output_of_global, epochs=1, verbose=0)
-    #     # # print("loss global: " + str(loss_global.history["loss"][-1]))
-    #     # # updates = optimizer.get_updates(model1.trainable_weights, [], grads)
-    #     #
-    #     # # # every 10 steps - update the global network
-    #     # # self.train_global_counter += 1
-    #     # # self.train_global_loss_sum += loss
-    #     # # if self.train_global_counter == 10:
-    #     # #     self.train_global_counter = 0
-    #     # #     self.train_global_loss_sum = 0
-    #     # #     #
-    #     # #     self.global_network.
+    def step_with_global(self, airsim_client, steps_counter):
+
+        self.step_counter += 1
+        # get state from environment of car1 and car2
+        self.env_state = self.get_state_from_env(airsim_client)
+
+        # update state of car1 (to be fed as input to the DNN):
+        self.c1_state = np.array([[self.env_state["x_c1"],
+                                   self.env_state["y_c1"],
+                                   self.env_state["v_c1"],
+                                   self.env_state["dist_c1_c2"]
+                                   ]])  # has to be [[]] to enter as input to the DNN
+
+        self.global_state = np.array([[self.env_state["x_c1"],
+                                       self.env_state["y_c1"],
+                                       self.env_state["x_c2"],
+                                       self.env_state["y_c2"]
+                                       ]])  # has to be [[]] to enter as input to the DNN
+
+        # Detect Collision:
+
+        collision = False
+        collision_info = airsim_client.simGetCollisionInfo()
+        if collision_info.has_collided:
+            print("Collided!")
+            collision = True
+            reward, reached_target = self.calc_reward(collision)
+            return collision, None, None, reward
+
+        # sample action:
+        action = self.sample_action_global()
+        target = self.local_and_global_network.predict([self.global_state, self.c1_state], verbose=self.verbose)
+        print(f"Target: {target}")
+
+        # time.sleep(0.3)  # in seconds.
+        # this makes sure that significant amount of time passed between state and new_state, for the DQN formula.
+        # it seems that it is sufficient to not use sleep. (& it makes the finish intersection problematic)
+
+        self.env_state = self.get_state_from_env(airsim_client)
+        # get new state of car1 after performing the :
+        new_state = np.array([[self.env_state["x_c1"],
+                               self.env_state["y_c1"],
+                               self.env_state["v_c1"],
+                               self.env_state["dist_c1_c2"]
+                               ]])
+        new_global = np.array([[self.env_state["x_c1"],
+                                self.env_state["y_c1"],
+                                self.env_state["x_c2"],
+                                self.env_state["y_c2"]
+                                ]])
+
+
+        reward, reached_target = self.calc_reward(collision)
+        # add experience to experience replay:
+        self.memorize(self.c1_state, action, reward, collision, new_state)
+
+        # get experience from experience replay:
+        state, action, reward, done, new_state, idx = self.experiences.sample(batch_size=1)
+        print(f"idx: {idx}\n")
+
+        # if not using batch:
+        state = state[0]
+        action = action[0]
+        reward = reward[0]
+        done = done[0]
+        new_state = new_state[0]
+
+        # update q values
+        q_future = np.max(self.local_and_global_network.predict([new_global, new_state], verbose=self.verbose)[0])
+        target[0][action] += self.learning_rate * (reward + (q_future * 0.95) - target[0][action])
+
+        loss_local = self.local_and_global_network.fit([self.global_state, self.c1_state], target, epochs=1, verbose=0)
+        print(f'Loss: {loss_local.history["loss"][-1]}')
+
+        if not reached_target:
+            with self.tensorboard.as_default():
+                tf.summary.scalar('loss', loss_local.history["loss"][-1], step=steps_counter)
+
+        # Set controls based action selected:
+        current_controls = airsim_client.getCarControls()
+        updated_controls = self.action_to_controls(current_controls, action)
+        return collision, reached_target, updated_controls, reward
+
+        # # with tf.GradientTape() as tape:
+        # #     pred = self.global_network(input)
+        # #     print("omg:")
+        # #     print(pred)
+        # #     loss = categorical_crossentropy(np.array([[emb1,emb2]]), pred)
+        # #     loss = tf.constant(0.05)
+        # #     loss = tf.Variable(tf.constant(0.05))
+        # #     print(type(loss))
+        # #     print(type(tf.constant(0.05)))
+        # # grads = tape.gradient(loss, self.global_network.trainable_variables)
+        # # print(grads)
+        # # self.opt.apply_gradients(zip(grads, self.global_network.trainable_variables))
+        # # print("success!!")
+        # # loss_global = self.global_network.fit(input, output_of_global, epochs=1, verbose=0)
+        # # print("loss global: " + str(loss_global.history["loss"][-1]))
+        # # updates = optimizer.get_updates(model1.trainable_weights, [], grads)
+        #
+        # # # every 10 steps - update the global network
+        # # self.train_global_counter += 1
+        # # self.train_global_loss_sum += loss
+        # # if self.train_global_counter == 10:
+        # #     self.train_global_counter = 0
+        # #     self.train_global_loss_sum = 0
+        # #     #
+        # #     self.global_network.
 
     def sample_action_by_epsilon_greedy(self):
         if not self.two_cars_local:
@@ -481,7 +481,6 @@ class RL:
             current_controls.throttle = 0.4
         return current_controls  # called current_controls - but it is updated controls
 
-    # TODO: Incorporate a reward mechanism for higher speeds
     def calc_reward(self, collision):
         # constant punish for every step taken, big punish for collision, big reward for reaching the target.
         # reward = 0
