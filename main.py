@@ -35,8 +35,6 @@ save_weight = '/1_first_left.h5'
 
 max_episodes = 10
 max_steps = 500
-# only_local = True
-# two_cars_local = True  # two cars using the local network / only one
 alternate_training = True
 alternate_car = 1
 rl = RL(learning_rate=0.003,
@@ -68,17 +66,6 @@ episode_counter = 0
 steps_counter = 0
 for episode in range(max_episodes):
 
-    # value = np.random.randint(3, size=(1, 1))
-
-    # if not two_cars_local:
-    #     if value == 0:
-    #         car2speed = 0.65
-    #     if value == 1:
-    #         car2speed = 0.73
-    #     if value == 2:
-    #         car2speed = 0.8
-    #         print(car2speed)
-
     episode_counter += 1
     episode_sum_of_rewards = 0
     print(f"@@@@ Episode #{episode} @@@@")
@@ -95,10 +82,6 @@ for episode in range(max_episodes):
 
         steps_counter += 1
         # perform a step in the environment, and get feedback about collision and updated controls:
-        # if not two_cars_local:
-        #     done, reached_target, updated_controls, reward = rl.step_only_local(airsim_client, steps_counter)
-        # else:
-
         done, reached_target, updated_controls_car1, updated_controls_car2, reward = rl.step_only_local_2_cars(
             airsim_client, steps_counter)
 
@@ -116,17 +99,9 @@ for episode in range(max_episodes):
 
             break
 
-        # if two_cars_local:
         airsim_client.setCarControls(updated_controls_car1, "Car1")
         airsim_client.setCarControls(updated_controls_car2, "Car2")
-        # else:
-        #     # update controls of Car 1 based on the RL algorithm:
-        #     airsim_client.setCarControls(updated_controls, "Car1")
-        #     # airsim_client = RL.updateControls(airsim_client, ["Car1"], [updated_controls])
-        #     # update controls of Car 2:
-        #     car_controls = airsim.CarControls()
-        #     car_controls.throttle = car2speed
-        #     airsim_client.setCarControls(car_controls, "Car2")
+
 
 """
 For runs which load prior converged runs' weights, update the save path in order not to override the saved weights.
