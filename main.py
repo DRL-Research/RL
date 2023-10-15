@@ -2,8 +2,8 @@ from datetime import datetime
 import airsim
 import tensorflow as tf
 from RL import RL
-import numpy as np
 import os
+import json
 
 
 def init_log_directories(log_directory):
@@ -26,14 +26,39 @@ def init_airsim_client():
     car_controls.throttle = 1
     airsim_client.setCarControls(car_controls, "Car2")
     return airsim_client
+def load_airsim_settings(car1_location, car2_location):
+    # get settings tamplate from project directory airsim_settings/settings.json
+    directory_path = 'airsim_settings/'
+    file_name = 'settings.json'
+    file_path = os.path.join(directory_path, file_name)
+    with open(file_path, 'r') as json_file:
+        json_data = json.load(json_file)
+        print(json_data)
+
+    # modify the data
+    modified_settings = json_data
+    modified_settings["Vehicles"]["Car1"]['X'] = car1_location[0]
+    modified_settings["Vehicles"]["Car1"]['Y'] = car1_location[1]
+    modified_settings["Vehicles"]["Car2"]['X'] = car2_location[0]
+    modified_settings["Vehicles"]["Car2"]['Y'] = car2_location[1]
+
+    # write the modified json file to documents/airsim folder
+    output_directory = os.path.expanduser('~/Documents/AirSim')
+    output_file_name = 'settings.json'
+    output_file_path = os.path.join(output_directory, output_file_name)
+    with open(output_file_path, 'w') as json_file:
+        json.dump(modified_settings, json_file, indent=4)
 
 
 # define parameters of the experiment:
 log_directory = "exp3"
-load_weight = 'experiments/exp1/weights/12_sixth_right.h5'
+load_weight = 'experiments/exp2/weights/12_sixth_right.h5'
 save_weight = '/1_first_left.h5'
 
-max_episodes = 10
+car1_location = [-20, 0]
+car2_location = [0, -20]
+
+max_episodes = 100
 max_steps = 500
 alternate_training = True
 alternate_car = 1
@@ -46,11 +71,16 @@ rl = RL(learning_rate=0.003,
         alternate_car=alternate_car)
 
 
+# load airsim settings for the experiment
+load_airsim_settings(car1_location, car2_location)
+print("settings ready, press play in unreal simulation.")
+
 # init loss, reward, weight, tensorboard directories.
 save_weights_directory, tensorboard = init_log_directories(log_directory)
 
 # init airsim client instance + enable control (currently 2 cars):
 airsim_client = init_airsim_client()
+
 
 
 """

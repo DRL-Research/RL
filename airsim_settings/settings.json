@@ -14,15 +14,6 @@
                 "TargetGamma": 2.2
             }
         ],
-        "NoiseSettings": [
-            {
-                "Name": "Grain",
-                "Enabled": false,
-                "Mean": 0.0,
-                "StandardDeviation": 0.05
-            }
-        ],
-         "GpuId": 0,
          "ImageType": 1,
          "X": 0.7,
          "Y": 0,
@@ -30,11 +21,6 @@
          "Pitch": 0,
          "Roll": 0,
          "Yaw": 0
-    },
-    "RecordingSettings": {
-        "RecordOnMove": false,
-        "RecordInterval": 0.1,
-        "RecordDirectory": ""
     },
   "Vehicles": {
     "Car1": {
@@ -47,7 +33,7 @@
     "Car2": {
       "VehicleType": "PhysXCar",
       "X": 0,
-      "Y": -16,
+      "Y": -10,
       "Z": 0,
       "Yaw": 90
     }

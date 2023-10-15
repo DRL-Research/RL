@@ -398,31 +398,6 @@ class RL:
         updated_controls = self.action_to_controls(current_controls, action)
         return collision, reached_target, updated_controls, reward
 
-        # # with tf.GradientTape() as tape:
-        # #     pred = self.global_network(input)
-        # #     print("omg:")
-        # #     print(pred)
-        # #     loss = categorical_crossentropy(np.array([[emb1,emb2]]), pred)
-        # #     loss = tf.constant(0.05)
-        # #     loss = tf.Variable(tf.constant(0.05))
-        # #     print(type(loss))
-        # #     print(type(tf.constant(0.05)))
-        # # grads = tape.gradient(loss, self.global_network.trainable_variables)
-        # # print(grads)
-        # # self.opt.apply_gradients(zip(grads, self.global_network.trainable_variables))
-        # # print("success!!")
-        # # loss_global = self.global_network.fit(input, output_of_global, epochs=1, verbose=0)
-        # # print("loss global: " + str(loss_global.history["loss"][-1]))
-        # # updates = optimizer.get_updates(model1.trainable_weights, [], grads)
-        #
-        # # # every 10 steps - update the global network
-        # # self.train_global_counter += 1
-        # # self.train_global_loss_sum += loss
-        # # if self.train_global_counter == 10:
-        # #     self.train_global_counter = 0
-        # #     self.train_global_loss_sum = 0
-        # #     #
-        # #     self.global_network.
 
     def sample_action_by_epsilon_greedy(self):
         if not self.two_cars_local:
