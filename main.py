@@ -51,6 +51,8 @@ def load_airsim_settings(car1_location, car2_location):
 
 
 # define parameters of the experiment:
+global_experiment = True
+
 log_directory = "exp3"
 load_weight = 'experiments/exp2/weights/12_sixth_right.h5'
 save_weight = '/1_first_left.h5'
@@ -60,12 +62,12 @@ car2_location = [0, -20]
 
 max_episodes = 100
 max_steps = 500
+
 alternate_training = True
 alternate_car = 1
 rl = RL(learning_rate=0.003,
         verbose=0,
         with_per=True,
-        two_cars_local=True,
         log_directory=log_directory,
         alternate_training=alternate_training,
         alternate_car=alternate_car)
@@ -88,7 +90,12 @@ Change to the desired .h5 weights file, comment out the next line on first run &
 Do not override a converged run's weights file! Load it but save under another path so you'll be able to
 revert back to it in case the following run did not converge. E.g.: <...weights_1.h5>, <...weights_2.h5>
 """
-rl.local_network.load_weights(load_weight)
+# if global_experiment:
+#     rl.local_and_global_network.load_weights(load_weight)
+# else:
+#     rl.local_network.load_weights(load_weight)
+
+
 
 # Start the experiment:
 collision_counter = 0
@@ -112,8 +119,10 @@ for episode in range(max_episodes):
 
         steps_counter += 1
         # perform a step in the environment, and get feedback about collision and updated controls:
-        done, reached_target, updated_controls_car1, updated_controls_car2, reward = rl.step_only_local_2_cars(
-            airsim_client, steps_counter)
+        if global_experiment:
+            done, reached_target, updated_controls_car1, updated_controls_car2, reward = rl.step_with_global(airsim_client, steps_counter)
+        else:
+            done, reached_target, updated_controls_car1, updated_controls_car2, reward = rl.step_only_local_2_cars(airsim_client, steps_counter)
 
         # log
         episode_sum_of_rewards += reward

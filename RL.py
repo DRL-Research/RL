@@ -9,7 +9,7 @@ from tensorflow import keras
 
 class RL:
 
-    def __init__(self, learning_rate, verbose, with_per, two_cars_local, log_directory, alternate_training, alternate_car):
+    def __init__(self, learning_rate, verbose, with_per, log_directory, alternate_training, alternate_car):
         self.step_counter = 0
         self.verbose = verbose
         self.learning_rate = learning_rate
@@ -20,7 +20,6 @@ class RL:
         self.c1_desire = np.array([10, 0])
         self.global_state = None
         self.local_network = self.init_network()
-        self.two_cars_local = two_cars_local
         self.local_and_global_network = self.init_local_and_global_network()
         # experience replay
         self.experiences_size = 10000
@@ -30,7 +29,7 @@ class RL:
         self.gamma = 0.95
         self.epsilon = 0.9
         self.epsilon_decay = 0.99
-        ###
+        ##
         self.alternate_training = alternate_training
         if not alternate_training:
             self.alternate_training_network = None
@@ -49,15 +48,13 @@ class RL:
         # https://pyimagesearch.com/2019/02/04/keras-multiple-inputs-and-mixed-data/
 
         # define the input of global network:
-        #input_global = Input(shape=(4,))  # (x_car1, y_car1, x_car2, y_car2) = input of global
-        input_global = Input(shape=(9,))  # (x_car, y_car, v_car1, v_car2, up_car2,down_car2,right_car2,left_car2, dist_c1_c2)
+        input_global = Input(shape=(7,))  # (x_car1, y_car1, x_car2, y_car2, v_car1, v_car2, dist_c1_c2)
         # define the global network layers:
         x = Dense(16, activation="relu")(input_global)
         x = Dense(8, activation="relu")(x)
         x = Dense(2, activation="relu")(x)
         x = Model(inputs=input_global, outputs=x)  # (emb1, emb2) = output of global
 
-        #input_local = Input(shape=(4,))  # (x_car, y_car, v_car1, dist_c1_c2) = input of local
         input_local = Input(shape=(9,))  # (x_car, y_car, v_car1, v_car2, up_car2,down_car2,right_car2,left_car2, dist_c1_c2)
         combined = concatenate([x.output, input_local])  # combine embedding of global & input of local
 
@@ -66,7 +63,6 @@ class RL:
         z = Dense(2, activation="linear")(z)
         model = Model(inputs=[x.input, input_local], outputs=z)  # (q_value1, q_value2) = output of whole network
 
-        # model.compile(self.opt, loss="mse")
         model.compile(optimizer=tf.keras.optimizers.legacy.Adam(learning_rate=self.learning_rate), loss="mse")
         return model
 
@@ -98,92 +94,6 @@ class RL:
             td_error = abs(new_val - q_val)[0][next_best_action]
 
         self.experiences.memorize(state, action, reward, done, new_state, td_error)
-
-    def step_only_local(self, airsim_client, steps_counter):
-
-        self.step_counter += 1
-        # get state from environment of car1 and car2
-        self.env_state = self.get_state_from_env(airsim_client, "Car1")
-
-        # update state of car1 (to be fed as input to the DNN):
-        self.c1_state = np.array([[self.env_state["x_c1"],
-                                   self.env_state["y_c1"],
-                                   self.env_state["v_c1"],
-                                   self.env_state["v_c2"],
-                                   self.env_state["dist_c1_c2"],
-                                   self.env_state["right"],
-                                   self.env_state["left"],
-                                   self.env_state["forward"],
-                                   self.env_state["backward"]
-                                   ]])  # has to be [[]] to enter as input to the DNN
-
-        # update state of car2 (not relevant in this version of code): # has to be [[]] to enter as input to the DNN
-        self.c2_state = np.array([[self.env_state["x_c2"], self.env_state["y_c2"], self.env_state["v_c2"]]])
-
-        # Detect Collision:
-        collision = False
-        collision_info = airsim_client.simGetCollisionInfo()
-        if collision_info.has_collided:
-            print("Collided!")
-            collision = True
-            return collision, None, None, -1000
-
-        # sample action: for the first 10 steps make it go fast to avoid convergence by luck on first try
-        action = self.sample_action_by_epsilon_greedy()
-        target = self.local_network.predict(self.c1_state, verbose=self.verbose)
-
-        # time.sleep(0.3)  # in seconds.
-        # this makes sure that significant amount of time passed between state and new_state, for the DQN formula.
-        # it seems that it is sufficient to not use sleep. (& it makes the finish intersection problematic)
-
-        self.env_state = self.get_state_from_env(airsim_client, "Car1")
-        # get new state of car1 after performing the :
-        new_state = np.array([[self.env_state["x_c1"],
-                               self.env_state["y_c1"],
-                               self.env_state["v_c1"],
-                               self.env_state["v_c2"],
-                               self.env_state["dist_c1_c2"]
-                                  ,self.env_state["right"],
-                               self.env_state["left"],
-                               self.env_state["forward"],
-                               self.env_state["backward"]
-                               ]])
-        reward, reached_target = self.calc_reward(collision)
-
-        # add experience to experience replay:
-        self.memorize(self.c1_state, action, reward, collision, new_state)
-
-        # get experience from experience replay & train batch:
-        if (self.step_counter % 50) == 0:
-            print("exp replay")
-            # states, action, reward, done, new_state, idx
-            states, _, _, _, _, _ = self.experiences.sample(batch_size=self.exp_batch_size)
-            predictions = []
-            for state in list(states):
-                predictions.append(self.local_network.predict(state))
-
-            for i in range(0, self.exp_batch_size):
-                self.local_network.fit(states[i], predictions[i])
-
-        # update q values
-        q_future = np.max(self.local_network.predict(new_state, verbose=self.verbose)[0])
-        target[0][action] += self.learning_rate*(reward + (q_future * 0.95) - target[0][action])
-
-        loss_local = self.local_network.fit(self.c1_state, target, epochs=1, verbose=0)
-        print(f'Loss = {loss_local.history["loss"][-1]}')
-
-        if not reached_target:
-            with self.tensorboard.as_default():
-                tf.summary.scalar('loss', loss_local.history["loss"][-1], step=steps_counter)
-
-        if (self.step_counter % 5) == 0:
-            self.epsilon *= self.epsilon_decay
-            print(f"Epsilon = {self.epsilon}")
-
-        # Set controls based action selected:
-        current_controls = airsim_client.getCarControls()
-        updated_controls = self.action_to_controls(current_controls, action)
-        return collision, reached_target, updated_controls, reward
 
     def step_only_local_2_cars(self, airsim_client, steps_counter):
 
@@ -246,21 +156,6 @@ class RL:
                                            ]])  # has to be [[]] to enter as input to the DNN
 
                 reward, reached_target = self.calc_reward(collision)
-                #
-                # # add experience to experience replay:
-                # self.memorize(self.c1_state, action_car1, reward, collision, self.c1_state)
-                #
-                # # get experience from experience replay & train batch:
-                # if (self.step_counter % 50) == 0:
-                #     print("exp replay")
-                #     # states, action, reward, done, new_state, idx
-                #     states, _, _, _, _, _ = self.experiences.sample(batch_size=self.exp_batch_size)
-                #     predictions = []
-                #     for state in list(states):
-                #         predictions.append(self.local_network.predict(state))
-                #
-                #     for i in range(0, self.exp_batch_size):
-                #         self.local_network.fit(states[i], predictions[i])
 
                 # update q values - train the local network so it will continue to train.
                 q_future = np.max(self.local_network.predict(self.c1_state, verbose=self.verbose)[0])
@@ -300,8 +195,6 @@ class RL:
                     with self.tensorboard.as_default():
                         tf.summary.scalar('loss', loss_local.history["loss"][-1], step=steps_counter)
 
-
-
         if (self.step_counter % 5) == 0:
             self.epsilon *= self.epsilon_decay
             print(f"Epsilon = {self.epsilon}")
@@ -317,25 +210,50 @@ class RL:
 
     def step_with_global(self, airsim_client, steps_counter):
 
+        # increase the step counter for tensorboard logging
         self.step_counter += 1
-        # get state from environment of car1 and car2
-        self.env_state = self.get_state_from_env(airsim_client)
+
+        # get state of car1
+        self.env_state = self.get_state_from_env(airsim_client, "Car1")
 
         # update state of car1 (to be fed as input to the DNN):
         self.c1_state = np.array([[self.env_state["x_c1"],
                                    self.env_state["y_c1"],
                                    self.env_state["v_c1"],
-                                   self.env_state["dist_c1_c2"]
+                                   self.env_state["v_c2"],
+                                   self.env_state["dist_c1_c2"],
+                                   self.env_state["right"],
+                                   self.env_state["left"],
+                                   self.env_state["forward"],
+                                   self.env_state["backward"]
                                    ]])  # has to be [[]] to enter as input to the DNN
 
+        # get state of car2
+        self.env_state = self.get_state_from_env(airsim_client, "Car2")
+
+        # update state of car2 (to be fed as input to the DNN):
+        self.c2_state = np.array([[self.env_state["x_c2"],
+                                   self.env_state["y_c2"],
+                                   self.env_state["v_c2"],
+                                   self.env_state["v_c1"],
+                                   self.env_state["dist_c1_c2"],
+                                   self.env_state["right"],
+                                   self.env_state["left"],
+                                   self.env_state["forward"],
+                                   self.env_state["backward"]
+                                   ]])  # has to be [[]] to enter as input to the DNN
+
+        # update the global state:
         self.global_state = np.array([[self.env_state["x_c1"],
                                        self.env_state["y_c1"],
                                        self.env_state["x_c2"],
-                                       self.env_state["y_c2"]
+                                       self.env_state["y_c2"],
+                                       self.env_state["v_c1"],
+                                       self.env_state["v_c2"],
+                                       self.env_state["dist_c1_c2"],
                                        ]])  # has to be [[]] to enter as input to the DNN
 
         # Detect Collision:
-
         collision = False
         collision_info = airsim_client.simGetCollisionInfo()
         if collision_info.has_collided:
@@ -344,16 +262,14 @@ class RL:
             reward, reached_target = self.calc_reward(collision)
             return collision, None, None, reward
 
-        # sample action:
-        action = self.sample_action_global()
+        # sample action for car1 and car2:
+        action_car1, action_car2 = self.sample_action_global()
+
+        # TODO: how to update the network - based on car1 state or both cars?
         target = self.local_and_global_network.predict([self.global_state, self.c1_state], verbose=self.verbose)
         print(f"Target: {target}")
 
-        # time.sleep(0.3)  # in seconds.
-        # this makes sure that significant amount of time passed between state and new_state, for the DQN formula.
-        # it seems that it is sufficient to not use sleep. (& it makes the finish intersection problematic)
-
-        self.env_state = self.get_state_from_env(airsim_client)
+        self.env_state = self.get_state_from_env(airsim_client, "Car1")
         # get new state of car1 after performing the :
         new_state = np.array([[self.env_state["x_c1"],
                                self.env_state["y_c1"],
@@ -366,14 +282,14 @@ class RL:
                                 self.env_state["y_c2"]
                                 ]])
 
-
         reward, reached_target = self.calc_reward(collision)
-        # add experience to experience replay:
-        self.memorize(self.c1_state, action, reward, collision, new_state)
 
-        # get experience from experience replay:
-        state, action, reward, done, new_state, idx = self.experiences.sample(batch_size=1)
-        print(f"idx: {idx}\n")
+        # # add experience to experience replay:
+        # self.memorize(self.c1_state, action, reward, collision, new_state)
+        #
+        # # get experience from experience replay:
+        # state, action, reward, done, new_state, idx = self.experiences.sample(batch_size=1)
+        # print(f"idx: {idx}\n")
 
         # if not using batch:
         state = state[0]
@@ -386,67 +302,54 @@ class RL:
         q_future = np.max(self.local_and_global_network.predict([new_global, new_state], verbose=self.verbose)[0])
         target[0][action] += self.learning_rate * (reward + (q_future * 0.95) - target[0][action])
 
-        loss_local = self.local_and_global_network.fit([self.global_state, self.c1_state], target, epochs=1, verbose=0)
-        print(f'Loss: {loss_local.history["loss"][-1]}')
+        loss_global = self.local_and_global_network.fit([self.global_state, self.c1_state], target, epochs=1, verbose=0)
+        print(f'Loss: {loss_global.history["loss"][-1]}')
 
         if not reached_target:
             with self.tensorboard.as_default():
-                tf.summary.scalar('loss', loss_local.history["loss"][-1], step=steps_counter)
+                tf.summary.scalar('loss', loss_global.history["loss"][-1], step=steps_counter)
 
         # Set controls based action selected:
         current_controls = airsim_client.getCarControls()
         updated_controls = self.action_to_controls(current_controls, action)
         return collision, reached_target, updated_controls, reward
 
-
     def sample_action_by_epsilon_greedy(self):
-        if not self.two_cars_local:
-            if np.random.binomial(1, p=self.epsilon):
-                # pick random action
-                rand_action = np.random.randint(2, size=(1,1))[0][0]
-                print(f"Random Action: {rand_action}")
-                return rand_action
-            else:
-                # pick the action based on the highest q value
-                action_selected = self.local_network.predict(self.c1_state, verbose=self.verbose).argmax()
-                print(f"Selected Action: {action_selected}")
-                return action_selected
-        else:
-            if np.random.binomial(1, p=self.epsilon):
-                # pick random action
-                rand_action = np.random.randint(2, size=(1,1))[0][0]
-                print(f"Random Action: {rand_action}")
-                return rand_action, rand_action
-            else:
-                if not self.alternate_training:
-                    # pick the action based on the highest q value
-                    action_selected_car1 = self.local_network.predict(self.c1_state, verbose=self.verbose).argmax()
-                    action_selected_car2 = self.local_network.predict(self.c2_state, verbose=self.verbose).argmax()
-                    # print(f"Selected Action: {action_selected}")
-                    return action_selected_car1, action_selected_car2
-                else:
-                    if self.alternate_car == 1:
-                        action_selected_car1 = self.local_network.predict(self.c1_state, verbose=self.verbose).argmax()
-                        action_selected_car2 = self.alternate_training_network.predict(self.c2_state, verbose=self.verbose).argmax()
-                        # print(f"Selected Action: {action_selected}")
-                        return action_selected_car1, action_selected_car2
-                    if self.alternate_car == 2:
-                        action_selected_car1 = self.alternate_training_network.predict(self.c1_state, verbose=self.verbose).argmax()
-                        action_selected_car2 = self.local_network.predict(self.c2_state, verbose=self.verbose).argmax()
-                        # print(f"Selected Action: {action_selected}")
-                        return action_selected_car1, action_selected_car2
-
-    def sample_action_global(self):
         if np.random.binomial(1, p=self.epsilon):
             # pick random action
             rand_action = np.random.randint(2, size=(1,1))[0][0]
             print(f"Random Action: {rand_action}")
-            return rand_action
+            return rand_action, rand_action
+        else:
+            if not self.alternate_training:
+                # pick the action based on the highest q value
+                action_selected_car1 = self.local_network.predict(self.c1_state, verbose=self.verbose).argmax()
+                action_selected_car2 = self.local_network.predict(self.c2_state, verbose=self.verbose).argmax()
+                # print(f"Selected Action: {action_selected}")
+                return action_selected_car1, action_selected_car2
+            else:
+                if self.alternate_car == 1:
+                    action_selected_car1 = self.local_network.predict(self.c1_state, verbose=self.verbose).argmax()
+                    action_selected_car2 = self.alternate_training_network.predict(self.c2_state, verbose=self.verbose).argmax()
+                    # print(f"Selected Action: {action_selected}")
+                    return action_selected_car1, action_selected_car2
+                if self.alternate_car == 2:
+                    action_selected_car1 = self.alternate_training_network.predict(self.c1_state, verbose=self.verbose).argmax()
+                    action_selected_car2 = self.local_network.predict(self.c2_state, verbose=self.verbose).argmax()
+                    # print(f"Selected Action: {action_selected}")
+                    return action_selected_car1, action_selected_car2
+
+    def sample_action_global(self):
+        if np.random.binomial(1, p=self.epsilon):
+            # pick random actions for both vechiles
+            rand_action = np.random.randint(2, size=(1, 1))[0][0]
+            print(f"Random Action: {rand_action}")
+            return rand_action, rand_action
         else:
             # pick the action based on the highest q value
-            action_selected = self.local_and_global_network.predict([self.global_state,self.c1_state], verbose=self.verbose).argmax()
-            print(f"Selected Action: {action_selected}")
-            return action_selected
+            action_selected_car1 = self.local_and_global_network.predict([self.global_state, self.c1_state], verbose=self.verbose).argmax()
+            action_selected_car2 = self.local_and_global_network.predict([self.global_state, self.c2_state], verbose=self.verbose).argmax()
+            return action_selected_car1, action_selected_car2
 
     def action_to_controls(self, current_controls, action):
         # translate index of action to controls in car:
