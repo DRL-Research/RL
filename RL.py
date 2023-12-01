@@ -42,6 +42,7 @@ class RL:
         #
         self.train_global_counter = 0
         self.train_global_loss_sum = 0
+        #
 
     def init_local_and_global_network(self):
         # source of building the network:
