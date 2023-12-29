@@ -12,13 +12,11 @@ class ExperimentParamsAccordingToConfig:
     def __init__(self):
 
         config = ConfigObj('config/config.ini')
+        self.experiment_id = config['ExperimentSettings']['experiment_id']
+        self.weights_to_save_id = config['ExperimentSettings']['weights_to_save_id']
 
-        self.log_directory = config['ExperimentSettings']['experiment_log_directory']
         self.load_weight_directory = config['ExperimentSettings']['load_weight_directory']
-        # TODO: save_weight_current_directory is not an indactive name...
-        self.save_weight_current_directory = config['ExperimentSettings']['save_weight_current_directory']
-        # TODO: maybe there is a cleaner way to do init_logging function (maybe without a function..)
-        self.save_weights_directory, self.tensorboard = init_logging(self.log_directory)
+        self.tensorboard = init_tensorboard(self.experiment_id)
 
         self.car1_location = [int(item) for item in config['ExperimentSettings'].as_list('car1_location')]
         self.car2_location = [int(item) for item in config['ExperimentSettings'].as_list('car2_location')]
@@ -33,7 +31,7 @@ class ExperimentParamsAccordingToConfig:
         self.rl = RL(learning_rate=0.003,
                      verbose=0,
                      with_per=True,
-                     log_directory=self.log_directory,
+                     experiment_id=self.experiment_id,
                      alternate_training=self.alternate_training,
                      alternate_car=self.alternate_car)
 
@@ -45,13 +43,13 @@ class ExperimentParamsAccordingToConfig:
         self.airsim_client = init_airsim_client()
 
 
+def init_tensorboard(experiment_id):
+    experiment_id = "experiments/" + experiment_id
+    experiment_id = experiment_id + "/rewards/" + datetime.now().strftime("%Y%m%d-%H%M%S")
 
-def init_logging(log_directory):
-    log_directory = "experiments/" + log_directory
-    save_weights_directory = log_directory + "/weights"
-    log_dir = log_directory + "/rewards/" + datetime.now().strftime("%Y%m%d-%H%M%S")
-    tensorboard = tf.summary.create_file_writer(log_dir)
-    return save_weights_directory, tensorboard
+    tensorboard = tf.summary.create_file_writer(experiment_id)
+    return tensorboard
+
 
 def init_airsim_client():
     airsim_client = airsim.CarClient()
