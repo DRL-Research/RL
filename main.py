@@ -1,7 +1,7 @@
 import tensorflow as tf
 import os
 from config.ExperimentParamsAccordingToConfig import ExperimentParamsAccordingToConfig
-
+from utils.NN_utils import *
 
 def main():
 
@@ -29,10 +29,10 @@ def main():
         if episode_counter % 20 == 0:
             if experiment_params.alternate_car == 1:
                 rl.alternate_car = 2
-                rl.alternate_training_network = rl.copy_network(rl.local_network)
+                rl.alternate_training_network = copy_network(rl.local_network)
             else:
                 rl.alternate_car = 1
-                rl.alternate_training_network = rl.copy_network(rl.local_network)
+                rl.alternate_training_network = copy_network(rl.local_network)
 
         for step in range(experiment_params.max_steps):
 

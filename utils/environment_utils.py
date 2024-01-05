@@ -40,3 +40,33 @@ def get_env_state(airsim_client, car_name):
     env_state["backward"] = backward
 
     return env_state
+
+
+def process_car_state_and_control(airsim_client, car_name):
+    '''
+    Process the state and control for a specific car.
+
+    Args:
+        airsim_client: The AirSim client object.
+        car_name: The name of the car (e.g., "Car1").
+
+    Returns:
+        A dictionary containing the state and control information for the car.
+    '''
+    # Fetch the environment state for the specified car
+    env_state = get_env_state(airsim_client, car_name)
+
+    # Extract relevant state information for the DNN input
+    car_state = np.array([[
+        env_state["x_c1"] if car_name == "Car1" else env_state["x_c2"],
+        env_state["y_c1"] if car_name == "Car1" else env_state["y_c2"],
+        env_state["v_c1"] if car_name == "Car1" else env_state["v_c2"],
+        env_state["v_c2"] if car_name == "Car1" else env_state["v_c1"],
+        env_state["dist_c1_c2"],
+        env_state["right"],
+        env_state["left"],
+        env_state["forward"],
+        env_state["backward"]
+    ]])  # Note: Array shaped as [[]] for DNN input
+
+    return {'state': car_state}

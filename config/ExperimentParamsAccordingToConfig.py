@@ -4,19 +4,20 @@ from datetime import datetime
 import airsim
 import os
 import json
-from RL import RL
+from RL.RLAgent import RLAgent
 
 
 class ExperimentParamsAccordingToConfig:
 
     def __init__(self):
-
         config = ConfigObj('config/config.ini')
+        self.current_date_time = datetime.now().strftime("%Y%m%d-%H%M%S")
+
         self.experiment_id = config['ExperimentSettings']['experiment_id']
         self.weights_to_save_id = config['ExperimentSettings']['weights_to_save_id']
 
         self.load_weight_directory = config['ExperimentSettings']['load_weight_directory']
-        self.tensorboard = init_tensorboard(self.experiment_id)
+        self.tensorboard = init_tensorboard(self.experiment_id, self.current_date_time)
 
         self.car1_location = [int(item) for item in config['ExperimentSettings'].as_list('car1_location')]
         self.car2_location = [int(item) for item in config['ExperimentSettings'].as_list('car2_location')]
@@ -28,12 +29,12 @@ class ExperimentParamsAccordingToConfig:
         self.alternate_training = config['ExperimentSettings'].as_bool('alternate_training')
         self.alternate_car = config['ExperimentSettings'].as_int('alternate_car')
 
-        self.rl = RL(learning_rate=0.003,
-                     verbose=0,
-                     with_per=True,
-                     experiment_id=self.experiment_id,
-                     alternate_training=self.alternate_training,
-                     alternate_car=self.alternate_car)
+        self.rl = RLAgent(learning_rate=0.003,
+                          verbose=0,
+                          experiment_id=self.experiment_id,
+                          alternate_training=self.alternate_training,
+                          alternate_car=self.alternate_car,
+                          current_date_time=self.current_date_time)
 
         # load airsim settings for the experiment
         load_airsim_settings(self.car1_location, self.car2_location)
@@ -43,10 +44,9 @@ class ExperimentParamsAccordingToConfig:
         self.airsim_client = init_airsim_client()
 
 
-def init_tensorboard(experiment_id):
+def init_tensorboard(experiment_id, currentDateTime):
     experiment_id = "experiments/" + experiment_id
-    experiment_id = experiment_id + "/rewards/" + datetime.now().strftime("%Y%m%d-%H%M%S")
-
+    experiment_id = experiment_id + "/rewards/" + currentDateTime
     tensorboard = tf.summary.create_file_writer(experiment_id)
     return tensorboard
 
@@ -56,7 +56,7 @@ def init_airsim_client():
     airsim_client.confirmConnection()
     airsim_client.enableApiControl(True, "Car1")
     airsim_client.enableApiControl(True, "Car2")
-    #
+    # set car 1:
     car_controls = airsim.CarControls()
     car_controls.throttle = 1
     airsim_client.setCarControls(car_controls, "Car1")
