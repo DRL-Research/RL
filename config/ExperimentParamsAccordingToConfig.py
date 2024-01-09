@@ -1,21 +1,24 @@
-import tensorflow as tf
 from configobj import ConfigObj
 from datetime import datetime
-import airsim
-import os
-import json
-from RL.RLAgent import RLAgent
+from RL.utils.rl_agent_utils import RLAgent
+from RL.utils.airsim_utils import *
+from RL.utils.tensorboard_utils import *
 
 
 class ExperimentParamsAccordingToConfig:
 
     def __init__(self):
+        """
+           This function reads configuration settings from 'config/config.ini'
+           and sets up various parameters for your experiment.
+        """
+        # Load configuration from 'config/config.ini'
         config = ConfigObj('config/config.ini')
-        self.current_date_time = datetime.now().strftime("%Y%m%d-%H%M%S")
 
+        # Initialize attributes
+        self.current_date_time = datetime.now().strftime("%d_%m_%Y-%H_%M_%S")
         self.experiment_id = config['ExperimentSettings']['experiment_id']
         self.weights_to_save_id = config['ExperimentSettings']['weights_to_save_id']
-
         self.load_weight_directory = config['ExperimentSettings']['load_weight_directory']
         self.tensorboard = init_tensorboard(self.experiment_id, self.current_date_time)
 
@@ -29,63 +32,18 @@ class ExperimentParamsAccordingToConfig:
         self.alternate_training = config['ExperimentSettings'].as_bool('alternate_training')
         self.alternate_car = config['ExperimentSettings'].as_int('alternate_car')
 
-        self.rl = RLAgent(learning_rate=0.003,
-                          verbose=0,
-                          experiment_id=self.experiment_id,
-                          alternate_training=self.alternate_training,
-                          alternate_car=self.alternate_car,
-                          current_date_time=self.current_date_time)
+        # Initialize RLAgent
+        self.RL_Agent = RLAgent(learning_rate=0.003,
+                                verbose=0,
+                                experiment_id=self.experiment_id,
+                                alternate_training=self.alternate_training,
+                                alternate_car=self.alternate_car,
+                                current_date_time=self.current_date_time,
+                                tensorboard=self.tensorboard)
 
-        # load airsim settings for the experiment
-        load_airsim_settings(self.car1_location, self.car2_location)
-        print("settings ready, press play in unreal simulation.")
+        # Load airsim settings for the experiment
+        update_airsim_settings_file(self.car1_location, self.car2_location)
+        print("Settings are ready. Please press play in the Unreal simulation.")
 
-        # init airsim client instance + enable control (currently 2 cars):
+        # Initialize airsim client instance + enable control (currently 2 cars)
         self.airsim_client = init_airsim_client()
-
-
-def init_tensorboard(experiment_id, currentDateTime):
-    experiment_id = "experiments/" + experiment_id
-    experiment_id = experiment_id + "/rewards/" + currentDateTime
-    tensorboard = tf.summary.create_file_writer(experiment_id)
-    return tensorboard
-
-
-def init_airsim_client():
-    airsim_client = airsim.CarClient()
-    airsim_client.confirmConnection()
-    airsim_client.enableApiControl(True, "Car1")
-    airsim_client.enableApiControl(True, "Car2")
-    # set car 1:
-    car_controls = airsim.CarControls()
-    car_controls.throttle = 1
-    airsim_client.setCarControls(car_controls, "Car1")
-    # set car 2:
-    car_controls = airsim.CarControls()
-    car_controls.throttle = 1
-    airsim_client.setCarControls(car_controls, "Car2")
-    return airsim_client
-
-
-def load_airsim_settings(car1_location, car2_location):
-    # get settings tamplate from project directory airsim_settings/settings.json
-    directory_path = 'airsim_settings/'
-    file_name = 'settings.json'
-    file_path = os.path.join(directory_path, file_name)
-    with open(file_path, 'r') as json_file:
-        json_data = json.load(json_file)
-        print(json_data)
-
-    # modify the data
-    modified_settings = json_data
-    modified_settings["Vehicles"]["Car1"]['X'] = car1_location[0]
-    modified_settings["Vehicles"]["Car1"]['Y'] = car1_location[1]
-    modified_settings["Vehicles"]["Car2"]['X'] = car2_location[0]
-    modified_settings["Vehicles"]["Car2"]['Y'] = car2_location[1]
-
-    # write the modified json file to documents/airsim folder
-    output_directory = os.path.expanduser('~/Documents/AirSim')
-    output_file_name = 'settings.json'
-    output_file_path = os.path.join(output_directory, output_file_name)
-    with open(output_file_path, 'w') as json_file:
-        json.dump(modified_settings, json_file, indent=4)

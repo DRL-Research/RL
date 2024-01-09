@@ -1,20 +1,20 @@
 import tensorflow as tf
-import os
 from config.ExperimentParamsAccordingToConfig import ExperimentParamsAccordingToConfig
 from utils.NN_utils import *
+
 
 def main():
 
     experiment_params = ExperimentParamsAccordingToConfig()
-    rl = experiment_params.rl
+    RL_Agent = experiment_params.RL_Agent
     airsim_client = experiment_params.airsim_client
 
     # if global_experiment:
-    #     rl.local_and_global_network.load_weights(load_weight)
+    #     RL_Agent.local_and_global_network.load_weights(load_weight)
     # else:
 
     # comment the next line if this is the first run of a new experiment
-    # rl.local_network.load_weights(experiment_params.load_weight_directory)
+    # RL_Agent.local_network.load_weights(experiment_params.load_weight_directory)
 
     # Start the experiment:
     collision_counter = 0
@@ -28,30 +28,30 @@ def main():
 
         if episode_counter % 20 == 0:
             if experiment_params.alternate_car == 1:
-                rl.alternate_car = 2
-                rl.alternate_training_network = copy_network(rl.local_network)
+                RL_Agent.alternate_car = 2
+                RL_Agent.alternate_training_network = copy_network(RL_Agent.local_network)
             else:
-                rl.alternate_car = 1
-                rl.alternate_training_network = copy_network(rl.local_network)
+                RL_Agent.alternate_car = 1
+                RL_Agent.alternate_training_network = copy_network(RL_Agent.local_network)
 
         for step in range(experiment_params.max_steps):
 
             steps_counter += 1
             if experiment_params.global_experiment:
-                done, reached_target, updated_controls_car1, updated_controls_car2, reward = rl.step_with_global(airsim_client, steps_counter)
+                collision_happened, reached_target, updated_controls_car1, updated_controls_car2, reward = RL_Agent.step_with_global(airsim_client, steps_counter)
             else:
-                done, reached_target, updated_controls_car1, updated_controls_car2, reward = rl.step_local_2_cars(airsim_client, steps_counter)
+                collision_happened, reached_target, updated_controls_car1, updated_controls_car2, reward = RL_Agent.step_local_2_cars(airsim_client, steps_counter)
 
             # log
             episode_sum_of_rewards += reward
 
-            if done or reached_target:
-                # reset the environment in case of a collision:
+            if collision_happened or reached_target:
+                # reset the cars to starting position
                 airsim_client.reset()
                 # log
                 with experiment_params.tensorboard.as_default():
                     tf.summary.scalar('episode_sum_of_rewards', episode_sum_of_rewards, step=episode_counter)
-                if done:
+                if collision_happened:
                     collision_counter += 1
 
                 break
@@ -60,11 +60,10 @@ def main():
             airsim_client.setCarControls(updated_controls_car2, "Car2")
 
     # save network weights
-    if not os.path.exists("experiments/" + experiment_params.experiment_id + "/weights"):
-        os.makedirs("experiments/" + experiment_params.experiment_id + "/weights")
-    rl.local_network.save_weights("experiments/" + experiment_params.experiment_id + "/weights" + experiment_params.weights_to_save_id)
+    save_network_weights(experiment_params, RL_Agent)
 
-    print("---- Run Ended ----")
+    # Experiment Ended
+    print("---- Experiment Ended ----")
     print("The amount of collisions:")
     print(collision_counter)
 

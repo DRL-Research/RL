@@ -1,11 +1,12 @@
 import tensorflow as tf
-from utils.environment_utils import *
-from utils.NN_utils import *
+from RL.utils.environment_utils import *
+from RL.utils.NN_utils import *
+from RL.utils.airsim_utils import *
 
 
 class RLAgent:
 
-    def __init__(self, learning_rate, verbose, experiment_id, alternate_training, alternate_car, current_date_time):
+    def __init__(self, learning_rate, verbose, experiment_id, alternate_training, alternate_car, current_date_time, tensorboard):
         self.step_counter = 0
         self.verbose = verbose
         self.learning_rate = learning_rate
@@ -25,29 +26,9 @@ class RLAgent:
         else:
             self.alternate_training_network = init_local_network(self.learning_rate)
         self.alternate_car = alternate_car  # The car which continues to train
-        # define log directory for loss + init tensor board for loss graph
-        log_dir_for_tensorboard = "experiments/" + experiment_id + "/loss/" + current_date_time
-        self.tensorboard = tf.summary.create_file_writer(log_dir_for_tensorboard)
-
-    def detect_and_handle_collision(self, airsim_client):
-        '''
-        Detects collision and handles the consequences.
-
-        Args:
-            airsim_client: The AirSim client object.
-
-        Returns:
-            A tuple indicating if there was a collision and the corresponding reward.
-        '''
-        collision_info = airsim_client.simGetCollisionInfo()
-        if collision_info.has_collided:
-            # Handling the collision
-            # Here, I'm just returning a fixed negative reward. You might want to include more complex logic.
-            collision_reward = -1000
-            return True, collision_reward
-        else:
-            # No collision occurred
-            return False, 0
+        # log_dir_for_tensorboard = "experiments/" + experiment_id + "/loss/" + current_date_time
+        # self.tensorboard = tf.summary.create_file_writer(log_dir_for_tensorboard)
+        self.tensorboard = tensorboard
 
     def update_targets_and_train(self, airsim_client, action_car1, action_car2, steps_counter, collision):
 
@@ -110,7 +91,7 @@ class RLAgent:
         return reward, reached_target
 
     def step_local_2_cars(self, airsim_client, steps_counter):
-        '''
+        """
         Perform a step for two cars in the local environment.
 
         Args:
@@ -119,7 +100,7 @@ class RLAgent:
 
         Returns:
             A tuple containing collision status, whether the target is reached, updated controls for both cars, and the reward.
-        '''
+        """
 
         self.step_counter += 1
 
@@ -129,12 +110,12 @@ class RLAgent:
         self.c1_state, self.c2_state = car1_info['state'], car2_info['state']
 
         # Detect Collision and handle consequences
-        collision, collision_reward = self.detect_and_handle_collision(airsim_client)
+        collision, collision_reward = detect_and_handle_collision(airsim_client)
         if collision:
             return collision, None, None, None, collision_reward
 
         # Sample actions and update targets based on alternate training flag
-        action_car1, action_car2 = self.sample_action_by_epsilon_greedy()
+        action_car1, action_car2 = self.sample_action()
         reward, reached_target = self.update_targets_and_train(airsim_client, action_car1, action_car2, steps_counter, collision)
 
         # Epsilon decay for exploration-exploitation balance
@@ -148,12 +129,9 @@ class RLAgent:
         current_controls_car2 = airsim_client.getCarControls("Car2")
         updated_controls_car2 = self.action_to_controls(current_controls_car2, action_car2)
 
-        # updated_controls_car1 = self.get_updated_controls(airsim_client, "Car1", action_car1)
-        # updated_controls_car2 = self.get_updated_controls(airsim_client, "Car2", action_car2)
-
         return collision, reached_target, updated_controls_car1, updated_controls_car2, reward
 
-    def sample_action_by_epsilon_greedy(self):
+    def sample_action(self):
         if np.random.binomial(1, p=self.epsilon):
             rand_action = np.random.randint(2, size=(1, 1))[0][0]
             return rand_action, rand_action
