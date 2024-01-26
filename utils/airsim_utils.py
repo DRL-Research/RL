@@ -1,7 +1,6 @@
 import airsim
-import json
 import os
-
+import json
 
 def init_airsim_client():
     """
@@ -16,6 +15,7 @@ def init_airsim_client():
     """
     airsim_client = airsim.CarClient()  # Create an AirSim client for car simulation
     airsim_client.confirmConnection()  # Confirm the connection to the AirSim simulator
+
     airsim_client.enableApiControl(True, "Car1")  # Enable API control for Car1
     airsim_client.enableApiControl(True, "Car2")  # Enable API control for Car2
 
@@ -32,42 +32,36 @@ def init_airsim_client():
     return airsim_client
 
 
-def update_airsim_settings_file(car1_location, car2_location):
-    """
-    Update AirSim settings for Car1 and Car2 with new locations and save the modified settings.
+def move_cars_to_initial_positions(airsim_client, car1_start_location, car2_start_location,
+                                   car1_start_yaw, car2_start_yaw):
 
-    Args:
-        car1_location (list[int]): New coordinates [X, Y] for Car1.
-        car2_location (list[int]): New coordinates [X, Y] for Car2.
+    # get initial positions according to settings
+    # (arbitrary in settings file as long as they are not spawned on top of each other)
+    car1_position_from_settings = [airsim_client.simGetObjectPose("Car1").position.x_val,
+                                   airsim_client.simGetObjectPose("Car1").position.y_val]
+    car2_position_from_settings = [airsim_client.simGetObjectPose("Car2").position.x_val,
+                                   airsim_client.simGetObjectPose("Car2").position.y_val]
 
-    Returns:
-        None
+    car1_start_location[0] -= car1_position_from_settings[0]
+    car1_start_location[1] -= car1_position_from_settings[1]
+    car2_start_location[0] -= car2_position_from_settings[0]
+    car2_start_location[1] -= car2_position_from_settings[1]
 
-    This function reads the AirSim settings from the 'airsim_settings/settings.json' file,
-    updates the positions of Car1 and Car2 with the provided coordinates, and saves the
-    modified settings to '~/Documents/AirSim/settings.json'.
-    """
-    # Define file paths
-    settings_directory = 'airsim_settings'
-    input_file_name = 'settings.json'
-    output_directory = os.path.expanduser('~/Documents/AirSim')
-    output_file_name = 'settings.json'
+    # Set the reference_position for Car1 and Car2 (Do not change this code)
+    reference_position = airsim.Pose(airsim.Vector3r(0.0, 0, -1), airsim.Quaternionr(0, 0.0, 0.0, 1.0))
+    airsim_client.simSetVehiclePose(reference_position, True, "Car1")
+    airsim_client.simSetVehiclePose(reference_position, True, "Car2")
 
-    # Read the original settings
-    with open(os.path.join(settings_directory, input_file_name), 'r') as json_file:
-        original_settings = json.load(json_file)
+    # Set initial position of Car1
+    initial_position_car1 = airsim.Vector3r(car1_start_location[0], car1_start_location[1], -1)
+    initial_pose_car1 = airsim.Pose(initial_position_car1, airsim.Quaternionr(0, 0.0, 0.0, 1.0))
+    airsim_client.simSetVehiclePose(initial_pose_car1, True, "Car1")
 
-    # Modify the data
-    original_settings["Vehicles"]["Car1"]['X'] = car1_location[0]
-    original_settings["Vehicles"]["Car1"]['Y'] = car1_location[1]
-    original_settings["Vehicles"]["Car2"]['X'] = car2_location[0]
-    original_settings["Vehicles"]["Car2"]['Y'] = car2_location[1]
+    # Update the position of Car2
+    initial_position_car2 = airsim.Vector3r(car2_start_location[0], car2_start_location[1], -1)
+    initial_pose_car2 = airsim.Pose(initial_position_car2, airsim.Quaternionr(0, 0.0, 0.0, 1.0))
+    airsim_client.simSetVehiclePose(initial_pose_car2, True, "Car2")
 
-    # Write the modified settings to the output file
-    with open(os.path.join(output_directory, output_file_name), 'w') as json_file:
-        json.dump(original_settings, json_file, indent=4)
-
-    print(f"AirSim settings updated and saved to '{output_file_name}' in '{output_directory}'.")
 
 
 def detect_and_handle_collision(airsim_client):

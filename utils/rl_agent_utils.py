@@ -37,6 +37,10 @@ class RLAgent:
                 target = self.local_network.predict(self.c1_state, verbose=self.verbose)
                 self.env_state = get_env_state(airsim_client, "Car1")
                 # get new state
+
+                # TODO: input for local: x_c1, y_c1, x_c2, y_c2, Vx_c1, Vy_c1, Vx_c2, Vy_c2, dist (for both cars)
+                # TODO: input for global: same but reward function is considering all cars.
+
                 self.c1_state = np.array([[self.env_state["x_c1"],
                                            self.env_state["y_c1"],
                                            self.env_state["v_c1"],

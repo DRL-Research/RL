@@ -1,11 +1,11 @@
 import tensorflow as tf
-from config.ExperimentParamsAccordingToConfig import ExperimentParamsAccordingToConfig
+from ExperimentParams import ExperimentParams
 from utils.NN_utils import *
 
 
 def main():
 
-    experiment_params = ExperimentParamsAccordingToConfig()
+    experiment_params = ExperimentParams()
     RL_Agent = experiment_params.RL_Agent
     airsim_client = experiment_params.airsim_client
 
