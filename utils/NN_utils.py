@@ -31,6 +31,6 @@ def save_network_weights(experiment_params, rl_agent):
 
     # Save the weights to the specified directory
     save_path = f"{save_dir}/{experiment_params.weights_to_save_id}"
-    rl_agent.local_network.save_weights(save_path)
+    rl_agent.local_network_car1.save_weights(save_path)
 
 
