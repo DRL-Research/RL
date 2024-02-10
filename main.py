@@ -13,7 +13,7 @@ def main():
 
     # Initialize counters for the experiment
     collision_counter = 0
-    episode_counter = 0
+    episode_counter = -1
     steps_counter = 0
 
     # Main loop for each episode

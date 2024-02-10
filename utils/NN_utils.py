@@ -2,9 +2,9 @@ from tensorflow import keras
 import os
 
 
-def init_local_network(learning_rate):
+def init_local_network(optimizer):
     """
-    input of network: (x_car, y_car, v_car1, v_car2, up_car2, down_car2, right_car2, left_car2, dist_c1_c2)
+    input of network: (x_c1, y_c1, x_c2, y_c2, Vx_c1, Vy_c1, Vx_c2, Vy_c2, dist (for both cars))
     output of network: (q_value1, q_value2)
     """
     network = keras.Sequential([
@@ -14,7 +14,7 @@ def init_local_network(learning_rate):
         keras.layers.Dense(units=8, activation='relu', kernel_initializer=keras.initializers.HeUniform()),
         keras.layers.Dense(units=2, activation='linear')
     ])
-    network.compile(optimizer=keras.optimizers.legacy.Adam(learning_rate=learning_rate), loss="mse")
+    network.compile(optimizer=optimizer, loss="mse")
     return network
 
 

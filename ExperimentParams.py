@@ -22,7 +22,7 @@ class ExperimentParams:
         self.car2_start_yaw = 90
 
         # Training configuration
-        self.max_episodes = 8
+        self.max_episodes = 10
         self.max_steps = 500
         # Alternate training episodes amount - after how many episodes the local network of car1 is copied to car2
         self.alternate_training_episode_amount = 3
