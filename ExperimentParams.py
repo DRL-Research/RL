@@ -9,8 +9,8 @@ class ExperimentParams:
     def __init__(self):
         # Experiment configuration
         self.experiment_id = "exp4"
-        self.weights_to_save_id = "/4_forth_left.h5"
-        self.load_weight_directory = "experiments/exp4/weights/3_third_left.h5"
+        self.load_weight_directory = "experiments/exp4/weights/4_forth_left.h5"
+        self.weights_to_save_id = "/epochs_0_100.h5"
         self.global_experiment = False
 
         # Car start positions and orientations
@@ -22,10 +22,10 @@ class ExperimentParams:
         self.car2_start_yaw = 90
 
         # Training configuration
-        self.max_episodes = 10
+        self.max_episodes = 1000
         self.max_steps = 500
         # Alternate training episodes amount - after how many episodes the local network of car1 is copied to car2
-        self.alternate_training_episode_amount = 3
+        self.alternate_training_episode_amount = 10
 
         # RL Agent configuration
         self.learning_rate = 0.003

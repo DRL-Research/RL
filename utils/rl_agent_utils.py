@@ -2,6 +2,7 @@ import tensorflow as tf
 from RL.utils.environment_utils import *
 from RL.utils.NN_utils import *
 from RL.utils.airsim_utils import *
+from RL.utils.replay_buffer_utils import *
 
 
 class RLAgent:
@@ -11,10 +12,7 @@ class RLAgent:
         self.verbose = verbose
         self.learning_rate = learning_rate
         self.opt = tf.keras.optimizers.legacy.Adam(learning_rate=self.learning_rate)
-        # self.env_state = None
         self.cars_state = None
-        # self.c1_state = None
-        # self.c2_state = None
         self.c1_desire = np.array([10, 0])
         self.discount_factor = 0.95
         self.epsilon = 0.9
@@ -22,15 +20,41 @@ class RLAgent:
         self.tensorboard = tensorboard
         self.local_network_car1 = init_local_network(self.opt)
         self.local_network_car2 = copy_network(self.local_network_car1)
+        self.memory_buffer = []  # Initialize an empty list to store experiences
+        self.buffer_limit = 10  # Set the buffer size limit for batch training
+
+    # def step_local_2_cars(self, airsim_client, steps_counter):
+    #
+    #     self.step_counter += 1
+    #
+    #     self.cars_state = get_cars_state(airsim_client)
+    #
+    #     # Detect Collision and handle consequences
+    #     collision, collision_reward = detect_and_handle_collision(airsim_client)
+    #     if collision:
+    #         return collision, None, None, None, collision_reward
+    #
+    #     # Sample actions and update targets
+    #     action_car1, action_car2 = self.sample_action()
+    #     reward, reached_target = self.update_targets_and_train(airsim_client, action_car1, steps_counter, collision)
+    #
+    #     # Epsilon decay for exploration-exploitation balance
+    #     if (self.step_counter % 5) == 0:
+    #         self.epsilon *= self.epsilon_decay
+    #
+    #     # Translate actions to car controls
+    #     current_controls_car1 = airsim_client.getCarControls("Car1")
+    #     updated_controls_car1 = self.action_to_controls(current_controls_car1, action_car1)
+    #
+    #     current_controls_car2 = airsim_client.getCarControls("Car2")
+    #     updated_controls_car2 = self.action_to_controls(current_controls_car2, action_car2)
+    #
+    #     return collision, reached_target, updated_controls_car1, updated_controls_car2, reward
 
     def step_local_2_cars(self, airsim_client, steps_counter):
 
         self.step_counter += 1
 
-        # Process state and control for each car
-        # car1_info = get_cars_state(airsim_client, "Car1")
-        # car2_info = get_cars_state(airsim_client, "Car2")
-        # self.c1_state, self.c2_state = car1_info['state'], car2_info['state']
         self.cars_state = get_cars_state(airsim_client)
 
         # Detect Collision and handle consequences
@@ -40,8 +64,7 @@ class RLAgent:
 
         # Sample actions and update targets
         action_car1, action_car2 = self.sample_action()
-        reward, reached_target = self.update_targets_and_train(airsim_client, action_car1, action_car2, steps_counter,
-                                                               collision)
+        reward, reached_target = self.update_targets_and_store(airsim_client, action_car1, steps_counter, collision)
 
         # Epsilon decay for exploration-exploitation balance
         if (self.step_counter % 5) == 0:
@@ -54,74 +77,99 @@ class RLAgent:
         current_controls_car2 = airsim_client.getCarControls("Car2")
         updated_controls_car2 = self.action_to_controls(current_controls_car2, action_car2)
 
+        # Batch training every 20 steps
+        if len(self.memory_buffer) > self.buffer_limit:
+            loss_local = self.batch_train()
+            print(self.step_counter)
+            if not reached_target:
+                with self.tensorboard.as_default():
+                    tf.summary.scalar('loss', loss_local.history["loss"][-1], step=steps_counter)
+
+            self.memory_buffer.clear()  # Clear the buffer after training
+
         return collision, reached_target, updated_controls_car1, updated_controls_car2, reward
 
-    def update_targets_and_train(self, airsim_client, action_car1, action_car2, steps_counter, collision):
-
-        # Predict the current Q-values for the states of car1
-
-        cars_state = np.array([list(self.cars_state.values())])
-        current_q_values = self.local_network_car1.predict(cars_state, verbose=self.verbose)
-
-        # Compute the immediate reward and check if the target is reached
-        reward, reached_target = self.calc_reward(collision)
-
-        # Predict the Q-values for the next state
-        self.cars_state = get_cars_state(airsim_client)
-        cars_state_next = np.array([list(self.cars_state.values())])
-        next_q_values = self.local_network_car1.predict(cars_state_next, verbose=self.verbose)
-
-        # Calculate the maximum Q-value for the next state
-        max_next_q_value = np.max(next_q_values[0])
-
-        # Update the Q-value for the action taken using the DQN update rule
-        target_q_value = reward + (self.discount_factor * max_next_q_value - current_q_values[0][action_car1])
-        current_q_values[0][action_car1] += self.learning_rate * target_q_value
-
-        # Train the network with the updated Q-values
-        # TODO: batch fit
-        # TODO: is cars_state the right parameter to put here?
-        print(cars_state)
-        print(current_q_values)
-        loss_local = self.local_network_car1.fit(cars_state, current_q_values, epochs=1, verbose=0)
-
-        if not reached_target:
-            with self.tensorboard.as_default():
-                tf.summary.scalar('loss', loss_local.history["loss"][-1], step=steps_counter)
-
-        return reward, reached_target
-
-    # def update_targets_and_train(self, airsim_client, action_car1, action_car2, steps_counter, collision):
+    # def update_targets_and_train(self, airsim_client, action_car1, steps_counter, collision):
     #
-    #     # target = self.local_network_car1.predict(self.c1_state, verbose=self.verbose)
-    #     target = self.local_network_car1.predict(self.cars_state, verbose=self.verbose)
-    #     # self.env_state = get_env_state(airsim_client, "Car1")
-    #     self.cars_state = get_cars_state(airsim_client)
+    #     # Predict the current Q-values according to local_network_car1
+    #     cars_state = np.array([list(self.cars_state.values())])
+    #     current_q_values = self.local_network_car1.predict(cars_state, verbose=self.verbose)
     #
-    #     # self.c1_state = np.array([[self.env_state["x_c1"],
-    #     #                            self.env_state["y_c1"],
-    #     #                            self.env_state["v_c1"],
-    #     #                            self.env_state["v_c2"],
-    #     #                            self.env_state["dist_c1_c2"],
-    #     #                            self.env_state["right"],
-    #     #                            self.env_state["left"],
-    #     #                            self.env_state["forward"],
-    #     #                            self.env_state["backward"]
-    #     #                            ]])  # has to be [[]] to enter as input to the DNN
-    #
+    #     # Compute the immediate reward and check if the target is reached
     #     reward, reached_target = self.calc_reward(collision)
     #
-    #     # update q values - train the local network, so it will continue to train.
-    #     q_future = np.max(self.local_network_car1.predict(self.c1_state, verbose=self.verbose)[0])
-    #     target[0][action_car1] += self.learning_rate * (reward + (q_future * 0.95) - target[0][action_car1])
+    #     # Predict the Q-values for the next state
+    #     self.cars_state = get_cars_state(airsim_client)
+    #     cars_state_next = np.array([list(self.cars_state.values())])
+    #     next_q_values = self.local_network_car1.predict(cars_state_next, verbose=self.verbose)
     #
-    #     loss_local = self.local_network_car1.fit(self.c1_state, target, epochs=1, verbose=0)
+    #     # Calculate the maximum Q-value for the next state
+    #     max_next_q_value = np.max(next_q_values[0])
+    #
+    #     # Update the Q-value for the action taken using the DQN update rule
+    #     target_q_value = reward + (self.discount_factor * max_next_q_value - current_q_values[0][action_car1])
+    #     current_q_values[0][action_car1] += self.learning_rate * target_q_value
+    #
+    #     # Train the network with the updated Q-values
+    #     # TODO: batch fit
+    #     loss_local = self.local_network_car1.fit(cars_state, current_q_values, epochs=1, verbose=0)
     #
     #     if not reached_target:
     #         with self.tensorboard.as_default():
     #             tf.summary.scalar('loss', loss_local.history["loss"][-1], step=steps_counter)
     #
     #     return reward, reached_target
+
+    def update_targets_and_store(self, airsim_client, action_car1, steps_counter, collision):
+
+        """
+        pay attention that only action_car1 is the input.
+        """
+
+        # Store the current state
+        current_state = np.array([list(self.cars_state.values())])
+
+        # Compute the immediate reward and check if the target is reached
+        reward, reached_target = self.calc_reward(collision)
+
+        # Get next state
+        self.cars_state = get_cars_state(airsim_client)
+        next_state = np.array([list(self.cars_state.values())])
+
+        # Store experience in the memory buffer
+        self.memory_buffer.append((current_state, action_car1, reward, next_state))
+
+        return reward, reached_target
+
+    def batch_train(self):
+        if not self.memory_buffer:
+            return
+
+        # Convert the experiences in the buffer into separate lists for each component
+        states, actions, rewards, next_states = zip(*self.memory_buffer)
+
+        # Convert lists to numpy arrays for batch processing
+        states = np.array(states).reshape(-1, *states[0].shape[1:])
+        next_states = np.array(next_states).reshape(-1, *next_states[0].shape[1:])
+        actions = np.array(actions)
+        rewards = np.array(rewards)
+
+        # Predict Q-values for current and next states
+        current_q_values = self.local_network_car1.predict(states, verbose=0)
+        next_q_values = self.local_network_car1.predict(next_states, verbose=0)
+
+        # Update Q-values using the DQN update rule for each experience in the batch
+        max_next_q_values = np.max(next_q_values, axis=1)
+        targets = rewards + self.discount_factor * max_next_q_values
+        for i, action in enumerate(actions):
+            current_q_values[i][action] += self.learning_rate * (targets[i] - current_q_values[i][action])
+
+        # Batch update the network
+        loss_local = self.local_network_car1.fit(states, current_q_values, batch_size=len(states), verbose=0, epochs=1)
+
+        # Optionally log the loss if necessary
+        # Example: logging logic here
+        return loss_local
 
     def sample_action(self):
 
@@ -130,6 +178,7 @@ class RLAgent:
             rand_action = np.random.randint(2, size=(1, 1))[0][0]
             return rand_action, rand_action
         else:
+            # both networks receive the same input, the difference is that they are 2 versions of the network.
             cars_state = np.array([list(self.cars_state.values())])
             action_selected_car1 = self.local_network_car1.predict(cars_state, verbose=self.verbose).argmax()
             action_selected_car2 = self.local_network_car2.predict(cars_state, verbose=self.verbose).argmax()
