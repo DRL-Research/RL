@@ -8,7 +8,6 @@ from RL.utils.replay_buffer_utils import *
 class RLAgent:
 
     def __init__(self, learning_rate, verbose, tensorboard):
-        self.gil = "gil"
         self.step_counter = 0
         self.verbose = verbose
         self.learning_rate = learning_rate
