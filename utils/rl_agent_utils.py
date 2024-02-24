@@ -52,7 +52,6 @@ class RLAgent:
         # Batch training every buffer_limit steps
         if len(self.memory_buffer) > self.buffer_limit:
             loss_local = self.batch_train()
-            print(self.step_counter)
             if not reached_target:
                 with self.tensorboard.as_default():
                     tf.summary.scalar('loss', loss_local.history["loss"][-1], step=steps_counter)
@@ -117,10 +116,13 @@ class RLAgent:
             rand_action = np.random.randint(2, size=(1, 1))[0][0]
             return rand_action, rand_action
         else:
-            # both networks receive the same input, the difference is that they are 2 versions of the network.
-            cars_state = np.array([list(self.cars_state.values())])
-            action_selected_car1 = self.local_network_car1.predict(cars_state, verbose=self.verbose).argmax()
-            action_selected_car2 = self.local_network_car2.predict(cars_state, verbose=self.verbose).argmax()
+            # both networks receive the same input (but with different perspectives)
+            # Another difference is, that they are 2 versions of the network.
+            cars_state_car1_perspective = np.array([list(self.cars_state.values())])
+            action_selected_car1 = self.local_network_car1.predict(cars_state_car1_perspective, verbose=self.verbose).argmax()
+
+            cars_state_car2_perspective = car1_states_to_car2_states_perspective(cars_state_car1_perspective)
+            action_selected_car2 = self.local_network_car2.predict(cars_state_car2_perspective, verbose=self.verbose).argmax()
             return action_selected_car1, action_selected_car2
 
     def action_to_controls(self, current_controls, action):
