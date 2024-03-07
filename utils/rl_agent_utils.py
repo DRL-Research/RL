@@ -1,19 +1,19 @@
 import tensorflow as tf
 from RL.utils.environment_utils import *
 from RL.utils.NN_utils import *
-from RL.utils.airsim_utils import *
 from RL.utils.replay_buffer_utils import *
+from RL.config import VERBOSE_RL_AGENT, LEARNING_RATE, CAR1_DESIRED_POSITION
 
 
 class RLAgent:
 
-    def __init__(self, learning_rate, verbose, tensorboard):
+    def __init__(self, tensorboard):
         self.step_counter = 0
-        self.verbose = verbose
-        self.learning_rate = learning_rate
+        self.verbose_rl_agent = VERBOSE_RL_AGENT
+        self.learning_rate = LEARNING_RATE
         self.opt = tf.keras.optimizers.legacy.Adam(learning_rate=self.learning_rate)
         self.cars_state = None
-        self.c1_desire = np.array([10, 0])
+        self.car1_desired_position = CAR1_DESIRED_POSITION
         self.discount_factor = 0.95
         self.epsilon = 0.9
         self.epsilon_decay = 0.99
@@ -23,14 +23,14 @@ class RLAgent:
         self.memory_buffer = []  # Initialize an empty list to store experiences
         self.buffer_limit = 10  # Set the buffer size limit for batch training
 
-    def step_local_2_cars(self, airsim_client, steps_counter):
+    def step_local_2_cars(self, airsim_client_handler, steps_counter):
 
         self.step_counter += 1
 
-        self.cars_state = get_cars_state(airsim_client)
+        self.cars_state = get_cars_state(airsim_client_handler.airsim_client)
 
         # Detect Collision and handle consequences
-        collision, collision_reward = detect_and_handle_collision(airsim_client)
+        collision, collision_reward = airsim_client_handler.detect_and_handle_collision()
         if collision:
             return collision, None, None, None, collision_reward
 
@@ -38,17 +38,17 @@ class RLAgent:
         action_car1, action_car2 = self.sample_action()
 
         # store step (of both car perspective) in replay buffer for batch training
-        reward, reached_target = self.store_step_in_replay_buffer(airsim_client, action_car1, action_car2, collision)
+        reward, reached_target = self.store_step_in_replay_buffer(airsim_client_handler.airsim_client, action_car1, action_car2, collision)
 
         # Epsilon decay for exploration-exploitation balance
         if (self.step_counter % 5) == 0:
             self.epsilon *= self.epsilon_decay
 
         # Translate actions to car controls
-        current_controls_car1 = airsim_client.getCarControls("Car1")
+        current_controls_car1 = airsim_client_handler.airsim_client.getCarControls("Car1")
         updated_controls_car1 = self.action_to_controls(current_controls_car1, action_car1)
 
-        current_controls_car2 = airsim_client.getCarControls("Car2")
+        current_controls_car2 = airsim_client_handler.airsim_client.getCarControls("Car2")
         updated_controls_car2 = self.action_to_controls(current_controls_car2, action_car2)
 
         # Batch training every buffer_limit steps
@@ -125,10 +125,10 @@ class RLAgent:
             # both networks receive the same input (but with different perspectives (meaning-> different order))
             # Another difference is, that there are 2 versions of the network.
             cars_state_car1_perspective = np.array([list(self.cars_state.values())])
-            action_selected_car1 = self.local_network_car1.predict(cars_state_car1_perspective, verbose=self.verbose).argmax()
+            action_selected_car1 = self.local_network_car1.predict(cars_state_car1_perspective, verbose=self.verbose_rl_agent).argmax()
 
             cars_state_car2_perspective = car1_states_to_car2_states_perspective(cars_state_car1_perspective)
-            action_selected_car2 = self.local_network_car2.predict(cars_state_car2_perspective, verbose=self.verbose).argmax()
+            action_selected_car2 = self.local_network_car2.predict(cars_state_car2_perspective, verbose=self.verbose_rl_agent).argmax()
             return action_selected_car1, action_selected_car2
 
     def action_to_controls(self, current_controls, action):
@@ -159,7 +159,7 @@ class RLAgent:
         reached_target = False
 
         # reached target
-        if self.cars_state['x_c1'] > self.c1_desire[0]:
+        if self.cars_state['x_c1'] > self.car1_desired_position[0]:
             reward += 1000
             reached_target = True
 

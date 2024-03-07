@@ -1,5 +1,6 @@
 from tensorflow import keras
 import os
+from RL.config import EXPERIMENT_ID, WEIGHTS_TO_SAVE_ID
 
 
 def init_local_network(optimizer):
@@ -23,14 +24,14 @@ def copy_network(network):
     return keras.models.clone_model(network)
 
 
-def save_network_weights(experiment_params, rl_agent):
+def save_network_weights(rl_agent):
     # Create the directory if it doesn't exist
-    save_dir = f"experiments/{experiment_params.experiment_id}/weights"
+    save_dir = f"experiments/{EXPERIMENT_ID}/weights"
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
     # Save the weights to the specified directory
-    save_path = f"{save_dir}/{experiment_params.weights_to_save_id}"
+    save_path = f"{save_dir}/{WEIGHTS_TO_SAVE_ID}"
     rl_agent.local_network_car1.save_weights(save_path)
 
 
