@@ -6,6 +6,7 @@ from utils.tensorboard_utils import TensorBoard
 from config import EXPERIMENT_ID, GLOBAL_EXPERIMENT, ALTERNATE_TRAINING_EPISODE_AMOUNT, MAX_EPISODES, \
     MAX_STEPS, EXPERIMENT_DATE_TIME
 
+# TODO: go through all code and replace "Car1" and "Car2" to CAR1_NAME and CAR2_NAME
 
 if __name__ == "__main__":
 

@@ -1,5 +1,4 @@
 import time
-
 import tensorflow as tf
 from RL.utils.environment_utils import *
 from RL.utils.NN_utils import *
@@ -7,14 +6,14 @@ from RL.utils.replay_buffer_utils import *
 from RL.config import LEARNING_RATE, CAR1_DESIRED_POSITION
 
 
+# TODO: look at differences between current_state and next_state
+
 class RLAgent:
 
     def __init__(self, tensorboard):
-        self.step_counter = 0
         self.learning_rate = LEARNING_RATE
         self.opt = tf.keras.optimizers.legacy.Adam(learning_rate=self.learning_rate)
         self.cars_state = None
-        self.car1_desired_position = CAR1_DESIRED_POSITION
         self.discount_factor = 0.95
         self.epsilon = 0.9
         self.epsilon_decay = 0.99
@@ -24,16 +23,18 @@ class RLAgent:
         self.memory_buffer = []  # Initialize an empty list to store experiences
         self.buffer_limit = 10  # Set the buffer size limit for batch training
 
-    # TODO: add docstring to explain the steps of the function
     # TODO: turn the code of: Batch training every buffer_limit steps to a function.
     def step_local_2_cars(self, airsim_client_handler, steps_counter):
+        """
+        This function describes one step in the RL algorithm:
+            current_state -> action -> (small delay in code for car movement) -> next_state -> reward
+            -> enter to batch training memory
+        """
 
         # Detect Collision and handle consequences
         collision, collision_reward = airsim_client_handler.detect_and_handle_collision()
         if collision:
             return collision, None, None, None, collision_reward
-
-        self.step_counter += 1
 
         # get current state
         cars_current_state_car1_perspective = get_local_input_car1_perspective(airsim_client_handler.airsim_client)
@@ -56,14 +57,14 @@ class RLAgent:
         print(cars_next_state_car1_perspective)
         print(cars_next_state_car2_perspective)
 
-        reward, reached_target = self.calc_reward(collision)
+        reward, reached_target = self.calc_reward(collision, cars_next_state_car1_perspective)  # sent car1_perspective for distance between cars
 
         # store step (of both car perspective) in replay buffer for batch training
-        self.memory_buffer.append((cars_current_state_car1_perspective, action_car1, reward, cars_next_state_car1_perspective))
-        self.memory_buffer.append((cars_current_state_car2_perspective, action_car2, reward, cars_next_state_car2_perspective))
+        self.memory_buffer.append((np.array(cars_current_state_car1_perspective.values()), action_car1, reward, np.array(cars_next_state_car1_perspective.values())))
+        self.memory_buffer.append((np.array(cars_current_state_car2_perspective.values()), action_car2, reward, np.array(cars_next_state_car1_perspective.values())))
 
         # Epsilon decay for exploration-exploitation balance
-        if (self.step_counter % 5) == 0:
+        if (steps_counter % 5) == 0:
             self.epsilon *= self.epsilon_decay
 
         # Translate actions to car controls
@@ -83,34 +84,6 @@ class RLAgent:
             self.memory_buffer.clear()  # Clear the buffer after training
 
         return collision, reached_target, updated_controls_car1, updated_controls_car2, reward
-
-    # def store_step_in_replay_buffer(self, current_state_car1_perspective, current_state_car2_perspective,
-    #                                 action_car1, action_car2, next_state_car1_perspective,
-    #                                 next_state_car2_perspective,
-    #                                 collision):
-    #
-    #     """
-    #     we consider the step (states+action) from car1 and car2 perspective
-    #     """
-    #
-    #     # Store the current state
-    #     # current_state_car1_perspective = np.array([list(self.cars_state.values())])
-    #     # current_state_car2_perspective = car1_states_to_car2_states_perspective(current_state_car1_perspective)
-    #
-    #     # Compute the immediate reward and check if the target is reached
-    #     # consider changing the reward per car in the future
-    #     reward, reached_target = self.calc_reward(collision)
-    #
-    #     # Get next state
-    #     self.cars_state = get_cars_state(airsim_client)
-    #     next_state_car1_perspective = np.array([list(self.cars_state.values())])
-    #     next_state_car2_perspective = car1_states_to_car2_states_perspective(next_state_car1_perspective)
-    #
-    #     # Store experience in the memory buffer
-    #     self.memory_buffer.append((current_state_car1_perspective, action_car1, reward, next_state_car1_perspective))
-    #     self.memory_buffer.append((current_state_car2_perspective, action_car2, reward, next_state_car2_perspective))
-    #
-    #     return reward, reached_target
 
     def batch_train(self):
         if not self.memory_buffer:
@@ -159,15 +132,7 @@ class RLAgent:
             print(action_selected_car1, action_selected_car2)
             return action_selected_car1, action_selected_car2
 
-    def action_to_controls(self, current_controls, action):
-        # translate index of action to controls in car:
-        if action == 0:
-            current_controls.throttle = 0.75
-        elif action == 1:
-            current_controls.throttle = 0.4
-        return current_controls  # called current_controls - but it is updated controls
-
-    def calc_reward(self, collision):
+    def calc_reward(self, collision, cars_next_state_car1_perspective):
 
         # avoid starvation
         reward = -0.1
@@ -177,18 +142,27 @@ class RLAgent:
             reward -= 1000
 
         # too close
-        if self.cars_state["dist_c1_c2"] < 70:
+        if cars_next_state_car1_perspective["dist_c1_c2"] < 70:
             reward -= 150
 
         # keeping safety distance
-        if self.cars_state["dist_c1_c2"] > 100:
+        if cars_next_state_car1_perspective["dist_c1_c2"] > 100:
             reward += 60
 
         reached_target = False
 
         # reached target
-        if self.cars_state['x_c1'] > self.car1_desired_position[0]:
+        if cars_next_state_car1_perspective['x_c1'] > CAR1_DESIRED_POSITION[0]:
             reward += 1000
             reached_target = True
 
         return reward, reached_target
+
+    @ staticmethod
+    def action_to_controls(current_controls, action):
+        # translate index of action to controls in car:
+        if action == 0:
+            current_controls.throttle = 0.75
+        elif action == 1:
+            current_controls.throttle = 0.4
+        return current_controls  # called current_controls - but it is updated controls

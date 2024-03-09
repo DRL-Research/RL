@@ -9,7 +9,7 @@ def init_local_network(optimizer):
     output of network: (q_value1, q_value2)
     """
     network = keras.Sequential([
-        keras.layers.InputLayer(input_shape=(8,)),
+        keras.layers.InputLayer(input_shape=(9,)),
         keras.layers.Normalization(axis=-1),
         keras.layers.Dense(units=16, activation='relu', kernel_initializer=keras.initializers.HeUniform()),
         keras.layers.Dense(units=8, activation='relu', kernel_initializer=keras.initializers.HeUniform()),
