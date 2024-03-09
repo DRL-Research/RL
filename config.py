@@ -22,11 +22,11 @@ ALTERNATE_TRAINING_EPISODE_AMOUNT = 10  # after how many episodes the local netw
 MAX_EPISODES = 1000
 MAX_STEPS = 500
 LEARNING_RATE = 0.003
-VERBOSE_RL_AGENT = False
-
 
 EXPERIMENT_DATE_TIME = datetime.now().strftime("%d_%m_%Y-%H_%M_%S")
 
+CAR1_NAME = "Car1"
+CAR2_NAME = "Car2"
 
 
 

@@ -1,15 +1,16 @@
+import time
+
 import tensorflow as tf
 from RL.utils.environment_utils import *
 from RL.utils.NN_utils import *
 from RL.utils.replay_buffer_utils import *
-from RL.config import VERBOSE_RL_AGENT, LEARNING_RATE, CAR1_DESIRED_POSITION
+from RL.config import LEARNING_RATE, CAR1_DESIRED_POSITION
 
 
 class RLAgent:
 
     def __init__(self, tensorboard):
         self.step_counter = 0
-        self.verbose_rl_agent = VERBOSE_RL_AGENT
         self.learning_rate = LEARNING_RATE
         self.opt = tf.keras.optimizers.legacy.Adam(learning_rate=self.learning_rate)
         self.cars_state = None
@@ -23,22 +24,43 @@ class RLAgent:
         self.memory_buffer = []  # Initialize an empty list to store experiences
         self.buffer_limit = 10  # Set the buffer size limit for batch training
 
+    # TODO: add docstring to explain the steps of the function
+    # TODO: turn the code of: Batch training every buffer_limit steps to a function.
     def step_local_2_cars(self, airsim_client_handler, steps_counter):
-
-        self.step_counter += 1
-
-        self.cars_state = get_cars_state(airsim_client_handler.airsim_client)
 
         # Detect Collision and handle consequences
         collision, collision_reward = airsim_client_handler.detect_and_handle_collision()
         if collision:
             return collision, None, None, None, collision_reward
 
+        self.step_counter += 1
+
+        # get current state
+        cars_current_state_car1_perspective = get_local_input_car1_perspective(airsim_client_handler.airsim_client)
+        cars_current_state_car2_perspective = get_local_input_car2_perspective(airsim_client_handler.airsim_client)
+        print(cars_current_state_car1_perspective)
+        print(cars_current_state_car2_perspective)
+
         # Sample actions and update targets
-        action_car1, action_car2 = self.sample_action()
+        # TODO: change to sample action of each car individually
+        action_car1, action_car2 = self.sample_action(airsim_client_handler.airsim_client)
+        print(action_car1)
+        print(action_car2)
+
+        # delay code to let next state take effect
+        time.sleep(0.5)
+
+        # get next state
+        cars_next_state_car1_perspective = get_local_input_car1_perspective(airsim_client_handler.airsim_client)
+        cars_next_state_car2_perspective = get_local_input_car2_perspective(airsim_client_handler.airsim_client)
+        print(cars_next_state_car1_perspective)
+        print(cars_next_state_car2_perspective)
+
+        reward, reached_target = self.calc_reward(collision)
 
         # store step (of both car perspective) in replay buffer for batch training
-        reward, reached_target = self.store_step_in_replay_buffer(airsim_client_handler.airsim_client, action_car1, action_car2, collision)
+        self.memory_buffer.append((cars_current_state_car1_perspective, action_car1, reward, cars_next_state_car1_perspective))
+        self.memory_buffer.append((cars_current_state_car2_perspective, action_car2, reward, cars_next_state_car2_perspective))
 
         # Epsilon decay for exploration-exploitation balance
         if (self.step_counter % 5) == 0:
@@ -62,30 +84,33 @@ class RLAgent:
 
         return collision, reached_target, updated_controls_car1, updated_controls_car2, reward
 
-    def store_step_in_replay_buffer(self, airsim_client, action_car1, action_car2, collision):
-
-        """
-        we consider the step (states+action) from car1 and car2 perspective
-        """
-
-        # Store the current state
-        current_state_car1_perspective = np.array([list(self.cars_state.values())])
-        current_state_car2_perspective = car1_states_to_car2_states_perspective(current_state_car1_perspective)
-
-        # Compute the immediate reward and check if the target is reached
-        # consider changing the reward per car in the future
-        reward, reached_target = self.calc_reward(collision)
-
-        # Get next state
-        self.cars_state = get_cars_state(airsim_client)
-        next_state_car1_perspective = np.array([list(self.cars_state.values())])
-        next_state_car2_perspective = car1_states_to_car2_states_perspective(next_state_car1_perspective)
-
-        # Store experience in the memory buffer
-        self.memory_buffer.append((current_state_car1_perspective, action_car1, reward, next_state_car1_perspective))
-        self.memory_buffer.append((current_state_car2_perspective, action_car2, reward, next_state_car2_perspective))
-
-        return reward, reached_target
+    # def store_step_in_replay_buffer(self, current_state_car1_perspective, current_state_car2_perspective,
+    #                                 action_car1, action_car2, next_state_car1_perspective,
+    #                                 next_state_car2_perspective,
+    #                                 collision):
+    #
+    #     """
+    #     we consider the step (states+action) from car1 and car2 perspective
+    #     """
+    #
+    #     # Store the current state
+    #     # current_state_car1_perspective = np.array([list(self.cars_state.values())])
+    #     # current_state_car2_perspective = car1_states_to_car2_states_perspective(current_state_car1_perspective)
+    #
+    #     # Compute the immediate reward and check if the target is reached
+    #     # consider changing the reward per car in the future
+    #     reward, reached_target = self.calc_reward(collision)
+    #
+    #     # Get next state
+    #     self.cars_state = get_cars_state(airsim_client)
+    #     next_state_car1_perspective = np.array([list(self.cars_state.values())])
+    #     next_state_car2_perspective = car1_states_to_car2_states_perspective(next_state_car1_perspective)
+    #
+    #     # Store experience in the memory buffer
+    #     self.memory_buffer.append((current_state_car1_perspective, action_car1, reward, next_state_car1_perspective))
+    #     self.memory_buffer.append((current_state_car2_perspective, action_car2, reward, next_state_car2_perspective))
+    #
+    #     return reward, reached_target
 
     def batch_train(self):
         if not self.memory_buffer:
@@ -115,7 +140,7 @@ class RLAgent:
 
         return loss_local
 
-    def sample_action(self):
+    def sample_action(self, airsim_client):
 
         # epsilon greedy
         if np.random.binomial(1, p=self.epsilon):
@@ -124,11 +149,14 @@ class RLAgent:
         else:
             # both networks receive the same input (but with different perspectives (meaning-> different order))
             # Another difference is, that there are 2 versions of the network.
-            cars_state_car1_perspective = np.array([list(self.cars_state.values())])
-            action_selected_car1 = self.local_network_car1.predict(cars_state_car1_perspective, verbose=self.verbose_rl_agent).argmax()
+            # cars_state_car1_perspective = np.array([list(self.cars_state.values())])
+            cars_state_car1_perspective = get_local_input_car1_perspective(airsim_client)
+            action_selected_car1 = self.local_network_car1.predict(cars_state_car1_perspective, verbose=0).argmax()
 
-            cars_state_car2_perspective = car1_states_to_car2_states_perspective(cars_state_car1_perspective)
-            action_selected_car2 = self.local_network_car2.predict(cars_state_car2_perspective, verbose=self.verbose_rl_agent).argmax()
+            # cars_state_car2_perspective = car1_states_to_car2_states_perspective(cars_state_car1_perspective)
+            cars_state_car2_perspective = get_local_input_car2_perspective(airsim_client)
+            action_selected_car2 = self.local_network_car2.predict(cars_state_car2_perspective, verbose=0).argmax()
+            print(action_selected_car1, action_selected_car2)
             return action_selected_car1, action_selected_car2
 
     def action_to_controls(self, current_controls, action):
