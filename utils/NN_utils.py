@@ -5,11 +5,11 @@ from RL.config import EXPERIMENT_ID, WEIGHTS_TO_SAVE_ID
 
 def init_local_network(optimizer):
     """
-    input of network: (x_c1, y_c1, x_c2, y_c2, Vx_c1, Vy_c1, Vx_c2, Vy_c2, dist (for both cars))
+    input of network: (x_c1, y_c1, Vx_c1, Vy_c1, x_c2, y_c2, Vx_c2, Vy_c2, dist, 5 neurons of global network)
     output of network: (q_value1, q_value2)
     """
     network = keras.Sequential([
-        keras.layers.InputLayer(input_shape=(9,)),
+        keras.layers.InputLayer(input_shape=(14,)),
         keras.layers.Normalization(axis=-1),
         keras.layers.Dense(units=16, activation='relu', kernel_initializer=keras.initializers.HeUniform()),
         keras.layers.Dense(units=8, activation='relu', kernel_initializer=keras.initializers.HeUniform()),
