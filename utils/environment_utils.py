@@ -1,9 +1,6 @@
 import numpy as np
 from config import CAR1_NAME, CAR2_NAME
 
-# TODO: add function that is empty for now: get_proto_plan()
-# TODO: comment get_cars_state and car1_states_to_car2_states_perspective to not interrupt
-
 
 def get_car_position_and_speed(airsim_client, car_name):
     car_position = airsim_client.simGetObjectPose(car_name).position

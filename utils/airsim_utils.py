@@ -29,7 +29,7 @@ class AirsimClientHandler:
 
         # get initial positions according to settings offset
         # (later be used whenever we need to reset to initial position -> start of each epoch)
-        # TODO: (arbitrary in settings file as long as they are not spawned on top of each other)
+        # (arbitrary starting position in settings file as long as they are not spawned on top of each other)
         self.car1_x_offset = airsim_client.simGetObjectPose(CAR1_NAME).position.x_val
         self.car1_y_offset = airsim_client.simGetObjectPose(CAR1_NAME).position.y_val
         self.car2_x_offset = airsim_client.simGetObjectPose(CAR2_NAME).position.x_val

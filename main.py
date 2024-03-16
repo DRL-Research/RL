@@ -4,9 +4,8 @@ from utils.airsim_utils import *
 from utils.rl_agent_utils import RLAgent
 from utils.tensorboard_utils import TensorBoard
 from config import EXPERIMENT_ID, GLOBAL_EXPERIMENT, ALTERNATE_TRAINING_EPISODE_AMOUNT, MAX_EPISODES, \
-    MAX_STEPS, EXPERIMENT_DATE_TIME
+    MAX_STEPS, EXPERIMENT_DATE_TIME, CAR1_NAME, CAR2_NAME
 
-# TODO: go through all code and replace "Car1" and "Car2" to CAR1_NAME and CAR2_NAME
 
 if __name__ == "__main__":
 
@@ -55,8 +54,8 @@ if __name__ == "__main__":
                 break
 
             # Set controls for the cars
-            airsim_client.setCarControls(updated_controls_car1, "Car1")
-            airsim_client.setCarControls(updated_controls_car2, "Car2")
+            airsim_client.setCarControls(updated_controls_car1, CAR1_NAME)
+            airsim_client.setCarControls(updated_controls_car2, CAR2_NAME)
 
     # Save the network weights after the experiment
     save_network_weights(rl_agent)
