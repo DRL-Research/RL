@@ -18,6 +18,7 @@ class RLAgent:
         self.tensorboard = tensorboard
         self.local_network_car1 = init_local_network(self.opt)
         self.local_network_car2 = copy_network(self.local_network_car1)
+        self.global_network = init_global_network(self.opt)
         self.memory_buffer = []  # Initialize an empty list to store experiences
         self.buffer_limit = 10  # Set the buffer size limit for batch training
 
@@ -36,6 +37,66 @@ class RLAgent:
         # get current state
         cars_current_state_car1_perspective = get_local_input_car1_perspective(airsim_client_handler.airsim_client)
         cars_current_state_car2_perspective = get_local_input_car2_perspective(airsim_client_handler.airsim_client)
+
+        # Sample actions and update targets
+        action_car1, action_car2 = self.sample_action(airsim_client_handler.airsim_client)
+
+        # delay code to let next state take effect
+        time.sleep(0.4)
+
+        # get next state
+        cars_next_state_car1_perspective = get_local_input_car1_perspective(airsim_client_handler.airsim_client)
+        cars_next_state_car2_perspective = get_local_input_car2_perspective(airsim_client_handler.airsim_client)
+
+        reward, reached_target = self.calc_reward(collision, cars_next_state_car1_perspective)  # sent car1_perspective for distance between cars
+
+        # store step (of both car perspective) in replay buffer for batch training
+        self.memory_buffer.append((np.array([list(cars_current_state_car1_perspective.values())]), action_car1, reward, np.array([list(cars_next_state_car1_perspective.values())])))
+        self.memory_buffer.append((np.array([list(cars_current_state_car2_perspective.values())]), action_car2, reward, np.array([list(cars_next_state_car2_perspective.values())])))
+
+        # Epsilon decay for exploration-exploitation balance
+        if (steps_counter % 5) == 0:
+            self.epsilon *= self.epsilon_decay
+
+        # Translate actions to car controls
+        current_controls_car1 = airsim_client_handler.airsim_client.getCarControls(CAR1_NAME)
+        updated_controls_car1 = self.action_to_controls(current_controls_car1, action_car1)
+
+        current_controls_car2 = airsim_client_handler.airsim_client.getCarControls(CAR2_NAME)
+        updated_controls_car2 = self.action_to_controls(current_controls_car2, action_car2)
+
+        # Batch training every buffer_limit steps
+        if len(self.memory_buffer) > self.buffer_limit:
+            loss_local = self.batch_train()
+            if not reached_target:
+                with self.tensorboard.as_default():
+                    tf.summary.scalar('loss', loss_local.history["loss"][-1], step=steps_counter)
+
+            self.memory_buffer.clear()  # Clear the buffer after training
+
+        return collision, reached_target, updated_controls_car1, updated_controls_car2, reward
+
+    def step_global_2_cars(self, airsim_client_handler, steps_counter):
+        """
+        This function describes one step in the RL algorithm:
+            current_state -> action -> (small delay in code for car movement) -> next_state -> reward
+            -> enter to batch training memory
+        """
+
+        # Detect Collision and handle consequences
+        collision, collision_reward = airsim_client_handler.detect_and_handle_collision()
+        if collision:
+            return collision, None, None, None, collision_reward
+
+        # get current state
+        cars_current_state_car1_perspective = get_local_input_car1_perspective(airsim_client_handler.airsim_client)
+        cars_current_state_car2_perspective = get_local_input_car2_perspective(airsim_client_handler.airsim_client)
+
+        # get proto-plans from global network
+        # we only pass cars_current_state_car1_perspective because it holds the state of car1 and car2.
+        proto_plan_1, proto_plan_2 = self.get_proto_plans_from_global_network(cars_current_state_car1_perspective)
+        print(proto_plan_1)
+        print(proto_plan_2)
 
         # Sample actions and update targets
         action_car1, action_car2 = self.sample_action(airsim_client_handler.airsim_client)
@@ -144,6 +205,37 @@ class RLAgent:
             reached_target = True
 
         return reward, reached_target
+
+    def get_proto_plans_from_global_network(self, cars_current_state_car1_perspective):
+        input_for_global_network_before_proto_plan1 = np.array([cars_current_state_car1_perspective["x_c1"],
+                                                                cars_current_state_car1_perspective["y_c1"],
+                                                                cars_current_state_car1_perspective["Vx_c1"],
+                                                                cars_current_state_car1_perspective["Vy_c1"],
+                                                                -1, -1, -1, -1, -1,
+                                                                cars_current_state_car1_perspective["x_c2"],
+                                                                cars_current_state_car1_perspective["y_c2"],
+                                                                cars_current_state_car1_perspective["Vx_c2"],
+                                                                cars_current_state_car1_perspective["Vy_c2"],
+                                                                -1, -1, -1, -1, -1,
+                                                                cars_current_state_car1_perspective["dist_c1_c2"]])
+        proto_plan_1 = self.global_network.predict(input_for_global_network_before_proto_plan1, verbose=0)
+
+        input_for_global_network_with_proto_plan1 = np.array([cars_current_state_car1_perspective["x_c1"],
+                                                             cars_current_state_car1_perspective["y_c1"],
+                                                             cars_current_state_car1_perspective["Vx_c1"],
+                                                             cars_current_state_car1_perspective["Vy_c1"],
+                                                             proto_plan_1[0][0], proto_plan_1[0][1], proto_plan_1[0][2],
+                                                             proto_plan_1[0][3], proto_plan_1[0][4],
+                                                             cars_current_state_car1_perspective["x_c2"],
+                                                             cars_current_state_car1_perspective["y_c2"],
+                                                             cars_current_state_car1_perspective["Vx_c2"],
+                                                             cars_current_state_car1_perspective["Vy_c2"],
+                                                             -1, -1, -1, -1, -1,
+                                                             cars_current_state_car1_perspective["dist_c1_c2"]])
+
+        proto_plan_2 = self.global_network.predict(input_for_global_network_with_proto_plan1, verbose=0)
+
+        return proto_plan_1, proto_plan_2
 
     @ staticmethod
     def action_to_controls(current_controls, action):

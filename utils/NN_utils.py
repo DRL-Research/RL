@@ -19,6 +19,23 @@ def init_local_network(optimizer):
     return network
 
 
+def init_global_network(optimizer):
+    """
+    input of network: (x_c1, y_c1, Vx_c1, Vy_c1, proto-plan1 (5 neurons),
+                       x_c2, y_c2, Vx_c2, Vy_c2, proto-plan2 (5 neurons), dist_c1_c2)
+    output of network: (proto-plan 1/2 (5 neurons))
+    """
+    network = keras.Sequential([
+        keras.layers.InputLayer(input_shape=(19,)),
+        keras.layers.Normalization(axis=-1),
+        keras.layers.Dense(units=16, activation='relu', kernel_initializer=keras.initializers.HeUniform()),
+        keras.layers.Dense(units=8, activation='relu', kernel_initializer=keras.initializers.HeUniform()),
+        keras.layers.Dense(units=5, activation='linear')
+    ])
+    network.compile(optimizer=optimizer, loss="mse")
+    return network
+
+
 def copy_network(network):
     # for alternate training purpose
     return keras.models.clone_model(network)

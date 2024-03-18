@@ -3,8 +3,9 @@ from RL.utils.airsim_utils import *
 
 
 # Path definition
-EXPERIMENT_ID = "local_experiment"
-LOAD_WEIGHT_DIRECTORY = "experiments/exp4/weights/4_forth_left.h5"
+EXPERIMENT_ID = "global_experiment"
+# TODO: consider using LOAD_WEIGHT_DIRECTORY
+# LOAD_WEIGHT_DIRECTORY = "experiments/local_experiment/weights/4_forth_left.h5"
 WEIGHTS_TO_SAVE_ID = "/epochs_0_100.h5"
 
 # Mode settings

@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
             # Perform a step with the RL agent
             collision_happened, reached_target, updated_controls_car1, \
-                updated_controls_car2, reward = rl_agent.step_local_2_cars(airsim_client_handler, steps_counter)
+                updated_controls_car2, reward = rl_agent.step_global_2_cars(airsim_client_handler, steps_counter)
 
             # Update the sum of rewards
             episode_sum_of_rewards += reward
