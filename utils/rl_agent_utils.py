@@ -41,7 +41,7 @@ class RLAgent:
         action_car1, action_car2 = self.sample_action(airsim_client_handler.airsim_client)
 
         # delay code to let next state take effect
-        time.sleep(0.5)
+        time.sleep(0.4)
 
         # get next state
         cars_next_state_car1_perspective = get_local_input_car1_perspective(airsim_client_handler.airsim_client)
@@ -153,3 +153,4 @@ class RLAgent:
         elif action == 1:
             current_controls.throttle = 0.4
         return current_controls  # called current_controls - but it is updated controls
+
