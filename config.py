@@ -1,12 +1,10 @@
 from datetime import datetime
-from RL.utils.airsim_utils import *
-
+import numpy as np
 
 # Path definition
 EXPERIMENT_ID = "global_experiment"
-# TODO: consider using LOAD_WEIGHT_DIRECTORY
+WEIGHTS_TO_SAVE_NAME = "epochs_0_100"
 # LOAD_WEIGHT_DIRECTORY = "experiments/local_experiment/weights/4_forth_left.h5"
-WEIGHTS_TO_SAVE_ID = "/epochs_0_100.h5"
 
 # Mode settings
 GLOBAL_EXPERIMENT = False
@@ -29,3 +27,10 @@ EXPERIMENT_DATE_TIME = datetime.now().strftime("%d_%m_%Y-%H_%M_%S")
 CAR1_NAME = "Car1"
 CAR2_NAME = "Car2"
 
+REACHED_TARGET_REWARD = 1000
+COLLISION_REWARD = -1000
+STARVATION_REWARD = -0.1
+SAFETY_DISTANCE_FOR_BONUS = 100
+KEEPING_SAFETY_DISTANCE_REWARD = 60
+SAFETY_DISTANCE_FOR_PUNISH = 70
+NOT_KEEPING_SAFETY_DISTANCE_REWARD = -150

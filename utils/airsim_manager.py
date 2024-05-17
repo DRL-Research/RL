@@ -2,10 +2,10 @@ import airsim
 import numpy as np
 import random
 from RL.config import CAR1_INITIAL_POSITION, CAR2_INITIAL_POSITION, CAR1_INITIAL_YAW, CAR2_INITIAL_YAW, \
-    CAR1_NAME, CAR2_NAME
+    CAR1_NAME, CAR2_NAME, CAR1_DESIRED_POSITION
 
 
-class Airsim:
+class AirsimManager:
 
     def __init__(self):
 
@@ -70,16 +70,16 @@ class Airsim:
         initial_pose_car2 = airsim.Pose(initial_position_car2, initial_orientation_car2)
         self.airsim_client.simSetVehiclePose(initial_pose_car2, True, CAR2_NAME)
 
-    def detect_and_handle_collision(self):
+    def collision_occurred(self):
         collision_info = self.airsim_client.simGetCollisionInfo()
-        if collision_info.has_collided:
-            # Handling the collision
-            # Here, I'm just returning a fixed negative reward. You might want to include more complex logic.
-            collision_reward = -1000
-            return True, collision_reward
-        else:
-            # No collision occurred
-            return False, 0
+        return collision_info.has_collided
+
+    def has_reached_target(self, car_state):
+        # TODO: this function gets car state, should it?
+        return car_state['x_c1'] > CAR1_DESIRED_POSITION[0]
+
+    def get_car_controls(self, car_name):
+        return self.airsim_client.getCarControls(car_name)
 
     def set_car_controls(self, updated_car_controls, car_name):
         self.airsim_client.setCarControls(updated_car_controls, car_name)
@@ -95,17 +95,17 @@ class Airsim:
         return car_position_and_speed
 
     def get_cars_distance(self):
-        car1_position_and_speed = get_car_position_and_speed(airsim_client, CAR1_NAME)
-        car2_position_and_speed = get_car_position_and_speed(airsim_client, CAR2_NAME)
+        car1_position_and_speed = self.get_car_position_and_speed(CAR1_NAME)
+        car2_position_and_speed = self.get_car_position_and_speed(CAR2_NAME)
         dist_c1_c2 = np.sum(np.square(
             np.array([[car1_position_and_speed["x"], car1_position_and_speed["y"]]]) -
             np.array([[car2_position_and_speed["x"], car2_position_and_speed["y"]]])))
         return dist_c1_c2
 
     def get_local_input_car1_perspective(self):
-        car1_state = airsim.get_car_position_and_speed(CAR1_NAME)
-        car2_state = airsim.get_car_position_and_speed(CAR2_NAME)
-        dist_c1_c2 = get_cars_distance(airsim_client)
+        car1_state = self.get_car_position_and_speed(CAR1_NAME)
+        car2_state = self.get_car_position_and_speed(CAR2_NAME)
+        dist_c1_c2 = self.get_cars_distance()
         local_input_car1_perspective = {
             "x_c1": car1_state["x"],
             "y_c1": car1_state["y"],
@@ -120,9 +120,9 @@ class Airsim:
         return local_input_car1_perspective
 
     def get_local_input_car2_perspective(self):
-        car2_state = get_car_position_and_speed(airsim_client, CAR2_NAME)
-        car1_state = get_car_position_and_speed(airsim_client, CAR1_NAME)
-        dist_c1_c2 = get_cars_distance(airsim_client)
+        car2_state = self.get_car_position_and_speed(CAR2_NAME)
+        car1_state = self.get_car_position_and_speed(CAR1_NAME)
+        dist_c1_c2 = self.get_cars_distance()
         local_input_car1_perspective = {
             "x_c2": car2_state["x"],
             "y_c2": car2_state["y"],

@@ -1,6 +1,38 @@
-from tensorflow import keras
 import os
-from RL.config import EXPERIMENT_ID, WEIGHTS_TO_SAVE_ID
+
+from tensorflow import keras
+
+from RL.config import EXPERIMENT_ID, WEIGHTS_TO_SAVE_NAME
+
+
+def init_network(optimizer):
+    """
+        Master Input (for embedding): (x_c1, y_c1, Vx_c1, Vy_c1, x_c2, y_c2, Vx_c2, Vy_c2) - size 8
+        Agent Input: (state of the car - x, y, Vx, Vy) - size 4
+        Output: (q_value1, q_value2)
+    """
+    # Define the two separate inputs
+    input1 = keras.Input(shape=(8,))
+    input2 = keras.Input(shape=(4,))
+
+    # Process the first input
+    x1 = keras.layers.Dense(units=16, activation='relu', kernel_initializer=keras.initializers.HeUniform())(input1)
+
+    # Combine the first processed input with the second input
+    combined = keras.layers.Concatenate()([x1, input2])
+
+    # Additional processing after combining inputs
+    x2 = keras.layers.Dense(units=16, activation='relu', kernel_initializer=keras.initializers.HeUniform())(combined)
+    x3 = keras.layers.Dense(units=8, activation='relu', kernel_initializer=keras.initializers.HeUniform())(x2)
+
+    # Output layer
+    outputs = keras.layers.Dense(units=2, activation='linear')(x3)
+
+    # Create the model
+    model = keras.Model(inputs=[input1, input2], outputs=outputs)
+    model.compile(optimizer=optimizer, loss="mse")
+
+    return model
 
 
 def init_local_network(optimizer):
@@ -41,18 +73,18 @@ def init_global_network(optimizer):
 
     return proto_plan_output_network, network
 
+
 def copy_network(network):
     # for alternate training purpose
     return keras.models.clone_model(network)
 
 
-def save_network_weights(rl_agent):
+def save_network_weights(network):
     # Create the directory if it doesn't exist
     save_dir = f"experiments/{EXPERIMENT_ID}/weights"
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
     # Save the weights to the specified directory
-    save_path = f"{save_dir}/{WEIGHTS_TO_SAVE_ID}"
-    rl_agent.local_network_car1.save_weights(save_path)
-
+    save_path = f"{save_dir}/{WEIGHTS_TO_SAVE_NAME}.h5"
+    network.save_weights(save_path)
