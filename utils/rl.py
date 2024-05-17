@@ -10,14 +10,16 @@ from RL.config import LEARNING_RATE, CAR1_DESIRED_POSITION, CAR1_NAME, CAR2_NAME
 
 class RLAgent:
 
-    def __init__(self, tensorboard):
-        self.learning_rate = LEARNING_RATE
-        self.opt = tf.keras.optimizers.legacy.Adam(learning_rate=self.learning_rate)
+    def __init__(self, logger):
+        self.logger = logger
+        self.opt = tf.keras.optimizers.legacy.Adam(learning_rate=LEARNING_RATE)
         self.cars_state = None
         self.discount_factor = 0.95
         self.epsilon = 0.9
         self.epsilon_decay = 0.99
-        self.tensorboard = tensorboard
+
+        self.network = init_network(self.opt)
+
         self.local_network_car1 = init_local_network(self.opt)
         self.local_network_car2 = copy_network(self.local_network_car1)
         self.local_network_memory_buffer = []  # Initialize an empty list to store experiences
@@ -25,6 +27,62 @@ class RLAgent:
         self.global_network, self.expected_reward_network = init_global_network(self.opt)
         self.global_network_memory_buffer = []
         self.global_network_buffer_limit = 10
+
+    def step(self, airsim_client_handler, steps_counter):
+        """
+            1. Detect + Handle collision
+            2. Get Input from environment (state of both cars)
+            3. Sample action (for both cars)
+            4.
+        """
+
+        # Detect Collision and handle consequences
+        collision, collision_reward = airsim_client_handler.detect_and_handle_collision()
+        if collision:
+            return collision, None, None, None, collision_reward
+
+        # get current state
+        cars_current_state_car1_perspective = get_local_input_car1_perspective(airsim_client_handler.airsim_client)
+        cars_current_state_car2_perspective = get_local_input_car2_perspective(airsim_client_handler.airsim_client)
+
+        # Sample actions and update targets
+        action_car1, action_car2 = self.sample_action(airsim_client_handler.airsim_client)
+
+        # delay code to let next state take effect
+        time.sleep(0.4)
+
+        # get next state
+        cars_next_state_car1_perspective = get_local_input_car1_perspective(airsim_client_handler.airsim_client)
+        cars_next_state_car2_perspective = get_local_input_car2_perspective(airsim_client_handler.airsim_client)
+
+        reward, reached_target = self.calc_reward(collision,
+                                                  cars_next_state_car1_perspective)  # sent car1_perspective for distance between cars
+
+        # store step (of both car perspective) in replay buffer for batch training
+        self.local_network_memory_buffer.append((np.array([list(cars_current_state_car1_perspective.values())]),
+                                                 action_car1, reward,
+                                                 np.array([list(cars_next_state_car1_perspective.values())])))
+        self.local_network_memory_buffer.append((np.array([list(cars_current_state_car2_perspective.values())]),
+                                                 action_car2, reward,
+                                                 np.array([list(cars_next_state_car2_perspective.values())])))
+
+        # Epsilon decay for exploration-exploitation balance
+        if (steps_counter % 5) == 0:
+            self.epsilon *= self.epsilon_decay
+
+        # Translate actions to car controls
+        updated_controls_car1 = self.get_updated_controls_according_to_action_selected(airsim_client_handler, CAR1_NAME, action_car1)
+        updated_controls_car2 = self.get_updated_controls_according_to_action_selected(airsim_client_handler, CAR2_NAME, action_car2)
+
+        # Batch training every buffer_limit steps
+        if len(self.local_network_memory_buffer) > self.local_network_buffer_limit:
+            loss_local = self.local_network_batch_train()
+            if not reached_target:
+                self.logger.log('loss', loss_local.history["loss"][-1], steps_counter)
+
+            self.local_network_memory_buffer.clear()  # Clear the buffer after training
+
+        return collision, reached_target, updated_controls_car1, updated_controls_car2, reward
 
     def step_local_2_cars(self, airsim_client_handler, steps_counter):
         """
@@ -63,18 +121,14 @@ class RLAgent:
             self.epsilon *= self.epsilon_decay
 
         # Translate actions to car controls
-        current_controls_car1 = airsim_client_handler.airsim_client.getCarControls(CAR1_NAME)
-        updated_controls_car1 = self.action_to_controls(current_controls_car1, action_car1)
-
-        current_controls_car2 = airsim_client_handler.airsim_client.getCarControls(CAR2_NAME)
-        updated_controls_car2 = self.action_to_controls(current_controls_car2, action_car2)
+        updated_controls_car1 = self.get_updated_controls_according_to_action_selected(airsim_client_handler, CAR1_NAME, action_car1)
+        updated_controls_car2 = self.get_updated_controls_according_to_action_selected(airsim_client_handler, CAR2_NAME, action_car2)
 
         # Batch training every buffer_limit steps
         if len(self.local_network_memory_buffer) > self.local_network_buffer_limit:
             loss_local = self.local_network_batch_train()
             if not reached_target:
-                with self.tensorboard.as_default():
-                    tf.summary.scalar('loss', loss_local.history["loss"][-1], step=steps_counter)
+                self.logger.log('loss', loss_local.history["loss"][-1], steps_counter)
 
             self.local_network_memory_buffer.clear()  # Clear the buffer after training
 
@@ -117,8 +171,7 @@ class RLAgent:
         if len(self.global_network_memory_buffer) > self.global_network_buffer_limit:
             loss_global = self.global_network_batch_train()
             if not reached_target:
-                with self.tensorboard.as_default():
-                    tf.summary.scalar('global_network loss', loss_global.history["loss"][-1], step=steps_counter)
+                self.logger.log('global_network loss', loss_global.history["loss"][-1], steps_counter)
 
             self.global_network_memory_buffer.clear()  # Clear the buffer after training
 
@@ -147,8 +200,7 @@ class RLAgent:
         if len(self.local_network_memory_buffer) > self.local_network_buffer_limit:
             loss_local = self.local_network_batch_train()
             if not reached_target:
-                with self.tensorboard.as_default():
-                    tf.summary.scalar('local_network loss', loss_local.history["loss"][-1], step=steps_counter)
+                self.logger.log('local_network loss', loss_local.history["loss"][-1], steps_counter)
 
             self.local_network_memory_buffer.clear()  # Clear the buffer after training
 
@@ -175,7 +227,7 @@ class RLAgent:
         max_next_q_values = np.max(next_q_values, axis=1)
         targets = rewards + self.discount_factor * max_next_q_values
         for i, action in enumerate(actions):
-            current_q_values[i][action] += self.learning_rate * (targets[i] - current_q_values[i][action])
+            current_q_values[i][action] += LEARNING_RATE * (targets[i] - current_q_values[i][action])
 
         # Batch update the network
         # fit for batch training expects np.array of np.arrays in each of the inputs.
@@ -288,3 +340,7 @@ class RLAgent:
             current_controls.throttle = 0.4
         return current_controls  # called current_controls - but it is updated controls
 
+    def get_updated_controls_according_to_action_selected(self, airsim_client_handler, car_name, action_selected):
+        current_controls = airsim_client_handler.airsim_client.getCarControls(car_name)
+        updated_controls = self.action_to_controls(current_controls, action_selected)
+        return updated_controls
