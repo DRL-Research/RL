@@ -21,6 +21,9 @@ if __name__ == "__main__":
         episode_sum_of_rewards = 0
         print(f"@ Episode {episode} @")
 
+        done = False
+        trajectory = []
+
         # alternating training
         # if episode_counter % ALTERNATE_TRAINING_EPISODE_AMOUNT == 0:
         #     rl_agent.local_network_car2 = copy_network(rl_agent.local_network_car1)

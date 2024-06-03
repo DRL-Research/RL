@@ -1,6 +1,8 @@
+import random
+
 import airsim
 import numpy as np
-import random
+
 from RL.config import CAR1_INITIAL_POSITION, CAR2_INITIAL_POSITION, CAR1_INITIAL_YAW, CAR2_INITIAL_YAW, \
     CAR1_NAME, CAR2_NAME, CAR1_DESIRED_POSITION
 
@@ -8,7 +10,6 @@ from RL.config import CAR1_INITIAL_POSITION, CAR2_INITIAL_POSITION, CAR1_INITIAL
 class AirsimManager:
 
     def __init__(self):
-
         self.airsim_client = airsim.CarClient()  # Create an AirSim client for car simulation
         self.airsim_client.confirmConnection()  # Confirm the connection to the AirSim simulator
 
@@ -36,7 +37,6 @@ class AirsimManager:
         self.reset_cars_to_initial_positions()
 
     def reset_cars_to_initial_positions(self):
-
         self.airsim_client.reset()
 
         # pick at random (car 2 goes from left/right)
@@ -74,10 +74,6 @@ class AirsimManager:
         collision_info = self.airsim_client.simGetCollisionInfo()
         return collision_info.has_collided
 
-    def has_reached_target(self, car_state):
-        # TODO: this function gets car state, should it?
-        return car_state['x_c1'] > CAR1_DESIRED_POSITION[0]
-
     def get_car_controls(self, car_name):
         return self.airsim_client.getCarControls(car_name)
 
@@ -102,36 +98,38 @@ class AirsimManager:
             np.array([[car2_position_and_speed["x"], car2_position_and_speed["y"]]])))
         return dist_c1_c2
 
-    def get_local_input_car1_perspective(self):
-        car1_state = self.get_car_position_and_speed(CAR1_NAME)
-        car2_state = self.get_car_position_and_speed(CAR2_NAME)
-        dist_c1_c2 = self.get_cars_distance()
-        local_input_car1_perspective = {
-            "x_c1": car1_state["x"],
-            "y_c1": car1_state["y"],
-            "Vx_c1": car1_state["Vx"],
-            "Vy_c1": car1_state["Vy"],
-            "x_c2": car2_state["x"],
-            "y_c2": car2_state["y"],
-            "Vx_c2": car2_state["Vx"],
-            "Vy_c2": car2_state["Vy"],
-            "dist_c1_c2": dist_c1_c2
+    def get_car1_state(self):
+        car1_position_and_speed = self.get_car_position_and_speed(CAR1_NAME)
+        car2_position_and_speed = self.get_car_position_and_speed(CAR2_NAME)
+        car1_state = {
+            "x_c1": car1_position_and_speed["x"],
+            "y_c1": car1_position_and_speed["y"],
+            "Vx_c1": car1_position_and_speed["Vx"],
+            "Vy_c1": car1_position_and_speed["Vy"],
+            "x_c2": car2_position_and_speed["x"],
+            "y_c2": car2_position_and_speed["y"],
+            "Vx_c2": car2_position_and_speed["Vx"],
+            "Vy_c2": car2_position_and_speed["Vy"],
+            "distance_car1_car2": self.get_cars_distance()
         }
-        return local_input_car1_perspective
+        return car1_state
 
-    def get_local_input_car2_perspective(self):
-        car2_state = self.get_car_position_and_speed(CAR2_NAME)
-        car1_state = self.get_car_position_and_speed(CAR1_NAME)
-        dist_c1_c2 = self.get_cars_distance()
-        local_input_car1_perspective = {
-            "x_c2": car2_state["x"],
-            "y_c2": car2_state["y"],
-            "Vx_c2": car2_state["Vx"],
-            "Vy_c2": car2_state["Vy"],
-            "x_c1": car1_state["x"],
-            "y_c1": car1_state["y"],
-            "Vx_c1": car1_state["Vx"],
-            "Vy_c1": car1_state["Vy"],
-            "dist_c1_c2": dist_c1_c2
+    def get_car2_state(self):
+        car2_position_and_speed = self.get_car_position_and_speed(CAR2_NAME)
+        car1_position_and_speed = self.get_car_position_and_speed(CAR1_NAME)
+        car2_state = {
+            "x_c2": car2_position_and_speed["x"],
+            "y_c2": car2_position_and_speed["y"],
+            "Vx_c2": car2_position_and_speed["Vx"],
+            "Vy_c2": car2_position_and_speed["Vy"],
+            "x_c1": car1_position_and_speed["x"],
+            "y_c1": car1_position_and_speed["y"],
+            "Vx_c1": car1_position_and_speed["Vx"],
+            "Vy_c1": car1_position_and_speed["Vy"],
+            "distance_car1_car2": self.get_cars_distance()
         }
-        return local_input_car1_perspective
+        return car2_state
+
+    @staticmethod
+    def has_reached_target(car_state):
+        return car_state['x_c1'] > CAR1_DESIRED_POSITION[0]

@@ -2,7 +2,7 @@ import os
 
 from tensorflow import keras
 
-from RL.config import EXPERIMENT_ID, WEIGHTS_TO_SAVE_NAME
+from RL.config import EXPERIMENT_ID, WEIGHTS_TO_SAVE_NAME, LOSS_FUNCTION
 
 
 def init_network(optimizer):
@@ -12,66 +12,27 @@ def init_network(optimizer):
         Output: (q_value1, q_value2)
     """
     # Define the two separate inputs
-    input1 = keras.Input(shape=(8,))
-    input2 = keras.Input(shape=(4,))
+    master_input = keras.Input(shape=(18,))
+    agent_input = keras.Input(shape=(9,))
 
     # Process the first input
-    x1 = keras.layers.Dense(units=16, activation='relu', kernel_initializer=keras.initializers.HeUniform())(input1)
+    layer_1 = keras.layers.Dense(units=16, activation='relu', kernel_initializer=keras.initializers.HeUniform())(master_input)
 
     # Combine the first processed input with the second input
-    combined = keras.layers.Concatenate()([x1, input2])
+    combined = keras.layers.Concatenate()([layer_1, agent_input])
 
     # Additional processing after combining inputs
-    x2 = keras.layers.Dense(units=16, activation='relu', kernel_initializer=keras.initializers.HeUniform())(combined)
-    x3 = keras.layers.Dense(units=8, activation='relu', kernel_initializer=keras.initializers.HeUniform())(x2)
+    layer_2 = keras.layers.Dense(units=16, activation='relu', kernel_initializer=keras.initializers.HeUniform())(combined)
+    layer_3 = keras.layers.Dense(units=8, activation='relu', kernel_initializer=keras.initializers.HeUniform())(layer_2)
 
     # Output layer
-    outputs = keras.layers.Dense(units=2, activation='linear')(x3)
+    outputs = keras.layers.Dense(units=2, activation='linear')(layer_3)
 
     # Create the model
-    model = keras.Model(inputs=[input1, input2], outputs=outputs)
-    model.compile(optimizer=optimizer, loss="mse")
+    model = keras.Model(inputs=[master_input, agent_input], outputs=outputs)
+    model.compile(optimizer=optimizer, loss=LOSS_FUNCTION)
 
     return model
-
-
-def init_local_network(optimizer):
-    """
-    input of network: (x_c1, y_c1, Vx_c1, Vy_c1, x_c2, y_c2, Vx_c2, Vy_c2, dist_c1_c2, 5 neurons of global network)
-    output of network: (q_value1, q_value2)
-    """
-    network = keras.Sequential([
-        keras.layers.InputLayer(input_shape=(14,)),
-        keras.layers.Normalization(axis=-1),
-        keras.layers.Dense(units=16, activation='relu', kernel_initializer=keras.initializers.HeUniform()),
-        keras.layers.Dense(units=8, activation='relu', kernel_initializer=keras.initializers.HeUniform()),
-        keras.layers.Dense(units=2, activation='linear')
-    ])
-    network.compile(optimizer=optimizer, loss="mse")
-    return network
-
-
-def init_global_network(optimizer):
-    """
-    input of network: (x_c1, y_c1, Vx_c1, Vy_c1, proto-plan1 (5 neurons),
-                       x_c2, y_c2, Vx_c2, Vy_c2, proto-plan2 (5 neurons), dist_c1_c2)
-    output of network: proto_plan_output_network -> outputs the proto-plan of car 1/2 (5 neurons)
-                       network -> outputs the expected reward (used for training (compared to actual reward))
-    """
-    network = keras.Sequential([
-        keras.layers.InputLayer(input_shape=(19,)),
-        keras.layers.Normalization(axis=-1),
-        keras.layers.Dense(units=16, activation='relu', kernel_initializer=keras.initializers.HeUniform()),
-        keras.layers.Dense(units=8, activation='relu', kernel_initializer=keras.initializers.HeUniform()),
-        keras.layers.Dense(units=5, activation='linear'),  # embeddings
-        keras.layers.Dense(units=1, activation='linear')  # reward prediction for training
-    ])
-
-    proto_plan_output_network = keras.Model(inputs=network.input, outputs=network.layers[-2].output)
-
-    network.compile(optimizer=optimizer, loss="mse")
-
-    return proto_plan_output_network, network
 
 
 def copy_network(network):

@@ -20,7 +20,10 @@ CAR2_INITIAL_YAW = 90
 ALTERNATE_TRAINING_EPISODE_AMOUNT = 10  # after how many episodes the local network of car1 is copied to car2
 MAX_EPISODES = 1000
 MAX_STEPS = 500
+BATCH_SIZE = 10
+
 LEARNING_RATE = 0.003
+LOSS_FUNCTION = "mse"
 
 EXPERIMENT_DATE_TIME = datetime.now().strftime("%d_%m_%Y-%H_%M_%S")
 
