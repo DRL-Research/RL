@@ -1,4 +1,4 @@
-from config import MAX_EPISODES, MAX_STEPS, EXPERIMENT_DATE_TIME, CAR1_NAME, CAR2_NAME
+from config import MAX_EPISODES, MAX_STEPS, EXPERIMENT_DATE_TIME
 from utils.NN_utils import *
 from utils.airsim_manager import AirsimManager
 from utils.logger import Logger
@@ -9,10 +9,11 @@ if __name__ == "__main__":
     logger = Logger(EXPERIMENT_ID, EXPERIMENT_DATE_TIME)
     airsim = AirsimManager()
     rl = RL(logger=logger, airsim=airsim)
+    trajectories = []
 
     # Initialize counters for the experiment
     collision_counter = 0
-    episode_counter = -1
+    episode_counter = 0
     steps_counter = 0
 
     # Main loop for each episode
@@ -21,7 +22,6 @@ if __name__ == "__main__":
         episode_sum_of_rewards = 0
         print(f"@ Episode {episode} @")
 
-        done = False
         trajectory = []
 
         # alternating training
@@ -33,7 +33,14 @@ if __name__ == "__main__":
             steps_counter += 1
 
             # Perform a step
-            collision_occurred, reached_target, reward = rl.step(steps_counter)
+            states, actions, next_states, collision_occurred, reached_target, reward = rl.step()
+
+            # Add current step to trajectory (once for car1 action, and once for car2 (both have same reward))
+            trajectory.append((states[0], actions[0], next_states[0], reward))
+            trajectory.append((states[1], actions[1], next_states[1], reward))
+
+            # if train_option == 'step':
+            rl.train_batch(trajectory, train_step_or_trajectory='step')
 
             # Update the sum of rewards
             episode_sum_of_rewards += reward
@@ -49,6 +56,18 @@ if __name__ == "__main__":
                 if collision_occurred:
                     collision_counter += 1
                 break
+
+        trajectories.append(trajectory)
+
+        # Update epsilon greedy after each trajectory
+        rl.epsilon *= rl.epsilon_decay
+
+        # if train_option == 'trajectory':
+        rl.train_batch(trajectory, train_step_or_trajectory='trajectory')
+        #
+        # if train_option == 'batch':
+        #     if episode_counter % batch_size:
+        #         agent.train_batch_trajectories(trajectories)
 
     # Save the network weights after the experiment ended (name of weights file is set in config)
     save_network_weights(rl.network)

@@ -18,13 +18,13 @@ class RL:
         self.epsilon = 0.9
         self.epsilon_decay = 0.99
         self.network = init_network(self.optimizer)
-        self.batch_training_memory = []
+        # self.batch_training_memory = []
         self.batch_size = BATCH_SIZE
 
-    def step(self, steps_counter):
+    def step(self):
         """
-        Main Idea: get current state, sample action, get next state, get reward, train the network
-        returns: collision_occurred, reached_target, reward
+        Main Idea: get current state, sample action, get next state, get reward, detect collision_occurred or reached_target
+        returns: state, action, next_state, collision_occurred, reached_target, reward
         """
 
         # get current state
@@ -50,50 +50,63 @@ class RL:
         reached_target = self.airsim.has_reached_target(car1_next_state)
         reward = self.calculate_reward(car1_next_state, collision_occurred, reached_target)
 
-        #
+        # TODO: organize this shit
+        # turn dictionary state into array state (for training)
+        master_input_as_array = self.get_master_input_as_array(car1_state, car2_state)
+        car1_state_as_array = self.get_agent_input_as_array(car1_state)
+        car2_state_as_array = self.get_agent_input_as_array(car2_state)
 
+        master_input_of_next_state_as_array = self.get_master_input_as_array(car1_next_state, car2_next_state)
+        car1_next_state_as_array = self.get_agent_input_as_array(car1_next_state)
+        car2_next_state_as_array = self.get_agent_input_as_array(car2_next_state)
 
-        self.batch_training_memory.append(
-            self.get_agent_input_as_array()
-        )
+        # TODO: organize this shit
+        return [[master_input_as_array, car1_state_as_array], [master_input_as_array, car2_state_as_array]], \
+            [car1_action, car2_action], \
+            [[master_input_of_next_state_as_array, car1_next_state_as_array], [master_input_of_next_state_as_array, car2_next_state_as_array]], \
+            collision_occurred, reached_target, reward
 
-        # TODO: organize batch train (if needed...) - divide to functions not in step function
-        # batch training (update weights according to DQN formula)
-        # store step (in replay buffer) for batch training
-        self.local_network_memory_buffer.append((np.array([list(cars_current_state_car1_perspective.values())]),
-                                                 action_car1, reward,
-                                                 np.array([list(cars_next_state_car1_perspective.values())])))
-        self.local_network_memory_buffer.append((np.array([list(cars_current_state_car2_perspective.values())]),
-                                                 action_car2, reward,
-                                                 np.array([list(cars_next_state_car2_perspective.values())])))
-        # Batch training every buffer_limit steps
-        if len(self.local_network_memory_buffer) > self.local_network_buffer_limit:
-            loss_local = self.local_network_batch_train()
-            self.logger.log('loss', loss_local.history["loss"][-1], steps_counter)
-            self.local_network_memory_buffer.clear()  # Clear the buffer after training
+    # self.local_network_memory_buffer.append((np.array([list(cars_current_state_car1_perspective.values())]),
+    #                                          action_car1, reward,
+    #                                          np.array([list(cars_next_state_car1_perspective.values())])))
+    # self.local_network_memory_buffer.append((np.array([list(cars_current_state_car2_perspective.values())]),
+    #                                          action_car2, reward,
+    #                                          np.array([list(cars_next_state_car2_perspective.values())])))
+    # # Batch training every buffer_limit steps
+    # if len(self.local_network_memory_buffer) > self.local_network_buffer_limit:
+    #     loss_local = self.local_network_batch_train()
+    #     self.logger.log('loss', loss_local.history["loss"][-1], steps_counter)
+    #     self.local_network_memory_buffer.clear()  # Clear the buffer after training
 
-        # Epsilon decay
-        if (steps_counter % 5) == 0:
-            self.epsilon *= self.epsilon_decay
+    def train_batch(self, trajectory, train_step_or_trajectory):
+        """
+        train_step_or_trajectory = 'step' -> train on the last 2 items (these are the items that describe the last step)
+        train_step_or_trajectory = 'trajectory' -> train on whole trajectory
+        """
 
-        return collision_occurred, reached_target, reward
-
-    def local_network_batch_train(self):
-        if not self.local_network_memory_buffer:
-            return
+        # TODO: add training for step / training for trajectory - use: train_step_or_trajectory
+        # TODO: batch size for trajectories
 
         # Convert the experiences in the buffer into separate lists for each component
-        states, actions, rewards, next_states = zip(*self.local_network_memory_buffer)
+        states, actions, next_states, rewards = zip(*trajectory)
 
-        # Convert lists to numpy arrays for batch processing
-        states = np.array(states).reshape(-1, *states[0].shape[1:])
-        next_states = np.array(next_states).reshape(-1, *next_states[0].shape[1:])
+        print("train_batch after zip:")
+        print(states)
+        print(actions)
+        print(rewards)
+        print(next_states)
+        print()
+
+        # Reshape the array
+        # reshaped_states = states_array.reshape(-1, *states_array.shape[2:])
+        states = np.array(states).reshape(-1, *states[0].shape[2:])
         actions = np.array(actions)
+        next_states = np.array(next_states).reshape(-1, *next_states[0].shape[1:])
         rewards = np.array(rewards)
 
         # Predict Q-values for current and next states
-        current_q_values = self.local_network_car1.predict(states, verbose=0)
-        next_q_values = self.local_network_car1.predict(next_states, verbose=0)
+        current_q_values = self.network.predict(states, verbose=0)
+        next_q_values = self.network.predict(next_states, verbose=0)
 
         # Update Q-values using the DQN update rule for each experience in the batch
         max_next_q_values = np.max(next_q_values, axis=1)
@@ -103,22 +116,11 @@ class RL:
 
         # Batch update the network
         # fit for batch training expects np.array of np.arrays in each of the inputs.
-        loss_local = self.local_network_car1.fit(states, current_q_values, batch_size=len(states), verbose=0, epochs=1)
+        loss = self.network.fit(states, current_q_values, batch_size=len(states), verbose=0, epochs=1)
 
-        return loss_local
+        print(loss)
 
-    def global_network_batch_train(self):
-        input_for_global_network, expected_rewards = zip(*self.global_network_memory_buffer)
-        input_for_global_network = np.array(input_for_global_network).reshape(-1, *input_for_global_network[0].shape[1:])
-        expected_rewards = np.array(expected_rewards)
-        # fit for batch training expects np.array of np.arrays in each of the inputs.
-        print(f"predicted values: {self.expected_reward_network.predict(input_for_global_network)}")
-        print(f"expected values: {expected_rewards}")
-        global_loss = self.expected_reward_network.fit(input_for_global_network, expected_rewards,
-                                                       batch_size=len(input_for_global_network), verbose=0, epochs=1)
-        print(f"loss is: {global_loss}")
-        print()
-        return global_loss
+        return loss
 
     def sample_action(self, car1_state, car2_state):
 
@@ -127,6 +129,10 @@ class RL:
             car2_random_action = np.random.randint(2, size=(1, 1))[0][0]
             return car1_random_action, car2_random_action
         else:
+            # TODO: change that the states are always np arrays, and if I need specific value I use
+            # TODO: a function that given a wanted value, uses a dict, that maps value to index in the array
+            # TODO: x_c1: 0, y_c1: 1
+            # TODO: and then pull the value from the np array and return it.
             master_input_as_array = self.get_master_input_as_array(car1_state, car2_state)
             car1_state_as_array = self.get_agent_input_as_array(car1_state)
             car2_state_as_array = self.get_agent_input_as_array(car2_state)
