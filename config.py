@@ -2,6 +2,7 @@ from datetime import datetime
 import numpy as np
 
 # Path definition
+# TODO: change EXPERIMENT_ID
 EXPERIMENT_ID = "global_experiment"
 WEIGHTS_TO_SAVE_NAME = "epochs_0_100"
 # LOAD_WEIGHT_DIRECTORY = "experiments/local_experiment/weights/4_forth_left.h5"

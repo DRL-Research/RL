@@ -101,35 +101,58 @@ class AirsimManager:
     def get_car1_state(self):
         car1_position_and_speed = self.get_car_position_and_speed(CAR1_NAME)
         car2_position_and_speed = self.get_car_position_and_speed(CAR2_NAME)
-        car1_state = {
-            "x_c1": car1_position_and_speed["x"],
-            "y_c1": car1_position_and_speed["y"],
-            "Vx_c1": car1_position_and_speed["Vx"],
-            "Vy_c1": car1_position_and_speed["Vy"],
-            "x_c2": car2_position_and_speed["x"],
-            "y_c2": car2_position_and_speed["y"],
-            "Vx_c2": car2_position_and_speed["Vx"],
-            "Vy_c2": car2_position_and_speed["Vy"],
-            "distance_car1_car2": self.get_cars_distance()
-        }
+        car1_state = np.array([
+            car1_position_and_speed["x"],
+            car1_position_and_speed["y"],
+            car1_position_and_speed["Vx"],
+            car1_position_and_speed["Vy"],
+            car2_position_and_speed["x"],
+            car2_position_and_speed["y"],
+            car2_position_and_speed["Vx"],
+            car2_position_and_speed["Vy"],
+            self.get_cars_distance()
+        ])
+        # car1_state = {
+        #     "x_c1": car1_position_and_speed["x"],
+        #     "y_c1": car1_position_and_speed["y"],
+        #     "Vx_c1": car1_position_and_speed["Vx"],
+        #     "Vy_c1": car1_position_and_speed["Vy"],
+        #     "x_c2": car2_position_and_speed["x"],
+        #     "y_c2": car2_position_and_speed["y"],
+        #     "Vx_c2": car2_position_and_speed["Vx"],
+        #     "Vy_c2": car2_position_and_speed["Vy"],
+        #     "distance_car1_car2": self.get_cars_distance()
+        # }
         return car1_state
 
     def get_car2_state(self):
         car2_position_and_speed = self.get_car_position_and_speed(CAR2_NAME)
         car1_position_and_speed = self.get_car_position_and_speed(CAR1_NAME)
-        car2_state = {
-            "x_c2": car2_position_and_speed["x"],
-            "y_c2": car2_position_and_speed["y"],
-            "Vx_c2": car2_position_and_speed["Vx"],
-            "Vy_c2": car2_position_and_speed["Vy"],
-            "x_c1": car1_position_and_speed["x"],
-            "y_c1": car1_position_and_speed["y"],
-            "Vx_c1": car1_position_and_speed["Vx"],
-            "Vy_c1": car1_position_and_speed["Vy"],
-            "distance_car1_car2": self.get_cars_distance()
-        }
+        car2_state = np.array([
+            car2_position_and_speed["x"],
+            car2_position_and_speed["y"],
+            car2_position_and_speed["Vx"],
+            car2_position_and_speed["Vy"],
+            car1_position_and_speed["x"],
+            car1_position_and_speed["y"],
+            car1_position_and_speed["Vx"],
+            car1_position_and_speed["Vy"],
+            self.get_cars_distance()
+        ])
+        # car2_state = {
+        #     "x_c2": car2_position_and_speed["x"],
+        #     "y_c2": car2_position_and_speed["y"],
+        #     "Vx_c2": car2_position_and_speed["Vx"],
+        #     "Vy_c2": car2_position_and_speed["Vy"],
+        #     "x_c1": car1_position_and_speed["x"],
+        #     "y_c1": car1_position_and_speed["y"],
+        #     "Vx_c1": car1_position_and_speed["Vx"],
+        #     "Vy_c1": car1_position_and_speed["Vy"],
+        #     "distance_car1_car2": self.get_cars_distance()
+        # }
         return car2_state
 
     @staticmethod
     def has_reached_target(car_state):
-        return car_state['x_c1'] > CAR1_DESIRED_POSITION[0]
+        # TODO: change car_state[0] to be more generic
+        return car_state[0] > CAR1_DESIRED_POSITION[0]
