@@ -21,6 +21,7 @@ class RL:
         self.current_trajectory = []
         self.trajectories = []
         self.batch_size = BATCH_SIZE  # TODO: relevant for train_batch_of_trajectories function
+        self.freeze_master = False
 
     def step(self):
         """

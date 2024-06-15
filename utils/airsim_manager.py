@@ -112,17 +112,6 @@ class AirsimManager:
             car2_position_and_speed["Vy"],
             self.get_cars_distance()
         ])
-        # car1_state = {
-        #     "x_c1": car1_position_and_speed["x"],
-        #     "y_c1": car1_position_and_speed["y"],
-        #     "Vx_c1": car1_position_and_speed["Vx"],
-        #     "Vy_c1": car1_position_and_speed["Vy"],
-        #     "x_c2": car2_position_and_speed["x"],
-        #     "y_c2": car2_position_and_speed["y"],
-        #     "Vx_c2": car2_position_and_speed["Vx"],
-        #     "Vy_c2": car2_position_and_speed["Vy"],
-        #     "distance_car1_car2": self.get_cars_distance()
-        # }
         return car1_state
 
     def get_car2_state(self):
@@ -139,17 +128,6 @@ class AirsimManager:
             car1_position_and_speed["Vy"],
             self.get_cars_distance()
         ])
-        # car2_state = {
-        #     "x_c2": car2_position_and_speed["x"],
-        #     "y_c2": car2_position_and_speed["y"],
-        #     "Vx_c2": car2_position_and_speed["Vx"],
-        #     "Vy_c2": car2_position_and_speed["Vy"],
-        #     "x_c1": car1_position_and_speed["x"],
-        #     "y_c1": car1_position_and_speed["y"],
-        #     "Vx_c1": car1_position_and_speed["Vx"],
-        #     "Vy_c1": car1_position_and_speed["Vy"],
-        #     "distance_car1_car2": self.get_cars_distance()
-        # }
         return car2_state
 
     @staticmethod

@@ -1,10 +1,15 @@
-from config import MAX_EPISODES, MAX_STEPS, EXPERIMENT_DATE_TIME, TRAIN_OPTION
+from config import MAX_EPISODES, MAX_STEPS, EXPERIMENT_DATE_TIME, TRAIN_OPTION, ALTERNATE_TRAINING_EPISODE_AMOUNT
 from utils.NN_utils import *
 from utils.airsim_manager import AirsimManager
 from utils.logger import Logger
 from utils.rl import RL
 
 if __name__ == "__main__":
+
+    # TODO: mission from chat with Gilad
+    # TODO: check that weights really do not change when freezing master for example.
+    # TODO: print the important settings of this experiment
+    # TODO: add an ability to change the experiment name to a more indicative name
 
     logger = Logger(EXPERIMENT_ID, EXPERIMENT_DATE_TIME)
     airsim = AirsimManager()
@@ -23,10 +28,10 @@ if __name__ == "__main__":
 
         rl.current_trajectory = []
 
-        # TODO: finish alternate training between master and agent parts
-        # Alternate training between master and agent parts
-        # if episode_counter % ALTERNATE_TRAINING_EPISODE_AMOUNT == 0:
-        #     rl_agent.local_network_car2 = copy_network(rl_agent.local_network_car1)
+        # Alternate training between master and agent layers
+        if episode_counter % ALTERNATE_TRAINING_EPISODE_AMOUNT == 0:
+            rl.freeze_master = not rl.freeze_master
+            alternate_master_and_agent_training(rl.network, rl.freeze_master)
 
         # Inner loop for each step in an episode
         for step in range(MAX_STEPS):
