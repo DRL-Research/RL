@@ -2,13 +2,9 @@ from datetime import datetime
 import numpy as np
 
 # Path definition
-# TODO: change EXPERIMENT_ID
 EXPERIMENT_ID = "global_experiment"
 WEIGHTS_TO_SAVE_NAME = "epochs_0_100"
 # LOAD_WEIGHT_DIRECTORY = "experiments/local_experiment/weights/4_forth_left.h5"
-
-# Mode settings
-GLOBAL_EXPERIMENT = False
 
 # Car start positions and orientations
 CAR1_INITIAL_POSITION = [-20, 0]
@@ -18,7 +14,8 @@ CAR1_INITIAL_YAW = 0
 CAR2_INITIAL_YAW = 90
 
 # Training configuration
-ALTERNATE_TRAINING_EPISODE_AMOUNT = 10  # after how many episodes the local network of car1 is copied to car2
+TRAIN_OPTION = "step"  # step/trajectory/batch_of_trajectories
+ALTERNATE_TRAINING_EPISODE_AMOUNT = 10
 MAX_EPISODES = 1000
 MAX_STEPS = 500
 BATCH_SIZE = 10

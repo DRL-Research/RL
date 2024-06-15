@@ -11,4 +11,4 @@ class Logger:
 
     def log(self, log_name, log_x_value, log_y_value):
         with self.logger.as_default():
-            tf.summary.scalar(log_name, log_x_value, step=log_y_value)
+            tf.summary.scalar(log_name, step=log_x_value, data=log_y_value)

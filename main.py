@@ -1,4 +1,4 @@
-from config import MAX_EPISODES, MAX_STEPS, EXPERIMENT_DATE_TIME
+from config import MAX_EPISODES, MAX_STEPS, EXPERIMENT_DATE_TIME, TRAIN_OPTION
 from utils.NN_utils import *
 from utils.airsim_manager import AirsimManager
 from utils.logger import Logger
@@ -9,7 +9,6 @@ if __name__ == "__main__":
     logger = Logger(EXPERIMENT_ID, EXPERIMENT_DATE_TIME)
     airsim = AirsimManager()
     rl = RL(logger=logger, airsim=airsim)
-    trajectories = []
 
     # Initialize counters for the experiment
     collision_counter = 0
@@ -22,9 +21,10 @@ if __name__ == "__main__":
         episode_sum_of_rewards = 0
         print(f"@ Episode {episode} @")
 
-        trajectory = []
+        rl.current_trajectory = []
 
-        # alternating training
+        # TODO: finish alternate training between master and agent parts
+        # Alternate training between master and agent parts
         # if episode_counter % ALTERNATE_TRAINING_EPISODE_AMOUNT == 0:
         #     rl_agent.local_network_car2 = copy_network(rl_agent.local_network_car1)
 
@@ -36,11 +36,12 @@ if __name__ == "__main__":
             states, actions, next_states, collision_occurred, reached_target, reward = rl.step()
 
             # Add current step to trajectory (once for car1 action, and once for car2 (both have same reward))
-            trajectory.append((states[0], actions[0], next_states[0], reward))
-            trajectory.append((states[1], actions[1], next_states[1], reward))
+            rl.current_trajectory.append((states[0], actions[0], next_states[0], reward))
+            rl.current_trajectory.append((states[1], actions[1], next_states[1], reward))
 
-            # if train_option == 'step':
-            rl.train_batch(trajectory, train_step_or_trajectory='step')
+            if TRAIN_OPTION == 'step':
+                step_loss = rl.train_trajectory(train_only_last_step=True)
+                logger.log("loss_per_step", steps_counter, step_loss)
 
             # Update the sum of rewards
             episode_sum_of_rewards += reward
@@ -50,24 +51,26 @@ if __name__ == "__main__":
                 airsim.reset_cars_to_initial_positions()
 
                 # Log the episode's sum of rewards
-                logger.log("episode_sum_of_rewards", episode_sum_of_rewards, episode_counter)
+                logger.log("episode_sum_of_rewards", episode_counter, episode_sum_of_rewards)
 
                 # Update collision count and break the loop
                 if collision_occurred:
                     collision_counter += 1
                 break
 
-        trajectories.append(trajectory)
-
         # Update epsilon greedy after each trajectory
         rl.epsilon *= rl.epsilon_decay
 
-        # if train_option == 'trajectory':
-        rl.train_batch(trajectory, train_step_or_trajectory='trajectory')
-        #
-        # if train_option == 'batch':
+        if TRAIN_OPTION == 'trajectory':
+            trajectory_loss = rl.train_trajectory(train_only_last_step=False)
+            logger.log("loss_per_trajectory", episode_counter, trajectory_loss)
+
+        rl.trajectories.append(rl.current_trajectory)
+
+        # TODO: complete train_batch_of_trajectories
+        # if TRAIN_OPTION == 'batch_of_trajectories':
         #     if episode_counter % batch_size:
-        #         agent.train_batch_trajectories(trajectories)
+        #         agent.train_batch_of_trajectories(rl.trajectories)
 
     # Save the network weights after the experiment ended (name of weights file is set in config)
     save_network_weights(rl.network)
