@@ -39,6 +39,7 @@ if __name__ == "__main__":
 
             # Perform a step
             states, actions, next_states, collision_occurred, reached_target, reward = rl.step()
+            # print(f"actions selected: {actions}")
 
             # Add current step to trajectory (once for car1 action, and once for car2 (both have same reward))
             rl.current_trajectory.append((states[0], actions[0], next_states[0], reward))
@@ -65,6 +66,7 @@ if __name__ == "__main__":
 
         # Update epsilon greedy after each trajectory
         rl.epsilon *= rl.epsilon_decay
+        print(rl.epsilon)
 
         if TRAIN_OPTION == 'trajectory':
             trajectory_loss = rl.train_trajectory(train_only_last_step=False)

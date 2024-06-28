@@ -100,32 +100,32 @@ class AirsimManager:
 
     def get_car1_state(self):
         car1_position_and_speed = self.get_car_position_and_speed(CAR1_NAME)
-        car2_position_and_speed = self.get_car_position_and_speed(CAR2_NAME)
+        # car2_position_and_speed = self.get_car_position_and_speed(CAR2_NAME)
         car1_state = np.array([
             car1_position_and_speed["x"],
             car1_position_and_speed["y"],
             car1_position_and_speed["Vx"],
             car1_position_and_speed["Vy"],
-            car2_position_and_speed["x"],
-            car2_position_and_speed["y"],
-            car2_position_and_speed["Vx"],
-            car2_position_and_speed["Vy"],
+            # car2_position_and_speed["x"],
+            # car2_position_and_speed["y"],
+            # car2_position_and_speed["Vx"],
+            # car2_position_and_speed["Vy"],
             self.get_cars_distance()
         ])
         return car1_state
 
     def get_car2_state(self):
         car2_position_and_speed = self.get_car_position_and_speed(CAR2_NAME)
-        car1_position_and_speed = self.get_car_position_and_speed(CAR1_NAME)
+        # car1_position_and_speed = self.get_car_position_and_speed(CAR1_NAME)
         car2_state = np.array([
             car2_position_and_speed["x"],
             car2_position_and_speed["y"],
             car2_position_and_speed["Vx"],
             car2_position_and_speed["Vy"],
-            car1_position_and_speed["x"],
-            car1_position_and_speed["y"],
-            car1_position_and_speed["Vx"],
-            car1_position_and_speed["Vy"],
+            # car1_position_and_speed["x"],
+            # car1_position_and_speed["y"],
+            # car1_position_and_speed["Vx"],
+            # car1_position_and_speed["Vy"],
             self.get_cars_distance()
         ])
         return car2_state

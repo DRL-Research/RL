@@ -1,11 +1,10 @@
-import time
-import numpy as np
+from keras.callbacks import Callback
 import tensorflow as tf
-
 from RL.config import LEARNING_RATE, CAR1_NAME, CAR2_NAME, COLLISION_REWARD, REACHED_TARGET_REWARD, STARVATION_REWARD, \
     NOT_KEEPING_SAFETY_DISTANCE_REWARD, KEEPING_SAFETY_DISTANCE_REWARD, SAFETY_DISTANCE_FOR_PUNISH, \
-    SAFETY_DISTANCE_FOR_BONUS, BATCH_SIZE
+    SAFETY_DISTANCE_FOR_BONUS, BATCH_SIZE_FOR_TRAJECTORY_BATCH, EPSILON_DECAY
 from RL.utils.NN_utils import *
+from RL.utils.sanity_checks import *
 
 
 class RL:
@@ -16,11 +15,11 @@ class RL:
         self.optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=LEARNING_RATE)
         self.discount_factor = 0.95
         self.epsilon = 0.9
-        self.epsilon_decay = 0.99
+        self.epsilon_decay = EPSILON_DECAY
         self.network = init_network(self.optimizer)
         self.current_trajectory = []
         self.trajectories = []
-        self.batch_size = BATCH_SIZE  # TODO: relevant for train_batch_of_trajectories function
+        self.batch_size = BATCH_SIZE_FOR_TRAJECTORY_BATCH  # TODO: relevant for train_batch_of_trajectories function
         self.freeze_master = False
 
     def step(self):
@@ -41,7 +40,8 @@ class RL:
         self.set_controls_according_to_sampled_action(CAR2_NAME, car2_action)
 
         # delay code in order to physically get the next state in the simulator
-        time.sleep(0.4)
+        # TODO: this sleep time effects how many times in an episode the speed changes (maybe log that)
+        # time.sleep(0.1)
 
         # get next state
         car1_next_state = self.airsim.get_car1_state()
@@ -97,17 +97,38 @@ class RL:
         for i, action in enumerate(actions):
             current_state_q_values_of_all_trajectory[i][action] += LEARNING_RATE * (targets[i] - current_state_q_values_of_all_trajectory[i][action])
 
-        # Batch update the network
-        # fit expects [array(x, 18),array(x, 9)]=[array of arrays of master input, array of arrays of agent input],
-        #             [array(x, 2)] = [array of q-values for each state in trajectory]
-        loss_object = self.network.fit(current_state_of_all_trajectory, current_state_q_values_of_all_trajectory,
-                                       batch_size=len(states), verbose=0, epochs=1)
-        loss = loss_object.history["loss"][-1]
-        return loss
+
+        # TODO: organize this code - maybe move to another function? create one option with saving gradient and one without?
+        # TODO: check that the loss value is the same as commented code below
+        # TODO: make sure that the gradients are applied and the weights are changing (in both versions!!)
+        with tf.GradientTape() as tape:
+            predictions = self.network(current_state_of_all_trajectory, training=True)
+            loss = tf.keras.losses.mean_squared_error(current_state_q_values_of_all_trajectory, predictions)
+        gradients = tape.gradient(loss, self.network.trainable_variables)
+
+        for grad, var in zip(gradients, self.network.trainable_variables):
+            print(f"Gradient for {var.name}: {grad}")
+
+        # Apply gradients
+        self.network.optimizer.apply_gradients(zip(gradients, self.network.trainable_variables))
+
+        return loss.numpy().mean()
+
+        #
+        # # Batch update the network
+        # # fit expects [array(x, 18),array(x, 9)]=[array of arrays of master input, array of arrays of agent input],
+        # #             [array(x, 2)] = [array of q-values for each state in trajectory]
+        # loss_object = self.network.fit(current_state_of_all_trajectory, current_state_q_values_of_all_trajectory,
+        #                                batch_size=len(states), verbose=0, epochs=1)
+        # loss_value = loss_object.history["loss"][-1]
+        # return loss_value
 
     def sample_action(self, car1_state, car2_state):
 
         if np.random.binomial(1, p=self.epsilon):  # epsilon greedy
+            # TODO: delete after sanity check
+            print("random action")
+
             car1_random_action = np.random.randint(2, size=(1, 1))[0][0]
             car2_random_action = np.random.randint(2, size=(1, 1))[0][0]
             return car1_random_action, car2_random_action
@@ -118,6 +139,10 @@ class RL:
 
             car1_action = self.network.predict([master_input, car1_state], verbose=0).argmax()
             car2_action = self.network.predict([master_input, car2_state], verbose=0).argmax()
+
+            # TODO: delete after sanity check
+            check_effect_of_master_on_selected_actions(self.network, car1_state, car2_state, car1_action, car2_action)
+
             return car1_action, car2_action
 
     def set_controls_according_to_sampled_action(self, car_name, sampled_action):
@@ -159,3 +184,6 @@ class RL:
         elif action == 1:
             current_controls.throttle = 0.4
         return current_controls  # called current_controls - but it is updated controls
+
+
+

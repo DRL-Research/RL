@@ -12,8 +12,8 @@ def init_network(optimizer):
         Output: (q_value1, q_value2)
     """
     # Define master_input and agent_input
-    master_input = keras.Input(shape=(18,), name="master_input")
-    agent_input = keras.Input(shape=(9,), name="agent_input")
+    master_input = keras.Input(shape=(10,), name="master_input")
+    agent_input = keras.Input(shape=(5,), name="agent_input")
 
     # Master layer(s)
     master_layer_1 = keras.layers.Dense(units=16, activation='relu', kernel_initializer=keras.initializers.HeUniform(), name="master_layer_1")(master_input)
