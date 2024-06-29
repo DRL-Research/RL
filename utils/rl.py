@@ -63,7 +63,7 @@ class RL:
 
         return current_state, cars_actions, next_state, collision_occurred, reached_target, reward
 
-    def train_trajectory(self, train_only_last_step):
+    def train_trajectory(self, train_only_last_step, episode_counter):
         """
         train_only_last_step = True -> train on the last 2 items (these are the items that describe the last step)
         train_only_last_step = False -> train on whole trajectory
@@ -112,9 +112,27 @@ class RL:
         # Apply gradients
         self.network.optimizer.apply_gradients(zip(gradients, self.network.trainable_variables))
 
+        # TODO: move this to function
+        # TODO: organize the directories of logs
+        # TODO: to do so, edit the logger.py code, create another directory for weights and gradients
+            # remove global_experiment and local_experiment for now
+            # rewards_and_losses (with directory for each data_time)
+            # weights and gradients (with directory for each data_time)
+            # saved_weights
+        # TODO: pay attention it is only trainable variables
+        # TODO: write documentation in notion about reading these graphs
+            # use https://www.youtube.com/watch?v=pSexXMdruFM&ab_channel=deeplizard
+            # or use documentation about histograms of tensorboard
+        # TODO: create code to control how often we right the log (maybe not in each episode) every 5 episodes for example
+        summary_writer = tf.summary.create_file_writer('experiments/')
+        with summary_writer.as_default():
+            for var in self.network.trainable_variables:
+                tf.summary.histogram(var.name, var, step=episode_counter)
+            for grad, var in zip(gradients, self.network.trainable_variables):
+                tf.summary.histogram(f'{var.name}_gradient', grad, step=episode_counter)
+
         return loss.numpy().mean()
 
-        #
         # # Batch update the network
         # # fit expects [array(x, 18),array(x, 9)]=[array of arrays of master input, array of arrays of agent input],
         # #             [array(x, 2)] = [array of q-values for each state in trajectory]

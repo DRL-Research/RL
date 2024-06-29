@@ -16,8 +16,8 @@ CAR2_INITIAL_YAW = 90
 # Training configuration
 # TODO: change clock speed in settings.json? affects how many actions are taken each epoch
 TRAIN_OPTION = "trajectory"  # step/trajectory/batch_of_trajectories
-ALTERNATE_TRAINING_EPISODE_AMOUNT = 50
-MAX_EPISODES = 1000
+ALTERNATE_TRAINING_EPISODE_AMOUNT = 100
+MAX_EPISODES = 10000
 MAX_STEPS = 500
 BATCH_SIZE_FOR_TRAJECTORY_BATCH = 10
 

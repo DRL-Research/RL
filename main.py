@@ -69,7 +69,7 @@ if __name__ == "__main__":
         print(rl.epsilon)
 
         if TRAIN_OPTION == 'trajectory':
-            trajectory_loss = rl.train_trajectory(train_only_last_step=False)
+            trajectory_loss = rl.train_trajectory(False, episode_counter)
             logger.log("loss_per_trajectory", episode_counter, trajectory_loss)
 
         rl.trajectories.append(rl.current_trajectory)
