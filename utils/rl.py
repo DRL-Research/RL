@@ -1,4 +1,3 @@
-from keras.callbacks import Callback
 import tensorflow as tf
 from RL.config import LEARNING_RATE, CAR1_NAME, CAR2_NAME, COLLISION_REWARD, REACHED_TARGET_REWARD, STARVATION_REWARD, \
     NOT_KEEPING_SAFETY_DISTANCE_REWARD, KEEPING_SAFETY_DISTANCE_REWARD, SAFETY_DISTANCE_FOR_PUNISH, \
@@ -69,77 +68,138 @@ class RL:
         train_only_last_step = False -> train on whole trajectory
         """
 
+        # TODO: go over this function, compare with commented code
+        # TODO: check that it works the same as code before.. compare the graients? or loss?
+        # TODO: move log_gradients() to logger.py
+
         if train_only_last_step:
-            current_trajectory = self.current_trajectory[-2:] # train on the last 2 items (these are the items that describe the last step)
+            current_trajectory = self.current_trajectory[-2:]
         else:
             current_trajectory = self.current_trajectory
 
-        # Convert the trajectory into separate lists for each component
-        states, actions, next_states, rewards = zip(*current_trajectory)
+        states, actions, next_states, rewards = self.process_trajectory(current_trajectory)
 
-        # Assemble current_state_of_all_trajectory + current_state_q_values_of_all_trajectory
-        # predict expects: [array(x, 18),array(x, 9)]=[array of arrays of master input, array of arrays of agent input]
-        master_inputs_of_all_trajectory = np.array([np.concatenate(state[0]) for state in states])
-        agent_inputs_of_all_trajectory = np.array([state[1] for state in states])
-        current_state_of_all_trajectory = [master_inputs_of_all_trajectory, agent_inputs_of_all_trajectory]
-        current_state_q_values_of_all_trajectory = self.network.predict(current_state_of_all_trajectory, verbose=0)
+        current_state_q_values = self.predict_q_values(states)
+        next_state_q_values = self.predict_q_values(next_states)
 
-        # Assemble next_state_of_all_trajectory + next_state_q_values_of_all_trajectory
-        # predict expects: [array(x, 18),array(x, 9)]=[array of arrays of master input, array of arrays of agent input]
-        master_inputs_of_next_state_of_all_trajectory = np.array([np.concatenate(next_state[0]) for next_state in next_states])
-        agent_inputs_of_next_state_of_all_trajectory = np.array([next_state[1] for next_state in next_states])
-        next_state_of_all_trajectory = [master_inputs_of_next_state_of_all_trajectory, agent_inputs_of_next_state_of_all_trajectory]
-        next_state_q_values_of_all_trajectory = self.network.predict(next_state_of_all_trajectory, verbose=0)
+        updated_q_values = self.update_q_values(actions, rewards, current_state_q_values, next_state_q_values)
 
-        # Update Q-values using the DQN update rule for each step in the trajectory
-        max_next_q_values = np.max(next_state_q_values_of_all_trajectory, axis=1)
+        with tf.GradientTape(persistent=True) as tape:
+            loss, gradients = self.apply_gradients(tape, updated_q_values, self.prepare_state_inputs(states))
+
+        self.log_gradients(gradients, episode_counter)
+
+        return loss.numpy().mean()
+
+        # if train_only_last_step:
+        #     current_trajectory = self.current_trajectory[-2:] # train on the last 2 items (these are the items that describe the last step)
+        # else:
+        #     current_trajectory = self.current_trajectory
+        #
+        # # Convert the trajectory into separate lists for each component
+        # states, actions, next_states, rewards = zip(*current_trajectory)
+        #
+        # # Assemble current_state_of_all_trajectory + current_state_q_values_of_all_trajectory
+        # TODO: add this line to the functions I built of predict
+        # # predict expects: [array(x, 18),array(x, 9)]=[array of arrays of master input, array of arrays of agent input]
+        # master_inputs_of_all_trajectory = np.array([np.concatenate(state[0]) for state in states])
+        # agent_inputs_of_all_trajectory = np.array([state[1] for state in states])
+        # current_state_of_all_trajectory = [master_inputs_of_all_trajectory, agent_inputs_of_all_trajectory]
+        # current_state_q_values_of_all_trajectory = self.network.predict(current_state_of_all_trajectory, verbose=0)
+        #
+        # # Assemble next_state_of_all_trajectory + next_state_q_values_of_all_trajectory
+        # # predict expects: [array(x, 18),array(x, 9)]=[array of arrays of master input, array of arrays of agent input]
+        # master_inputs_of_next_state_of_all_trajectory = np.array([np.concatenate(next_state[0]) for next_state in next_states])
+        # agent_inputs_of_next_state_of_all_trajectory = np.array([next_state[1] for next_state in next_states])
+        # next_state_of_all_trajectory = [master_inputs_of_next_state_of_all_trajectory, agent_inputs_of_next_state_of_all_trajectory]
+        # next_state_q_values_of_all_trajectory = self.network.predict(next_state_of_all_trajectory, verbose=0)
+        #
+        # # Update Q-values using the DQN update rule for each step in the trajectory
+        # max_next_q_values = np.max(next_state_q_values_of_all_trajectory, axis=1)
+        # targets = rewards + self.discount_factor * max_next_q_values
+        # for i, action in enumerate(actions):
+        #     current_state_q_values_of_all_trajectory[i][action] += LEARNING_RATE * (targets[i] - current_state_q_values_of_all_trajectory[i][action])
+        #
+        #
+        # # TODO: organize this code - maybe move to another function? create one option with saving gradient and one without?
+        # # TODO: make sure that the gradients are applied and the weights are changing
+        # with tf.GradientTape() as tape:
+        #     predictions = self.network(current_state_of_all_trajectory, training=True)
+        #     loss = tf.keras.losses.mean_squared_error(current_state_q_values_of_all_trajectory, predictions)
+        # gradients = tape.gradient(loss, self.network.trainable_variables)
+        #
+        # # print gradients
+        # # for grad, var in zip(gradients, self.network.trainable_variables):
+        # #     print(f"Gradient for {var.name}: {grad}")
+        #
+        # # Apply gradients
+        # self.network.optimizer.apply_gradients(zip(gradients, self.network.trainable_variables))
+        #
+        # # TODO: move this to function
+        # # TODO: organize the directories of logs
+        # # TODO: to do so, edit the logger.py code, create another directory for weights and gradients
+        #     # remove global_experiment and local_experiment for now
+        #     # rewards_and_losses (with directory for each data_time)
+        #     # weights and gradients (with directory for each data_time)
+        #     # saved_weights
+        # # TODO: pay attention it is only trainable variables
+        # # TODO: write documentation in notion about reading these graphs
+        #     # use https://www.youtube.com/watch?v=pSexXMdruFM&ab_channel=deeplizard
+        #     # or use documentation about histograms of tensorboard
+        # # TODO: create code to control how often we right the log (maybe not in each episode) every 5 episodes for example
+        # summary_writer = tf.summary.create_file_writer('experiments/')
+        # with summary_writer.as_default():
+        #     for var in self.network.trainable_variables:
+        #         tf.summary.histogram(var.name, var, step=episode_counter)
+        #     for grad, var in zip(gradients, self.network.trainable_variables):
+        #         tf.summary.histogram(f'{var.name}_gradient', grad, step=episode_counter)
+        #
+        # return loss.numpy().mean()
+
+    @staticmethod
+    def process_trajectory(trajectory):
+        """ Convert the trajectory into separate lists for each component. """
+        states, actions, next_states, rewards = zip(*trajectory)
+        return states, actions, next_states, rewards
+
+    @staticmethod
+    def prepare_state_inputs(states):
+        """ Assemble the master and agent inputs from states. """
+        master_inputs = np.array([np.concatenate(state[0]) for state in states])
+        agent_inputs = np.array([state[1] for state in states])
+        return [master_inputs, agent_inputs]
+
+    def predict_q_values(self, states):
+        """ Predict Q-values for the given states. """
+        inputs = self.prepare_state_inputs(states)
+        return self.network.predict(inputs, verbose=0)
+
+    def update_q_values(self, actions, rewards, current_q_values, next_q_values):
+        """ Update Q-values using the DQN update rule for each step in the trajectory. """
+        max_next_q_values = np.max(next_q_values, axis=1)
         targets = rewards + self.discount_factor * max_next_q_values
         for i, action in enumerate(actions):
-            current_state_q_values_of_all_trajectory[i][action] += LEARNING_RATE * (targets[i] - current_state_q_values_of_all_trajectory[i][action])
+            current_q_values[i][action] += LEARNING_RATE * (targets[i] - current_q_values[i][action])
+        return current_q_values  # these are the updated q-values
 
-
-        # TODO: organize this code - maybe move to another function? create one option with saving gradient and one without?
-        # TODO: check that the loss value is the same as commented code below
-        # TODO: make sure that the gradients are applied and the weights are changing (in both versions!!)
-        with tf.GradientTape() as tape:
-            predictions = self.network(current_state_of_all_trajectory, training=True)
-            loss = tf.keras.losses.mean_squared_error(current_state_q_values_of_all_trajectory, predictions)
+    def apply_gradients(self, tape, updated_q_values, current_state):
+        """ Calculate and apply gradients to the network. """
+        current_state_q_values = self.network(current_state, training=True)
+        loss = tf.keras.losses.mean_squared_error(updated_q_values, current_state_q_values)
         gradients = tape.gradient(loss, self.network.trainable_variables)
-
-        for grad, var in zip(gradients, self.network.trainable_variables):
-            print(f"Gradient for {var.name}: {grad}")
-
-        # Apply gradients
         self.network.optimizer.apply_gradients(zip(gradients, self.network.trainable_variables))
+        return loss, gradients
 
-        # TODO: move this to function
-        # TODO: organize the directories of logs
-        # TODO: to do so, edit the logger.py code, create another directory for weights and gradients
-            # remove global_experiment and local_experiment for now
-            # rewards_and_losses (with directory for each data_time)
-            # weights and gradients (with directory for each data_time)
-            # saved_weights
-        # TODO: pay attention it is only trainable variables
-        # TODO: write documentation in notion about reading these graphs
-            # use https://www.youtube.com/watch?v=pSexXMdruFM&ab_channel=deeplizard
-            # or use documentation about histograms of tensorboard
-        # TODO: create code to control how often we right the log (maybe not in each episode) every 5 episodes for example
+    def log_gradients(self, gradients, episode_counter):
+        """
+        Log gradients and weights to TensorBoard.
+        """
         summary_writer = tf.summary.create_file_writer('experiments/')
         with summary_writer.as_default():
             for var in self.network.trainable_variables:
                 tf.summary.histogram(var.name, var, step=episode_counter)
             for grad, var in zip(gradients, self.network.trainable_variables):
                 tf.summary.histogram(f'{var.name}_gradient', grad, step=episode_counter)
-
-        return loss.numpy().mean()
-
-        # # Batch update the network
-        # # fit expects [array(x, 18),array(x, 9)]=[array of arrays of master input, array of arrays of agent input],
-        # #             [array(x, 2)] = [array of q-values for each state in trajectory]
-        # loss_object = self.network.fit(current_state_of_all_trajectory, current_state_q_values_of_all_trajectory,
-        #                                batch_size=len(states), verbose=0, epochs=1)
-        # loss_value = loss_object.history["loss"][-1]
-        # return loss_value
 
     def sample_action(self, car1_state, car2_state):
 
