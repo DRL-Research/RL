@@ -1,10 +1,25 @@
 from datetime import datetime
 import numpy as np
 
-# Path definition
-EXPERIMENT_ID = "global_experiment"
+# Training
+# TODO: change clock speed in settings.json? affects how many actions are taken each epoch
+TRAIN_OPTION = "trajectory"  # step/trajectory/batch_of_trajectories
+ALTERNATE_TRAINING_EPISODE_AMOUNT = 30
+MAX_EPISODES = 1000
+MAX_STEPS = 500
+
+EPSILON_DECAY = 0.98
+LEARNING_RATE = 0.003
+
+EXPERIMENT_ID = "EXP2"
 WEIGHTS_TO_SAVE_NAME = "epochs_0_100"
 # LOAD_WEIGHT_DIRECTORY = "experiments/local_experiment/weights/4_forth_left.h5"
+
+# Logging
+LOG_WEIGHTS_AND_GRADIENTS_EVERY_X_EPISODES = 40
+LOG_ACTIONS_SELECTED = True  # True/False
+
+###############################################################
 
 # Car start positions and orientations
 CAR1_INITIAL_POSITION = [-20, 0]
@@ -13,16 +28,6 @@ CAR1_DESIRED_POSITION = np.array([10, 0])
 CAR1_INITIAL_YAW = 0
 CAR2_INITIAL_YAW = 90
 
-# Training configuration
-# TODO: change clock speed in settings.json? affects how many actions are taken each epoch
-TRAIN_OPTION = "trajectory"  # step/trajectory/batch_of_trajectories
-ALTERNATE_TRAINING_EPISODE_AMOUNT = 100
-MAX_EPISODES = 10000
-MAX_STEPS = 500
-BATCH_SIZE_FOR_TRAJECTORY_BATCH = 10
-
-EPSILON_DECAY = 0.98
-LEARNING_RATE = 0.003
 LOSS_FUNCTION = "mse"
 
 EXPERIMENT_DATE_TIME = datetime.now().strftime("%d_%m_%Y-%H_%M_%S")

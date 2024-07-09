@@ -6,11 +6,6 @@ from utils.rl import RL
 
 if __name__ == "__main__":
 
-    # TODO: mission from chat with Gilad
-    # TODO: check that weights really do not change when freezing master for example.
-    # TODO: print the important settings of this experiment
-    # TODO: add an ability to change the experiment name to a more indicative name
-
     logger = Logger(EXPERIMENT_ID, EXPERIMENT_DATE_TIME)
     airsim = AirsimManager()
     rl = RL(logger=logger, airsim=airsim)
@@ -39,7 +34,6 @@ if __name__ == "__main__":
 
             # Perform a step
             states, actions, next_states, collision_occurred, reached_target, reward = rl.step()
-            # print(f"actions selected: {actions}")
 
             # Add current step to trajectory (once for car1 action, and once for car2 (both have same reward))
             rl.current_trajectory.append((states[0], actions[0], next_states[0], reward))
@@ -47,7 +41,7 @@ if __name__ == "__main__":
 
             if TRAIN_OPTION == 'step':
                 step_loss = rl.train_trajectory(train_only_last_step=True)
-                logger.log("loss_per_step", steps_counter, step_loss)
+                logger.log_scaler("loss_per_step", steps_counter, step_loss)
 
             # Update the sum of rewards
             episode_sum_of_rewards += reward
@@ -57,7 +51,7 @@ if __name__ == "__main__":
                 airsim.reset_cars_to_initial_positions()
 
                 # Log the episode's sum of rewards
-                logger.log("episode_sum_of_rewards", episode_counter, episode_sum_of_rewards)
+                logger.log_scaler("episode_sum_of_rewards", episode_counter, episode_sum_of_rewards)
 
                 # Update collision count and break the loop
                 if collision_occurred:
@@ -66,11 +60,10 @@ if __name__ == "__main__":
 
         # Update epsilon greedy after each trajectory
         rl.epsilon *= rl.epsilon_decay
-        print(rl.epsilon)
 
         if TRAIN_OPTION == 'trajectory':
             trajectory_loss = rl.train_trajectory(False, episode_counter)
-            logger.log("loss_per_trajectory", episode_counter, trajectory_loss)
+            logger.log_scaler("loss_per_trajectory", episode_counter, trajectory_loss)
 
         rl.trajectories.append(rl.current_trajectory)
 

@@ -1,9 +1,9 @@
 import tensorflow as tf
 from RL.config import LEARNING_RATE, CAR1_NAME, CAR2_NAME, COLLISION_REWARD, REACHED_TARGET_REWARD, STARVATION_REWARD, \
     NOT_KEEPING_SAFETY_DISTANCE_REWARD, KEEPING_SAFETY_DISTANCE_REWARD, SAFETY_DISTANCE_FOR_PUNISH, \
-    SAFETY_DISTANCE_FOR_BONUS, BATCH_SIZE_FOR_TRAJECTORY_BATCH, EPSILON_DECAY
+    SAFETY_DISTANCE_FOR_BONUS, EPSILON_DECAY, LOG_ACTIONS_SELECTED
 from RL.utils.NN_utils import *
-from RL.utils.sanity_checks import *
+import numpy as np
 
 
 class RL:
@@ -18,7 +18,7 @@ class RL:
         self.network = init_network(self.optimizer)
         self.current_trajectory = []
         self.trajectories = []
-        self.batch_size = BATCH_SIZE_FOR_TRAJECTORY_BATCH  # TODO: relevant for train_batch_of_trajectories function
+        # self.batch_size = BATCH_SIZE_FOR_TRAJECTORY_BATCH  # relevant for train_batch_of_trajectories function
         self.freeze_master = False
 
     def step(self):
@@ -70,7 +70,6 @@ class RL:
 
         # TODO: go over this function, compare with commented code
         # TODO: check that it works the same as code before.. compare the graients? or loss?
-        # TODO: move log_gradients() to logger.py
 
         if train_only_last_step:
             current_trajectory = self.current_trajectory[-2:]
@@ -87,7 +86,7 @@ class RL:
         with tf.GradientTape(persistent=True) as tape:
             loss, gradients = self.apply_gradients(tape, updated_q_values, self.prepare_state_inputs(states))
 
-        self.log_gradients(gradients, episode_counter)
+        self.logger.log_weights_and_gradients(gradients, episode_counter, self.network)
 
         return loss.numpy().mean()
 
@@ -135,25 +134,6 @@ class RL:
         # # Apply gradients
         # self.network.optimizer.apply_gradients(zip(gradients, self.network.trainable_variables))
         #
-        # # TODO: move this to function
-        # # TODO: organize the directories of logs
-        # # TODO: to do so, edit the logger.py code, create another directory for weights and gradients
-        #     # remove global_experiment and local_experiment for now
-        #     # rewards_and_losses (with directory for each data_time)
-        #     # weights and gradients (with directory for each data_time)
-        #     # saved_weights
-        # # TODO: pay attention it is only trainable variables
-        # # TODO: write documentation in notion about reading these graphs
-        #     # use https://www.youtube.com/watch?v=pSexXMdruFM&ab_channel=deeplizard
-        #     # or use documentation about histograms of tensorboard
-        # # TODO: create code to control how often we right the log (maybe not in each episode) every 5 episodes for example
-        # summary_writer = tf.summary.create_file_writer('experiments/')
-        # with summary_writer.as_default():
-        #     for var in self.network.trainable_variables:
-        #         tf.summary.histogram(var.name, var, step=episode_counter)
-        #     for grad, var in zip(gradients, self.network.trainable_variables):
-        #         tf.summary.histogram(f'{var.name}_gradient', grad, step=episode_counter)
-        #
         # return loss.numpy().mean()
 
     @staticmethod
@@ -190,22 +170,12 @@ class RL:
         self.network.optimizer.apply_gradients(zip(gradients, self.network.trainable_variables))
         return loss, gradients
 
-    def log_gradients(self, gradients, episode_counter):
-        """
-        Log gradients and weights to TensorBoard.
-        """
-        summary_writer = tf.summary.create_file_writer('experiments/')
-        with summary_writer.as_default():
-            for var in self.network.trainable_variables:
-                tf.summary.histogram(var.name, var, step=episode_counter)
-            for grad, var in zip(gradients, self.network.trainable_variables):
-                tf.summary.histogram(f'{var.name}_gradient', grad, step=episode_counter)
-
     def sample_action(self, car1_state, car2_state):
 
         if np.random.binomial(1, p=self.epsilon):  # epsilon greedy
-            # TODO: delete after sanity check
-            print("random action")
+
+            if LOG_ACTIONS_SELECTED:
+                self.logger.log_actions_selected_random()
 
             car1_random_action = np.random.randint(2, size=(1, 1))[0][0]
             car2_random_action = np.random.randint(2, size=(1, 1))[0][0]
@@ -218,8 +188,8 @@ class RL:
             car1_action = self.network.predict([master_input, car1_state], verbose=0).argmax()
             car2_action = self.network.predict([master_input, car2_state], verbose=0).argmax()
 
-            # TODO: delete after sanity check
-            check_effect_of_master_on_selected_actions(self.network, car1_state, car2_state, car1_action, car2_action)
+            if LOG_ACTIONS_SELECTED:
+                self.logger.log_actions_selected(self.network, car1_state, car2_state, car1_action, car2_action)
 
             return car1_action, car2_action
 
