@@ -1,4 +1,5 @@
-from config import MAX_EPISODES, MAX_STEPS, EXPERIMENT_DATE_TIME, TRAIN_OPTION, ALTERNATE_TRAINING_EPISODE_AMOUNT
+from config import MAX_EPISODES, MAX_STEPS, EXPERIMENT_DATE_TIME, TRAIN_OPTION, ALTERNATE_TRAINING_EPISODE_AMOUNT, \
+    LOG_SAME_ACTION_SELECTED_IN_TRAJECTORY
 from utils.NN_utils import *
 from utils.airsim_manager import AirsimManager
 from utils.logger import Logger
@@ -24,6 +25,7 @@ if __name__ == "__main__":
         rl.current_trajectory = []
 
         # Alternate training between master and agent layers
+        # if not AGENT_ONLY:
         if episode_counter % ALTERNATE_TRAINING_EPISODE_AMOUNT == 0:
             rl.freeze_master = not rl.freeze_master
             alternate_master_and_agent_training(rl.network, rl.freeze_master)
@@ -40,7 +42,7 @@ if __name__ == "__main__":
             rl.current_trajectory.append((states[1], actions[1], next_states[1], reward))
 
             if TRAIN_OPTION == 'step':
-                step_loss = rl.train_trajectory(train_only_last_step=True)
+                step_loss = rl.train_trajectory(train_only_last_step=True, episode_counter=episode_counter)
                 logger.log_scaler("loss_per_step", steps_counter, step_loss)
 
             # Update the sum of rewards
@@ -62,8 +64,10 @@ if __name__ == "__main__":
         rl.epsilon *= rl.epsilon_decay
 
         if TRAIN_OPTION == 'trajectory':
-            trajectory_loss = rl.train_trajectory(False, episode_counter)
+            trajectory_loss = rl.train_trajectory(train_only_last_step=False, episode_counter=episode_counter)
             logger.log_scaler("loss_per_trajectory", episode_counter, trajectory_loss)
+            if LOG_SAME_ACTION_SELECTED_IN_TRAJECTORY:
+                logger.log_same_action_selected_in_trajectory()
 
         rl.trajectories.append(rl.current_trajectory)
 

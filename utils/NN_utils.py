@@ -1,35 +1,125 @@
 import os
-
 from tensorflow import keras
 
 from RL.config import EXPERIMENT_ID, WEIGHTS_TO_SAVE_NAME, LOSS_FUNCTION
 
 
-def init_network(optimizer):
-    """
-        Master Input (for embedding): (x_c1, y_c1, Vx_c1, Vy_c1, x_c2, y_c2, Vx_c2, Vy_c2) - size 8  TODO: update values
-        Agent Input: (state of the car - x, y, Vx, Vy) - size 4  TODO: update values
-        Output: (q_value1, q_value2)
-    """
+def create_master_network(master_input_shape):
+    master_input_layer = keras.layers.Input(shape=master_input_shape, name="master_input")
+    master_layer_1 = keras.layers.Dense(units=32, kernel_initializer='he_uniform', name="master_layer_1")(master_input_layer)
+    master_layer_1 = keras.layers.BatchNormalization()(master_layer_1)
+    master_layer_1 = keras.layers.LeakyReLU()(master_layer_1)
+    master_layer_1 = keras.layers.Dropout(0.3)(master_layer_1)
+
+    return master_input_layer, master_layer_1
+
+
+def create_agent_network(combined_input_shape):
+    combined = keras.layers.Input(shape=combined_input_shape, name="combined")
+    agent_layer_2 = keras.layers.Dense(units=32, kernel_initializer='he_uniform', name="agent_layer_2")(combined)
+    agent_layer_2 = keras.layers.BatchNormalization()(agent_layer_2)
+    agent_layer_2 = keras.layers.LeakyReLU()(agent_layer_2)
+    agent_layer_2 = keras.layers.Dropout(0.3)(agent_layer_2)
+
+    agent_layer_3 = keras.layers.Dense(units=16, kernel_initializer='he_uniform', name="agent_layer_3")(agent_layer_2)
+    agent_layer_3 = keras.layers.BatchNormalization()(agent_layer_3)
+    agent_layer_3 = keras.layers.LeakyReLU()(agent_layer_3)
+
+    outputs = keras.layers.Dense(units=2, activation='linear', name="outputs")(agent_layer_3)
+
+    return combined, outputs
+
+
+def create_full_network(master_input_shape, agent_input_shape, optimizer, loss_function):
+    master_input_layer, master_layer_1 = create_master_network(master_input_shape)
+    agent_input = keras.layers.Input(shape=agent_input_shape, name="agent_input")
+
+    combined = keras.layers.Concatenate(name="combined")([master_layer_1, agent_input])
+    combined_input_shape = combined.shape[1:]
+
+    combined, outputs = create_agent_network(combined_input_shape)
+
+    model = keras.Model(inputs=[master_input_layer, agent_input], outputs=outputs)
+    model.compile(optimizer=optimizer, loss=loss_function)
+
+    return model
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def init_network_master_and_agent(optimizer):
+
     # Define master_input and agent_input
-    master_input = keras.Input(shape=(10,), name="master_input")
-    agent_input = keras.Input(shape=(5,), name="agent_input")
+    master_input = keras.layers.Input(shape=(10,), name="master_input")
+    agent_input = keras.layers.Input(shape=(5,), name="agent_input")
 
     # Master layer(s)
-    master_layer_1 = keras.layers.Dense(units=16, activation='relu', kernel_initializer=keras.initializers.HeUniform(), name="master_layer_1")(master_input)
+    master_layer_1 = keras.layers.Dense(units=32, kernel_initializer='he_uniform', name="master_layer_1")(master_input)
+    master_layer_1 = keras.layers.BatchNormalization()(master_layer_1)
+    master_layer_1 = keras.layers.LeakyReLU()(master_layer_1)
+    master_layer_1 = keras.layers.Dropout(0.3)(master_layer_1)
 
     # Combine master embedding with input of agent
     combined = keras.layers.Concatenate(name="combined")([master_layer_1, agent_input])
 
     # Agent layers
-    agent_layer_2 = keras.layers.Dense(units=16, activation='relu', kernel_initializer=keras.initializers.HeUniform(), name="agent_layer_2")(combined)
-    agent_layer_3 = keras.layers.Dense(units=8, activation='relu', kernel_initializer=keras.initializers.HeUniform(), name="agent_layer_3")(agent_layer_2)
+    agent_layer_2 = keras.layers.Dense(units=32, kernel_initializer='he_uniform', name="agent_layer_2")(combined)
+    agent_layer_2 = keras.layers.BatchNormalization()(agent_layer_2)
+    agent_layer_2 = keras.layers.LeakyReLU()(agent_layer_2)
+    agent_layer_2 = keras.layers.Dropout(0.3)(agent_layer_2)
+
+    agent_layer_3 = keras.layers.Dense(units=16, kernel_initializer='he_uniform', name="agent_layer_3")(agent_layer_2)
+    agent_layer_3 = keras.layers.BatchNormalization()(agent_layer_3)
+    agent_layer_3 = keras.layers.LeakyReLU()(agent_layer_3)
 
     # Output layer
     outputs = keras.layers.Dense(units=2, activation='linear', name="outputs")(agent_layer_3)
 
     # Create the model
     model = keras.Model(inputs=[master_input, agent_input], outputs=outputs)
+    model.compile(optimizer=optimizer, loss=LOSS_FUNCTION)
+
+    return model
+
+
+def init_network_agent_only(optimizer):
+
+    # Define master_input and agent_input
+    agent_input = keras.Input(shape=(5,), name="agent_input")
+
+    # Agent layers
+    agent_layer_2 = keras.layers.Dense(units=16, activation='relu', kernel_initializer=keras.initializers.HeUniform(), name="agent_layer_2")(agent_input)
+    agent_layer_3 = keras.layers.Dense(units=8, activation='relu', kernel_initializer=keras.initializers.HeUniform(), name="agent_layer_3")(agent_layer_2)
+
+    # Output layer
+    outputs = keras.layers.Dense(units=2, activation='linear', name="outputs")(agent_layer_3)
+
+    # Create the model
+    model = keras.Model(inputs=agent_input, outputs=outputs)
     model.compile(optimizer=optimizer, loss=LOSS_FUNCTION)
 
     return model

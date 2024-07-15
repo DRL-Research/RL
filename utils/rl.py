@@ -1,7 +1,7 @@
 import tensorflow as tf
 from RL.config import LEARNING_RATE, CAR1_NAME, CAR2_NAME, COLLISION_REWARD, REACHED_TARGET_REWARD, STARVATION_REWARD, \
     NOT_KEEPING_SAFETY_DISTANCE_REWARD, KEEPING_SAFETY_DISTANCE_REWARD, SAFETY_DISTANCE_FOR_PUNISH, \
-    SAFETY_DISTANCE_FOR_BONUS, EPSILON_DECAY, LOG_ACTIONS_SELECTED
+    SAFETY_DISTANCE_FOR_BONUS, EPSILON_DECAY, LOG_ACTIONS_SELECTED, LOG_Q_VALUES
 from RL.utils.NN_utils import *
 import numpy as np
 
@@ -15,7 +15,7 @@ class RL:
         self.discount_factor = 0.95
         self.epsilon = 0.9
         self.epsilon_decay = EPSILON_DECAY
-        self.network = init_network(self.optimizer)
+        self.network = init_network_master_and_agent(self.optimizer)
         self.current_trajectory = []
         self.trajectories = []
         # self.batch_size = BATCH_SIZE_FOR_TRAJECTORY_BATCH  # relevant for train_batch_of_trajectories function
@@ -28,8 +28,8 @@ class RL:
         """
 
         # get current state
-        car1_state = self.airsim.get_car1_state()
-        car2_state = self.airsim.get_car2_state()
+        car1_state = self.airsim.get_car1_state(self.logger)
+        car2_state = self.airsim.get_car2_state(self.logger)
 
         # sample actions
         car1_action, car2_action = self.sample_action(car1_state, car2_state)
@@ -43,13 +43,13 @@ class RL:
         # time.sleep(0.1)
 
         # get next state
-        car1_next_state = self.airsim.get_car1_state()
-        car2_next_state = self.airsim.get_car2_state()
+        car1_next_state = self.airsim.get_car1_state(self.logger)
+        car2_next_state = self.airsim.get_car2_state(self.logger)
 
         # calculate reward
         collision_occurred = self.airsim.collision_occurred()
         reached_target = self.airsim.has_reached_target(car1_next_state)
-        reward = self.calculate_reward(car1_next_state, collision_occurred, reached_target)
+        reward = self.calculate_reward(car1_next_state, collision_occurred, reached_target, car1_action, car2_action)
 
         # Put together master input
         master_input = [car1_state, car2_state]
@@ -78,8 +78,8 @@ class RL:
 
         states, actions, next_states, rewards = self.process_trajectory(current_trajectory)
 
-        current_state_q_values = self.predict_q_values(states)
-        next_state_q_values = self.predict_q_values(next_states)
+        current_state_q_values = self.predict_q_values_of_trajectory(states)
+        next_state_q_values = self.predict_q_values_of_trajectory(next_states)
 
         updated_q_values = self.update_q_values(actions, rewards, current_state_q_values, next_state_q_values)
 
@@ -149,7 +149,7 @@ class RL:
         agent_inputs = np.array([state[1] for state in states])
         return [master_inputs, agent_inputs]
 
-    def predict_q_values(self, states):
+    def predict_q_values_of_trajectory(self, states):
         """ Predict Q-values for the given states. """
         inputs = self.prepare_state_inputs(states)
         return self.network.predict(inputs, verbose=0)
@@ -185,8 +185,8 @@ class RL:
             car1_state = np.reshape(car1_state, (1, -1))
             car2_state = np.reshape(car2_state, (1, -1))
 
-            car1_action = self.network.predict([master_input, car1_state], verbose=0).argmax()
-            car2_action = self.network.predict([master_input, car2_state], verbose=0).argmax()
+            car1_action = self.predict_q_values([master_input, car1_state], CAR1_NAME)
+            car2_action = self.predict_q_values([master_input, car2_state], CAR2_NAME)
 
             if LOG_ACTIONS_SELECTED:
                 self.logger.log_actions_selected(self.network, car1_state, car2_state, car1_action, car2_action)
@@ -199,19 +199,23 @@ class RL:
         self.airsim.set_car_controls(updated_controls, car_name)
 
     @staticmethod
-    def calculate_reward(car1_state, collision_occurred, reached_target):
+    def calculate_reward(car1_state, collision_occurred, reached_target, car1_action, car2_action):
+
+        x_car1 = car1_state[0]  # TODO: make it more generic
+        cars_distance = car1_state[-1]  # TODO: make it more generic
 
         # avoid starvation
         reward = STARVATION_REWARD
 
         # too close
-        # TODO: change car1_state[-1] to be more generic
-        if car1_state[-1] < SAFETY_DISTANCE_FOR_PUNISH:
+        # x_car1 < 2 is for not punishing after passing without collision (TODO: make it more generic)
+        if x_car1 < 2 and cars_distance < SAFETY_DISTANCE_FOR_PUNISH:
+            # print(f"too close: {car1_state[-1]}")
             reward = NOT_KEEPING_SAFETY_DISTANCE_REWARD
 
         # keeping safety distance
-        # TODO: change car1_state[-1] to be more generic
-        if car1_state[-1] > SAFETY_DISTANCE_FOR_BONUS:
+        if cars_distance > SAFETY_DISTANCE_FOR_BONUS:
+            # print(f"keeping safety distance: {car1_state[-1]}")
             reward = KEEPING_SAFETY_DISTANCE_REWARD
 
         # reached target
@@ -232,6 +236,13 @@ class RL:
         elif action == 1:
             current_controls.throttle = 0.4
         return current_controls  # called current_controls - but it is updated controls
+
+    def predict_q_values(self, car_input, car_name):
+        q_values = self.network.predict(car_input, verbose=0)
+        if LOG_Q_VALUES:
+            self.logger.log_q_values(q_values, car_name)
+        action_selected = q_values.argmax()
+        return action_selected
 
 
 

@@ -4,7 +4,7 @@ import airsim
 import numpy as np
 
 from RL.config import CAR1_INITIAL_POSITION, CAR2_INITIAL_POSITION, CAR1_INITIAL_YAW, CAR2_INITIAL_YAW, \
-    CAR1_NAME, CAR2_NAME, CAR1_DESIRED_POSITION
+    CAR1_NAME, CAR2_NAME, CAR1_DESIRED_POSITION, LOG_CAR_STATES
 
 
 class AirsimManager:
@@ -98,7 +98,7 @@ class AirsimManager:
             np.array([[car2_position_and_speed["x"], car2_position_and_speed["y"]]])))
         return dist_c1_c2
 
-    def get_car1_state(self):
+    def get_car1_state(self, logger):
         car1_position_and_speed = self.get_car_position_and_speed(CAR1_NAME)
         # car2_position_and_speed = self.get_car_position_and_speed(CAR2_NAME)
         car1_state = np.array([
@@ -112,9 +112,13 @@ class AirsimManager:
             # car2_position_and_speed["Vy"],
             self.get_cars_distance()
         ])
+
+        if LOG_CAR_STATES:
+            logger.log_state(car1_state, CAR1_NAME)
+
         return car1_state
 
-    def get_car2_state(self):
+    def get_car2_state(self, logger):
         car2_position_and_speed = self.get_car_position_and_speed(CAR2_NAME)
         # car1_position_and_speed = self.get_car_position_and_speed(CAR1_NAME)
         car2_state = np.array([
@@ -128,6 +132,10 @@ class AirsimManager:
             # car1_position_and_speed["Vy"],
             self.get_cars_distance()
         ])
+
+        if LOG_CAR_STATES:
+            logger.log_state(car2_state, CAR2_NAME)
+
         return car2_state
 
     @staticmethod
