@@ -1,5 +1,6 @@
 from config import MAX_EPISODES, MAX_STEPS, EXPERIMENT_DATE_TIME, TRAIN_OPTION, ALTERNATE_TRAINING_EPISODE_AMOUNT, \
-    LOG_SAME_ACTION_SELECTED_IN_TRAJECTORY
+    LOG_SAME_ACTION_SELECTED_IN_TRAJECTORY, ALTERNATE_MASTER_AND_AGENT_TRAINING, COPY_CAR1_NETWORK_TO_CAR2, \
+    COPY_CAR1_NETWORK_TO_CAR2_EPISODE_AMOUNT
 from utils.NN_utils import *
 from utils.airsim_manager import AirsimManager
 from utils.logger import Logger
@@ -24,9 +25,12 @@ if __name__ == "__main__":
 
         rl.current_trajectory = []
 
-        # Alternate training between master and agent layers
-        # if not AGENT_ONLY:
-        if episode_counter % ALTERNATE_TRAINING_EPISODE_AMOUNT == 0:
+        # COPY_CAR1_NETWORK_TO_CAR2
+        if COPY_CAR1_NETWORK_TO_CAR2 and episode_counter % COPY_CAR1_NETWORK_TO_CAR2_EPISODE_AMOUNT == 0:
+            rl.copy_network()
+
+        # ALTERNATE_MASTER_AND_AGENT_TRAINING
+        if ALTERNATE_MASTER_AND_AGENT_TRAINING and episode_counter % ALTERNATE_TRAINING_EPISODE_AMOUNT == 0:
             rl.freeze_master = not rl.freeze_master
             alternate_master_and_agent_training(rl.network, rl.freeze_master)
 

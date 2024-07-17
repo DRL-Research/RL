@@ -1,74 +1,7 @@
 import os
 from tensorflow import keras
-
+import numpy as np
 from RL.config import EXPERIMENT_ID, WEIGHTS_TO_SAVE_NAME, LOSS_FUNCTION
-
-
-def create_master_network(master_input_shape):
-    master_input_layer = keras.layers.Input(shape=master_input_shape, name="master_input")
-    master_layer_1 = keras.layers.Dense(units=32, kernel_initializer='he_uniform', name="master_layer_1")(master_input_layer)
-    master_layer_1 = keras.layers.BatchNormalization()(master_layer_1)
-    master_layer_1 = keras.layers.LeakyReLU()(master_layer_1)
-    master_layer_1 = keras.layers.Dropout(0.3)(master_layer_1)
-
-    return master_input_layer, master_layer_1
-
-
-def create_agent_network(combined_input_shape):
-    combined = keras.layers.Input(shape=combined_input_shape, name="combined")
-    agent_layer_2 = keras.layers.Dense(units=32, kernel_initializer='he_uniform', name="agent_layer_2")(combined)
-    agent_layer_2 = keras.layers.BatchNormalization()(agent_layer_2)
-    agent_layer_2 = keras.layers.LeakyReLU()(agent_layer_2)
-    agent_layer_2 = keras.layers.Dropout(0.3)(agent_layer_2)
-
-    agent_layer_3 = keras.layers.Dense(units=16, kernel_initializer='he_uniform', name="agent_layer_3")(agent_layer_2)
-    agent_layer_3 = keras.layers.BatchNormalization()(agent_layer_3)
-    agent_layer_3 = keras.layers.LeakyReLU()(agent_layer_3)
-
-    outputs = keras.layers.Dense(units=2, activation='linear', name="outputs")(agent_layer_3)
-
-    return combined, outputs
-
-
-def create_full_network(master_input_shape, agent_input_shape, optimizer, loss_function):
-    master_input_layer, master_layer_1 = create_master_network(master_input_shape)
-    agent_input = keras.layers.Input(shape=agent_input_shape, name="agent_input")
-
-    combined = keras.layers.Concatenate(name="combined")([master_layer_1, agent_input])
-    combined_input_shape = combined.shape[1:]
-
-    combined, outputs = create_agent_network(combined_input_shape)
-
-    model = keras.Model(inputs=[master_input_layer, agent_input], outputs=outputs)
-    model.compile(optimizer=optimizer, loss=loss_function)
-
-    return model
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 def init_network_master_and_agent(optimizer):
@@ -174,9 +107,10 @@ def create_network_using_agent_only_from_original(original_model):
     return agent_only_model
 
 
-def copy_network(network):
-    # for alternate training purpose
-    return keras.models.clone_model(network)
+def create_network_copy(network):
+    network_copy = keras.models.clone_model(network)
+    network_copy.set_weights(network.get_weights())
+    return network_copy
 
 
 def save_network_weights(network):
@@ -188,3 +122,39 @@ def save_network_weights(network):
     # Save the weights to the specified directory
     save_path = f"{save_dir}/{WEIGHTS_TO_SAVE_NAME}.h5"
     network.save_weights(save_path)
+
+
+def are_weights_identical(model1, model2) -> bool:
+    """Check if two Keras models have identical weights."""
+    result = True
+
+    # Ensure both models have the same number of layers
+    if len(model1.layers) != len(model2.layers):
+        result = False
+
+    # Iterate over the layers of both models
+    for layer1, layer2 in zip(model1.layers, model2.layers):
+        # Ensure both layers have the same configuration
+        if layer1.get_config() != layer2.get_config():
+            result = False
+
+        # Get weights of both layers
+        weights1 = layer1.get_weights()
+        weights2 = layer2.get_weights()
+
+        # Check if the number of weight matrices are the same
+        if len(weights1) != len(weights2):
+            result = False
+
+        # Check if all weight matrices are identical
+        for w1, w2 in zip(weights1, weights2):
+            if not np.array_equal(w1, w2):
+                result = False
+
+    # check that copy process was done correctly
+    if result:
+        print(f"Successfully copied network car1 to network car2")
+    else:
+        print(f"Error in copying network car1 to network car2...")
+
+    return result

@@ -1,7 +1,10 @@
+import time
+
 import tensorflow as tf
 from RL.config import LEARNING_RATE, CAR1_NAME, CAR2_NAME, COLLISION_REWARD, REACHED_TARGET_REWARD, STARVATION_REWARD, \
     NOT_KEEPING_SAFETY_DISTANCE_REWARD, KEEPING_SAFETY_DISTANCE_REWARD, SAFETY_DISTANCE_FOR_PUNISH, \
-    SAFETY_DISTANCE_FOR_BONUS, EPSILON_DECAY, LOG_ACTIONS_SELECTED, LOG_Q_VALUES
+    SAFETY_DISTANCE_FOR_BONUS, EPSILON_DECAY, LOG_ACTIONS_SELECTED, LOG_Q_VALUES, LOG_WEIGHTS_ARE_IDENTICAL, \
+    TIME_BETWEEN_STEPS
 from RL.utils.NN_utils import *
 import numpy as np
 
@@ -15,7 +18,8 @@ class RL:
         self.discount_factor = 0.95
         self.epsilon = 0.9
         self.epsilon_decay = EPSILON_DECAY
-        self.network = init_network_master_and_agent(self.optimizer)
+        self.network = init_network_master_and_agent(self.optimizer) # TODO: change name network and network_car2
+        self.network_car2 = create_network_copy(self.network)  # TODO: change name network and network_car2
         self.current_trajectory = []
         self.trajectories = []
         # self.batch_size = BATCH_SIZE_FOR_TRAJECTORY_BATCH  # relevant for train_batch_of_trajectories function
@@ -39,8 +43,7 @@ class RL:
         self.set_controls_according_to_sampled_action(CAR2_NAME, car2_action)
 
         # delay code in order to physically get the next state in the simulator
-        # TODO: this sleep time effects how many times in an episode the speed changes (maybe log that)
-        # time.sleep(0.1)
+        time.sleep(TIME_BETWEEN_STEPS)
 
         # get next state
         car1_next_state = self.airsim.get_car1_state(self.logger)
@@ -84,57 +87,10 @@ class RL:
         updated_q_values = self.update_q_values(actions, rewards, current_state_q_values, next_state_q_values)
 
         with tf.GradientTape(persistent=True) as tape:
-            loss, gradients = self.apply_gradients(tape, updated_q_values, self.prepare_state_inputs(states))
-
+            loss, gradients = self.apply_gradients(tape, self.prepare_state_inputs(states, separate_state_for_each_car=False), updated_q_values)
         self.logger.log_weights_and_gradients(gradients, episode_counter, self.network)
 
         return loss.numpy().mean()
-
-        # if train_only_last_step:
-        #     current_trajectory = self.current_trajectory[-2:] # train on the last 2 items (these are the items that describe the last step)
-        # else:
-        #     current_trajectory = self.current_trajectory
-        #
-        # # Convert the trajectory into separate lists for each component
-        # states, actions, next_states, rewards = zip(*current_trajectory)
-        #
-        # # Assemble current_state_of_all_trajectory + current_state_q_values_of_all_trajectory
-        # TODO: add this line to the functions I built of predict
-        # # predict expects: [array(x, 18),array(x, 9)]=[array of arrays of master input, array of arrays of agent input]
-        # master_inputs_of_all_trajectory = np.array([np.concatenate(state[0]) for state in states])
-        # agent_inputs_of_all_trajectory = np.array([state[1] for state in states])
-        # current_state_of_all_trajectory = [master_inputs_of_all_trajectory, agent_inputs_of_all_trajectory]
-        # current_state_q_values_of_all_trajectory = self.network.predict(current_state_of_all_trajectory, verbose=0)
-        #
-        # # Assemble next_state_of_all_trajectory + next_state_q_values_of_all_trajectory
-        # # predict expects: [array(x, 18),array(x, 9)]=[array of arrays of master input, array of arrays of agent input]
-        # master_inputs_of_next_state_of_all_trajectory = np.array([np.concatenate(next_state[0]) for next_state in next_states])
-        # agent_inputs_of_next_state_of_all_trajectory = np.array([next_state[1] for next_state in next_states])
-        # next_state_of_all_trajectory = [master_inputs_of_next_state_of_all_trajectory, agent_inputs_of_next_state_of_all_trajectory]
-        # next_state_q_values_of_all_trajectory = self.network.predict(next_state_of_all_trajectory, verbose=0)
-        #
-        # # Update Q-values using the DQN update rule for each step in the trajectory
-        # max_next_q_values = np.max(next_state_q_values_of_all_trajectory, axis=1)
-        # targets = rewards + self.discount_factor * max_next_q_values
-        # for i, action in enumerate(actions):
-        #     current_state_q_values_of_all_trajectory[i][action] += LEARNING_RATE * (targets[i] - current_state_q_values_of_all_trajectory[i][action])
-        #
-        #
-        # # TODO: organize this code - maybe move to another function? create one option with saving gradient and one without?
-        # # TODO: make sure that the gradients are applied and the weights are changing
-        # with tf.GradientTape() as tape:
-        #     predictions = self.network(current_state_of_all_trajectory, training=True)
-        #     loss = tf.keras.losses.mean_squared_error(current_state_q_values_of_all_trajectory, predictions)
-        # gradients = tape.gradient(loss, self.network.trainable_variables)
-        #
-        # # print gradients
-        # # for grad, var in zip(gradients, self.network.trainable_variables):
-        # #     print(f"Gradient for {var.name}: {grad}")
-        #
-        # # Apply gradients
-        # self.network.optimizer.apply_gradients(zip(gradients, self.network.trainable_variables))
-        #
-        # return loss.numpy().mean()
 
     @staticmethod
     def process_trajectory(trajectory):
@@ -143,26 +99,53 @@ class RL:
         return states, actions, next_states, rewards
 
     @staticmethod
-    def prepare_state_inputs(states):
+    def prepare_state_inputs(states, separate_state_for_each_car): # -> Tuple[List[np.ndarray, np.ndarray], List[np.ndarray, np.ndarray]]
         """ Assemble the master and agent inputs from states. """
-        master_inputs = np.array([np.concatenate(state[0]) for state in states])
-        agent_inputs = np.array([state[1] for state in states])
-        return [master_inputs, agent_inputs]
+        if separate_state_for_each_car:
+            states_car1 = states[::2]
+            states_car2 = states[1::2]
+            master_inputs_car1 = np.array([np.concatenate(state[0]) for state in states_car1])
+            master_inputs_car2 = np.array([np.concatenate(state[0]) for state in states_car2])
+            agent_inputs_car1 = np.array([state[1] for state in states_car1])
+            agent_inputs_car2 = np.array([state[1] for state in states_car2])
+            return [master_inputs_car1, agent_inputs_car1], [master_inputs_car2, agent_inputs_car2]
+        else:
+            master_inputs = np.array([np.concatenate(state[0]) for state in states])
+            agent_inputs = np.array([state[1] for state in states])
+            return [master_inputs, agent_inputs]
 
     def predict_q_values_of_trajectory(self, states):
-        """ Predict Q-values for the given states. """
-        inputs = self.prepare_state_inputs(states)
-        return self.network.predict(inputs, verbose=0)
+        """ Predict Q-values for the given states (according to the network of each car) """
+        car1_inputs, car2_inputs = self.prepare_state_inputs(states, separate_state_for_each_car=True)
+
+        car1_q_values_of_trajectory = self.network.predict(car1_inputs, verbose=0)
+        car2_q_values_of_trajectory = self.network.predict(car2_inputs, verbose=0)  # TODO: change self.network to self.netowkr_car2
+
+        q_values_of_trajectory = np.empty((car1_q_values_of_trajectory.shape[0] + car2_q_values_of_trajectory.shape[0],
+                                           car1_q_values_of_trajectory.shape[1]))
+        q_values_of_trajectory[::2] = car1_q_values_of_trajectory
+        q_values_of_trajectory[1::2] = car2_q_values_of_trajectory
+
+        return q_values_of_trajectory
 
     def update_q_values(self, actions, rewards, current_q_values, next_q_values):
         """ Update Q-values using the DQN update rule for each step in the trajectory. """
-        max_next_q_values = np.max(next_q_values, axis=1)
+        # Calculate max Q-value for the next state
+        max_next_q_values = tf.reduce_max(next_q_values, axis=1)
         targets = rewards + self.discount_factor * max_next_q_values
-        for i, action in enumerate(actions):
-            current_q_values[i][action] += LEARNING_RATE * (targets[i] - current_q_values[i][action])
-        return current_q_values  # these are the updated q-values
 
-    def apply_gradients(self, tape, updated_q_values, current_state):
+        # Gather the Q-values corresponding to the taken actions
+        indices = tf.stack([tf.range(len(actions)), actions], axis=1)
+        gathered_q_values = tf.gather_nd(current_q_values, indices)
+
+        # Update Q-values using the DQN update rule
+        updated_q_values = gathered_q_values + LEARNING_RATE * (targets - gathered_q_values)
+
+        # Update the current Q-values tensor with the updated values
+        updated_q_values_tensor = tf.tensor_scatter_nd_update(current_q_values, indices, updated_q_values)
+        return updated_q_values_tensor
+
+    def apply_gradients(self, tape, current_state, updated_q_values):
         """ Calculate and apply gradients to the network. """
         current_state_q_values = self.network(current_state, training=True)
         loss = tf.keras.losses.mean_squared_error(updated_q_values, current_state_q_values)
@@ -173,10 +156,8 @@ class RL:
     def sample_action(self, car1_state, car2_state):
 
         if np.random.binomial(1, p=self.epsilon):  # epsilon greedy
-
             if LOG_ACTIONS_SELECTED:
                 self.logger.log_actions_selected_random()
-
             car1_random_action = np.random.randint(2, size=(1, 1))[0][0]
             car2_random_action = np.random.randint(2, size=(1, 1))[0][0]
             return car1_random_action, car2_random_action
@@ -243,6 +224,13 @@ class RL:
             self.logger.log_q_values(q_values, car_name)
         action_selected = q_values.argmax()
         return action_selected
+
+    def copy_network(self):
+        network_copy = create_network_copy(self.network)
+        self.network_car2 = network_copy
+
+        if LOG_WEIGHTS_ARE_IDENTICAL:
+            are_weights_identical(self.network, self.network_car2)
 
 
 
