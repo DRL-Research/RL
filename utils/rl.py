@@ -1,25 +1,21 @@
 import time
-
 import tensorflow as tf
-from RL.config import LEARNING_RATE, CAR1_NAME, CAR2_NAME, COLLISION_REWARD, REACHED_TARGET_REWARD, STARVATION_REWARD, \
-    NOT_KEEPING_SAFETY_DISTANCE_REWARD, KEEPING_SAFETY_DISTANCE_REWARD, SAFETY_DISTANCE_FOR_PUNISH, \
-    SAFETY_DISTANCE_FOR_BONUS, EPSILON_DECAY, LOG_ACTIONS_SELECTED, LOG_Q_VALUES, LOG_WEIGHTS_ARE_IDENTICAL, \
-    TIME_BETWEEN_STEPS
-from RL.utils.NN_utils import *
 import numpy as np
 
 
 class RL:
 
-    def __init__(self, logger, airsim):
+    def __init__(self, config, logger, airsim, nn_handler):
+        self.config = config
         self.logger = logger
         self.airsim = airsim
-        self.optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=LEARNING_RATE)
+        self.nn_handler = nn_handler
+        self.optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=self.config.LEARNING_RATE)
         self.discount_factor = 0.95
         self.epsilon = 0.9
-        self.epsilon_decay = EPSILON_DECAY
-        self.network = init_network_master_and_agent(self.optimizer) # TODO: change name network and network_car2
-        self.network_car2 = create_network_copy(self.network)  # TODO: change name network and network_car2
+        self.epsilon_decay = self.config.EPSILON_DECAY
+        self.network = self.nn_handler.init_network_master_and_agent(self.optimizer) # TODO: change name network and network_car2
+        self.network_car2 = self.nn_handler.create_network_copy(self.network)  # TODO: change name network and network_car2
         self.current_trajectory = []
         self.trajectories = []
         # self.batch_size = BATCH_SIZE_FOR_TRAJECTORY_BATCH  # relevant for train_batch_of_trajectories function
@@ -39,11 +35,11 @@ class RL:
         car1_action, car2_action = self.sample_action(car1_state, car2_state)
 
         # set updated controls according to sampled action
-        self.set_controls_according_to_sampled_action(CAR1_NAME, car1_action)
-        self.set_controls_according_to_sampled_action(CAR2_NAME, car2_action)
+        self.set_controls_according_to_sampled_action(self.config.CAR1_NAME, car1_action)
+        self.set_controls_according_to_sampled_action(self.config.CAR2_NAME, car2_action)
 
         # delay code in order to physically get the next state in the simulator
-        time.sleep(TIME_BETWEEN_STEPS)
+        time.sleep(self.config.TIME_BETWEEN_STEPS)
 
         # get next state
         car1_next_state = self.airsim.get_car1_state(self.logger)
@@ -142,7 +138,7 @@ class RL:
         gathered_q_values = tf.gather_nd(current_q_values, indices)
 
         # Update Q-values using the DQN update rule
-        updated_q_values = gathered_q_values + LEARNING_RATE * (targets - gathered_q_values)
+        updated_q_values = gathered_q_values + self.config.LEARNING_RATE * (targets - gathered_q_values)
 
         # Update the current Q-values tensor with the updated values
         updated_q_values_tensor = tf.tensor_scatter_nd_update(current_q_values, indices, updated_q_values)
@@ -165,7 +161,7 @@ class RL:
     def sample_action(self, car1_state, car2_state):
 
         if np.random.binomial(1, p=self.epsilon):  # epsilon greedy
-            if LOG_ACTIONS_SELECTED:
+            if self.config.LOG_ACTIONS_SELECTED:
                 self.logger.log_actions_selected_random()
             car1_random_action = np.random.randint(2, size=(1, 1))[0][0]
             car2_random_action = np.random.randint(2, size=(1, 1))[0][0]
@@ -175,10 +171,10 @@ class RL:
             car1_state = np.reshape(car1_state, (1, -1))
             car2_state = np.reshape(car2_state, (1, -1))
 
-            car1_action = self.predict_q_values([master_input, car1_state], CAR1_NAME)
-            car2_action = self.predict_q_values([master_input, car2_state], CAR2_NAME)
+            car1_action = self.predict_q_values([master_input, car1_state], self.config.CAR1_NAME)
+            car2_action = self.predict_q_values([master_input, car2_state], self.config.CAR2_NAME)
 
-            if LOG_ACTIONS_SELECTED:
+            if self.config.LOG_ACTIONS_SELECTED:
                 self.logger.log_actions_selected(self.network, car1_state, car2_state, car1_action, car2_action)
 
             return car1_action, car2_action
@@ -188,33 +184,32 @@ class RL:
         updated_controls = self.action_to_controls(current_controls, sampled_action)
         self.airsim.set_car_controls(updated_controls, car_name)
 
-    @staticmethod
-    def calculate_reward(car1_state, collision_occurred, reached_target, car1_action, car2_action):
+    def calculate_reward(self, car1_state, collision_occurred, reached_target, car1_action, car2_action):
 
         x_car1 = car1_state[0]  # TODO: make it more generic
         cars_distance = car1_state[-1]  # TODO: make it more generic
 
         # avoid starvation
-        reward = STARVATION_REWARD
+        reward = self.config.STARVATION_REWARD
 
         # too close
         # x_car1 < 2 is for not punishing after passing without collision (TODO: make it more generic)
-        if x_car1 < 2 and cars_distance < SAFETY_DISTANCE_FOR_PUNISH:
+        if x_car1 < 2 and cars_distance < self.config.SAFETY_DISTANCE_FOR_PUNISH:
             # print(f"too close: {car1_state[-1]}")
-            reward = NOT_KEEPING_SAFETY_DISTANCE_REWARD
+            reward = self.config.NOT_KEEPING_SAFETY_DISTANCE_REWARD
 
         # keeping safety distance
-        if cars_distance > SAFETY_DISTANCE_FOR_BONUS:
+        if cars_distance > self.config.SAFETY_DISTANCE_FOR_BONUS:
             # print(f"keeping safety distance: {car1_state[-1]}")
-            reward = KEEPING_SAFETY_DISTANCE_REWARD
+            reward = self.config.KEEPING_SAFETY_DISTANCE_REWARD
 
         # reached target
         if reached_target:
-            reward = REACHED_TARGET_REWARD
+            reward = self.config.REACHED_TARGET_REWARD
 
         # collision occurred
         if collision_occurred:
-            reward = COLLISION_REWARD
+            reward = self.config.COLLISION_REWARD
 
         return reward
 
@@ -229,17 +224,17 @@ class RL:
 
     def predict_q_values(self, car_input, car_name):
         q_values = self.network.predict(car_input, verbose=0)
-        if LOG_Q_VALUES:
+        if self.config.LOG_Q_VALUES:
             self.logger.log_q_values(q_values, car_name)
         action_selected = q_values.argmax()
         return action_selected
 
     def copy_network(self):
-        network_copy = create_network_copy(self.network)
+        network_copy = self.nn_handler.create_network_copy(self.network)
         self.network_car2 = network_copy
 
-        if LOG_WEIGHTS_ARE_IDENTICAL:
-            are_weights_identical(self.network, self.network_car2)
+        if self.config.LOG_WEIGHTS_ARE_IDENTICAL:
+            self.nn_handler.are_weights_identical(self.network, self.network_car2)
 
 
 

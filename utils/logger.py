@@ -1,13 +1,12 @@
 import tensorflow as tf
 
-from config import LOG_WEIGHTS_AND_GRADIENTS_EVERY_X_EPISODES, LOG_SAME_ACTION_SELECTED_IN_TRAJECTORY
-
 
 class Logger:
 
-    def __init__(self, experiment_id, experiment_date_time):
-        self.rewards_and_losses_log_dir = f"experiments/{experiment_id}/{experiment_date_time}/rewards_and_losses/"
-        self.weights_and_gradients_log_dir = f"experiments/{experiment_id}/{experiment_date_time}/weights_and_gradients/"
+    def __init__(self, config):
+        self.config = config
+        self.rewards_and_losses_log_dir = f"experiments/{self.config.EXPERIMENT_ID}/{self.config.EXPERIMENT_DATE_TIME}/rewards_and_losses/"
+        self.weights_and_gradients_log_dir = f"experiments/{self.config.EXPERIMENT_ID}/{config.EXPERIMENT_DATE_TIME}/weights_and_gradients/"
         self.rewards_and_losses_logger = tf.summary.create_file_writer(self.rewards_and_losses_log_dir)
         self.weights_and_gradients_logger = tf.summary.create_file_writer(self.weights_and_gradients_log_dir)
         self.same_action_selected_list = []
@@ -18,7 +17,7 @@ class Logger:
 
     def log_weights_and_gradients(self, gradients, episode_counter, network):
         """ Log gradients and weights to TensorBoard. """
-        if episode_counter % LOG_WEIGHTS_AND_GRADIENTS_EVERY_X_EPISODES == 0:
+        if episode_counter % self.config.LOG_WEIGHTS_AND_GRADIENTS_EVERY_X_EPISODES == 0:
             with self.weights_and_gradients_logger.as_default():
                 # weights
                 for var in network.trainable_variables:
@@ -41,7 +40,7 @@ class Logger:
         print(f"Actions with master:     {(car1_action_using_master, car2_action_using_master)}")
         print("-" * 10)
 
-        if LOG_SAME_ACTION_SELECTED_IN_TRAJECTORY:
+        if self.config.LOG_SAME_ACTION_SELECTED_IN_TRAJECTORY:
             if car1_action_using_master == car2_action_using_master:
                 self.same_action_selected_list.append(True)
             else:
