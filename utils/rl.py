@@ -71,9 +71,6 @@ class RL:
         train_only_last_step = False -> train on whole trajectory
         """
 
-        # TODO: go over this function, compare with commented code
-        # TODO: check that it works the same as code before.. compare the graients? or loss?
-
         if train_only_last_step:
             current_trajectory = self.current_trajectory[-2:]
         else:
@@ -87,7 +84,7 @@ class RL:
         updated_q_values = self.update_q_values(actions, rewards, current_state_q_values, next_state_q_values)
 
         with tf.GradientTape(persistent=True) as tape:
-            loss, gradients = self.apply_gradients(tape, self.prepare_state_inputs(states, separate_state_for_each_car=False), updated_q_values)
+            loss, gradients = self.apply_gradients(tape, states, updated_q_values)
         self.logger.log_weights_and_gradients(gradients, episode_counter, self.network)
 
         return loss.numpy().mean()
@@ -99,7 +96,7 @@ class RL:
         return states, actions, next_states, rewards
 
     @staticmethod
-    def prepare_state_inputs(states, separate_state_for_each_car): # -> Tuple[List[np.ndarray, np.ndarray], List[np.ndarray, np.ndarray]]
+    def prepare_state_inputs(states, separate_state_for_each_car):
         """ Assemble the master and agent inputs from states. """
         if separate_state_for_each_car:
             states_car1 = states[::2]
@@ -115,21 +112,27 @@ class RL:
             return [master_inputs, agent_inputs]
 
     def predict_q_values_of_trajectory(self, states):
-        """ Predict Q-values for the given states (according to the network of each car) """
+        """ Predict Q-values for the given states (according to the network of each car)
+            for now, the code is only predicting and updating network of car1 (see commented code)    """
         car1_inputs, car2_inputs = self.prepare_state_inputs(states, separate_state_for_each_car=True)
-
         car1_q_values_of_trajectory = self.network.predict(car1_inputs, verbose=0)
-        car2_q_values_of_trajectory = self.network.predict(car2_inputs, verbose=0)  # TODO: change self.network to self.netowkr_car2
 
-        q_values_of_trajectory = np.empty((car1_q_values_of_trajectory.shape[0] + car2_q_values_of_trajectory.shape[0],
-                                           car1_q_values_of_trajectory.shape[1]))
-        q_values_of_trajectory[::2] = car1_q_values_of_trajectory
-        q_values_of_trajectory[1::2] = car2_q_values_of_trajectory
+        """ This code is for calculating q_values for each car with different networks """
+        # car1_q_values_of_trajectory = self.network.predict(car1_inputs, verbose=0)
+        # car2_q_values_of_trajectory = self.network.predict(car2_inputs, verbose=0)
+        # q_values_of_trajectory = np.empty((car1_q_values_of_trajectory.shape[0] +
+        #                                    car2_q_values_of_trajectory.shape[0],
+        #                                    car1_q_values_of_trajectory.shape[1]))
+        # q_values_of_trajectory[::2] = car1_q_values_of_trajectory
+        # q_values_of_trajectory[1::2] = car2_q_values_of_trajectory
 
-        return q_values_of_trajectory
+        return car1_q_values_of_trajectory
 
     def update_q_values(self, actions, rewards, current_q_values, next_q_values):
         """ Update Q-values using the DQN update rule for each step in the trajectory. """
+        actions = actions[::2]  # gather actions only from car1
+        rewards = rewards[::2]  # gather rewards only from car1
+
         # Calculate max Q-value for the next state
         max_next_q_values = tf.reduce_max(next_q_values, axis=1)
         targets = rewards + self.discount_factor * max_next_q_values
@@ -145,10 +148,16 @@ class RL:
         updated_q_values_tensor = tf.tensor_scatter_nd_update(current_q_values, indices, updated_q_values)
         return updated_q_values_tensor
 
-    def apply_gradients(self, tape, current_state, updated_q_values):
-        """ Calculate and apply gradients to the network. """
-        current_state_q_values = self.network(current_state, training=True)
-        loss = tf.keras.losses.mean_squared_error(updated_q_values, current_state_q_values)
+    def apply_gradients(self, tape, states, updated_q_values):
+        """ Calculate and apply gradients to the network.
+            Only compute loss and apply gradients on states & q_values of network_Car because this is the one
+            that keeps training (network car2 is frozen)
+        """
+        car1_inputs, car2_inputs = self.prepare_state_inputs(states, separate_state_for_each_car=True)
+        current_state_q_values_car1 = self.network(car1_inputs, training=True)  # keep this format
+        updated_q_values_car1 = updated_q_values
+
+        loss = tf.keras.losses.mean_squared_error(current_state_q_values_car1, updated_q_values_car1)
         gradients = tape.gradient(loss, self.network.trainable_variables)
         self.network.optimizer.apply_gradients(zip(gradients, self.network.trainable_variables))
         return loss, gradients
