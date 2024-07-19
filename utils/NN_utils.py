@@ -41,8 +41,7 @@ class NN_handler:
         model.compile(optimizer=optimizer, loss=self.config.LOSS_FUNCTION)
     
         return model
-    
-    
+
     def init_network_agent_only(self, optimizer):
     
         # Define master_input and agent_input
@@ -71,7 +70,6 @@ class NN_handler:
                 layer.trainable = not freeze_master
             else:  # agent_layer_2, agent_layer_3, outputs
                 layer.trainable = freeze_master
-
 
     @staticmethod
     def create_network_using_agent_only_from_original(original_model):
@@ -116,8 +114,7 @@ class NN_handler:
         network_copy = keras.models.clone_model(network)
         network_copy.set_weights(network.get_weights())
         return network_copy
-    
-    
+
     def save_network_weights(self, network):
         # Create the directory if it doesn't exist
         save_dir = f"experiments/{self.config.EXPERIMENT_ID}/weights"

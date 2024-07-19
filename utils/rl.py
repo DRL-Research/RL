@@ -14,12 +14,44 @@ class RL:
         self.discount_factor = 0.95
         self.epsilon = 0.9
         self.epsilon_decay = self.config.EPSILON_DECAY
-        self.network = self.nn_handler.init_network_master_and_agent(self.optimizer) # TODO: change name network and network_car2
-        self.network_car2 = self.nn_handler.create_network_copy(self.network)  # TODO: change name network and network_car2
+        if self.config.AGENT_ONLY:
+            self.network = self.nn_handler.init_network_agent_only(self.optimizer)
+        else:
+            self.network = self.nn_handler.init_network_master_and_agent(self.optimizer) # TODO: change name network and network_car2
+            self.network_car2 = self.nn_handler.create_network_copy(self.network)  # TODO: change name network and network_car2
         self.current_trajectory = []
         self.trajectories = []
         # self.batch_size = BATCH_SIZE_FOR_TRAJECTORY_BATCH  # relevant for train_batch_of_trajectories function
         self.freeze_master = False
+
+    def step_agent_only(self):
+        # get current state
+        car1_state = self.airsim.get_car1_state(self.logger)
+
+        # sample actions
+        car1_action = self.sample_action_agent_only(car1_state)
+
+        # set updated controls according to sampled action + car2 is constant speed
+        self.set_controls_according_to_sampled_action(self.config.CAR1_NAME, car1_action)
+        self.set_controls_according_to_sampled_action(self.config.CAR2_NAME, self.config.CAR2_CONSTANT_ACTION)
+
+        # delay code in order to physically get the next state in the simulator
+        time.sleep(self.config.TIME_BETWEEN_STEPS)
+
+        # get next state
+        car1_next_state = self.airsim.get_car1_state(self.logger)
+
+        # calculate reward
+        collision_occurred = self.airsim.collision_occurred()
+        reached_target = self.airsim.has_reached_target(car1_next_state)
+        reward = self.calculate_reward(car1_next_state, collision_occurred, reached_target)
+
+        # organize output
+        # current_state = [[master_input, car1_state], [master_input, car2_state]]
+        # cars_actions = [car1_action, car2_action]
+        # next_state = [[master_input_of_next_state, car1_next_state], [master_input_of_next_state, car2_next_state]]
+
+        return car1_state, car1_action, car1_next_state, collision_occurred, reached_target, reward
 
     def step(self):
         """
@@ -48,7 +80,7 @@ class RL:
         # calculate reward
         collision_occurred = self.airsim.collision_occurred()
         reached_target = self.airsim.has_reached_target(car1_next_state)
-        reward = self.calculate_reward(car1_next_state, collision_occurred, reached_target, car1_action, car2_action)
+        reward = self.calculate_reward(car1_next_state, collision_occurred, reached_target)
 
         # Put together master input
         master_input = [car1_state, car2_state]
@@ -92,8 +124,16 @@ class RL:
         return states, actions, next_states, rewards
 
     @staticmethod
+    def prepare_state_inputs_agent_only(states):
+        """ Assemble the master and agent inputs from states.
+            output: [np.array(stacked arrays)] """
+        agent_inputs = [np.array(np.vstack(states))]
+        return agent_inputs
+
+    @staticmethod
     def prepare_state_inputs(states, separate_state_for_each_car):
-        """ Assemble the master and agent inputs from states. """
+        """ Assemble the master and agent inputs from states.
+            output: [np.array(stacked arrays)] """
         if separate_state_for_each_car:
             states_car1 = states[::2]
             states_car2 = states[1::2]
@@ -109,10 +149,13 @@ class RL:
 
     def predict_q_values_of_trajectory(self, states):
         """ Predict Q-values for the given states (according to the network of each car)
-            for now, the code is only predicting and updating network of car1 (see commented code)    """
-        car1_inputs, car2_inputs = self.prepare_state_inputs(states, separate_state_for_each_car=True)
-        car1_q_values_of_trajectory = self.network.predict(car1_inputs, verbose=0)
+            for now, the code is only predicting and updating network of car1 (see commented code) """
+        if self.config.AGENT_ONLY:
+            car1_inputs = self.prepare_state_inputs_agent_only(states)
+        else:
+            car1_inputs, car2_inputs = self.prepare_state_inputs(states, separate_state_for_each_car=True)
 
+        car1_q_values_of_trajectory = self.network.predict(car1_inputs, verbose=0)
         """ This code is for calculating q_values for each car with different networks """
         # car1_q_values_of_trajectory = self.network.predict(car1_inputs, verbose=0)
         # car2_q_values_of_trajectory = self.network.predict(car2_inputs, verbose=0)
@@ -121,13 +164,13 @@ class RL:
         #                                    car1_q_values_of_trajectory.shape[1]))
         # q_values_of_trajectory[::2] = car1_q_values_of_trajectory
         # q_values_of_trajectory[1::2] = car2_q_values_of_trajectory
-
         return car1_q_values_of_trajectory
 
     def update_q_values(self, actions, rewards, current_q_values, next_q_values):
         """ Update Q-values using the DQN update rule for each step in the trajectory. """
-        actions = actions[::2]  # gather actions only from car1
-        rewards = rewards[::2]  # gather rewards only from car1
+        if not self.config.AGENT_ONLY:
+            actions = actions[::2]  # gather actions only from car1
+            rewards = rewards[::2]  # gather rewards only from car1
 
         # Calculate max Q-value for the next state
         max_next_q_values = tf.reduce_max(next_q_values, axis=1)
@@ -149,7 +192,10 @@ class RL:
             Only compute loss and apply gradients on states & q_values of network_Car because this is the one
             that keeps training (network car2 is frozen)
         """
-        car1_inputs, car2_inputs = self.prepare_state_inputs(states, separate_state_for_each_car=True)
+        if self.config.AGENT_ONLY:
+            car1_inputs = self.prepare_state_inputs_agent_only(states)
+        else:
+            car1_inputs, car2_inputs = self.prepare_state_inputs(states, separate_state_for_each_car=True)
         current_state_q_values_car1 = self.network(car1_inputs, training=True)  # keep this format
         updated_q_values_car1 = updated_q_values
 
@@ -159,32 +205,39 @@ class RL:
         return loss, gradients
 
     def sample_action(self, car1_state, car2_state):
-
-        if np.random.binomial(1, p=self.epsilon):  # epsilon greedy
+        if np.random.binomial(1, p=self.epsilon):
             if self.config.LOG_ACTIONS_SELECTED:
                 self.logger.log_actions_selected_random()
-            car1_random_action = np.random.randint(2, size=(1, 1))[0][0]
-            car2_random_action = np.random.randint(2, size=(1, 1))[0][0]
-            return car1_random_action, car2_random_action
+            return np.random.randint(2), np.random.randint(2)
         else:
             master_input = np.concatenate((car1_state, car2_state), axis=0).reshape(1, -1)
             car1_state = np.reshape(car1_state, (1, -1))
             car2_state = np.reshape(car2_state, (1, -1))
-
-            car1_action = self.predict_q_values([master_input, car1_state], self.config.CAR1_NAME)
-            car2_action = self.predict_q_values([master_input, car2_state], self.config.CAR2_NAME)
-
+            car1_action = self.predict_q_values([master_input, car1_state], self.config.CAR1_NAME, self.network)
+            car2_action = self.predict_q_values([master_input, car2_state], self.config.CAR2_NAME, self.network)
             if self.config.LOG_ACTIONS_SELECTED:
                 self.logger.log_actions_selected(self.network, car1_state, car2_state, car1_action, car2_action)
-
             return car1_action, car2_action
+
+    def sample_action_agent_only(self, car1_state):
+        if np.random.binomial(1, p=self.epsilon):
+            random_action = np.random.randint(2)
+            if self.config.LOG_ACTIONS_SELECTED:
+                self.logger.log_actions_selected_random(random_action)
+            return random_action
+        else:
+            car1_state = np.reshape(car1_state, (1, -1))
+            car1_action = self.predict_q_values(car1_state, self.config.CAR1_NAME, self.network)
+            if self.config.LOG_ACTIONS_SELECTED:
+                print(f"Action selected: {car1_action}")
+            return car1_action
 
     def set_controls_according_to_sampled_action(self, car_name, sampled_action):
         current_controls = self.airsim.get_car_controls(car_name)
         updated_controls = self.action_to_controls(current_controls, sampled_action)
         self.airsim.set_car_controls(updated_controls, car_name)
 
-    def calculate_reward(self, car1_state, collision_occurred, reached_target, car1_action, car2_action):
+    def calculate_reward(self, car1_state, collision_occurred, reached_target):
 
         x_car1 = car1_state[0]  # TODO: make it more generic
         cars_distance = car1_state[-1]  # TODO: make it more generic
@@ -217,12 +270,12 @@ class RL:
     def action_to_controls(current_controls, action):
         # translate index of action to controls in car:
         if action == 0:
-            current_controls.throttle = 0.75
-        elif action == 1:
             current_controls.throttle = 0.4
+        elif action == 1:
+            current_controls.throttle = 0.75
         return current_controls  # called current_controls - but it is updated controls
 
-    def predict_q_values(self, car_input, car_name):
+    def predict_q_values(self, car_input, car_name, car_network):
         q_values = self.network.predict(car_input, verbose=0)
         if self.config.LOG_Q_VALUES:
             self.logger.log_q_values(q_values, car_name)

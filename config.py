@@ -13,7 +13,7 @@ class Config:
         # self.LOAD_WEIGHT_DIRECTORY = "experiments/local_experiment/weights/4_forth_left.h5"
 
         # Training Configuration
-        # self.AGENT_ONLY = True  # the network and training process is on agent only, TODO: change the import of rl/rl_agent_only
+        self.AGENT_ONLY = False  # 1/2 cars with changing speeds (for training agent only)
         self.TRAIN_OPTION = "trajectory"  # options: step/trajectory/batch_of_trajectories
         self.ALTERNATE_MASTER_AND_AGENT_TRAINING = True  # options: True/False
         self.ALTERNATE_TRAINING_EPISODE_AMOUNT = 20
@@ -25,6 +25,7 @@ class Config:
         self.TIME_BETWEEN_STEPS = 2.0
         self.COPY_CAR1_NETWORK_TO_CAR2 = True  # options: True/False
         self.COPY_CAR1_NETWORK_TO_CAR2_EPISODE_AMOUNT = 1
+        self.CAR2_CONSTANT_ACTION = 1  # options: 1 (speed=0.75) / 0 (speed=0.4)
 
         # Logging Configuration
         self.LOG_WEIGHTS_AND_GRADIENTS_EVERY_X_EPISODES = 5
@@ -53,8 +54,6 @@ class Config:
         self.NOT_KEEPING_SAFETY_DISTANCE_REWARD = -2
 
     def set_config(self, config_dict):
-        print(config_dict)
-        print(type(config_dict))
         for attr_name, attr_value in config_dict.items():
             print(attr_name, attr_value)
             setattr(self, attr_name, attr_value)

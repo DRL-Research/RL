@@ -28,8 +28,9 @@ class Logger:
                     if "bias" not in var.name:
                         tf.summary.histogram(f'{var.name}_gradient', grad, step=episode_counter)
 
-    def log_actions_selected_random(self):
-        print("random action")
+    @staticmethod
+    def log_actions_selected_random(random_action_selected):
+        print(f"random action: {random_action_selected}")
         print("-" * 10)
 
     def log_actions_selected(self, network, car1_state, car2_state, car1_action_using_master, car2_action_using_master):
