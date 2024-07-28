@@ -55,8 +55,10 @@ class Logger:
         self.same_action_selected_list = []  # clear list before next trajectory
 
     def log_state(self, car_state, car_name):
-        x, y, Vx, Vy = car_state[0], car_state[1], car_state[2], car_state[3]
-        print(f"{car_name}_state: x={x:.2f}, y={y:.2f}, Vx={Vx:.2f}, Vy={Vy:.2f}")
+        # x, y, Vx, Vy = car_state[0], car_state[1], car_state[2], car_state[3]
+        # print(f"{car_name}_state: x={x:.2f}, y={y:.2f}, Vx={Vx:.2f}, Vy={Vy:.2f}")
+        car1_x, car1_Vx, car2_Vy = car_state[0], car_state[1], car_state[2]
+        print(f"{car_name}_state: car1_Vx={car1_Vx:.2f}, car2_Vy={car2_Vy:.2f}")
 
     def log_q_values(self, q_values, car_name):
         print(f"{car_name}_q_values: {q_values}")

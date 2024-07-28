@@ -10,7 +10,7 @@ class Config:
         self.EXPERIMENT_ID = "EXP1"
         self.EXPERIMENT_DATE_TIME = datetime.now().strftime("%d_%m_%Y-%H_%M_%S")
         self.WEIGHTS_TO_SAVE_NAME = "epochs_0_100"
-        # self.LOAD_WEIGHT_DIRECTORY = "experiments/local_experiment/weights/4_forth_left.h5"
+        self.LOAD_WEIGHT_DIRECTORY = None
 
         # Training Configuration
         self.AGENT_ONLY = False  # 1/2 cars with changing speeds (for training agent only)
@@ -19,13 +19,21 @@ class Config:
         self.ALTERNATE_TRAINING_EPISODE_AMOUNT = 20
         self.MAX_EPISODES = 100  # 100
         self.MAX_STEPS = 500
+        self.EPSILON = 0.95
         self.EPSILON_DECAY = 0.9  # 0.9
         self.LEARNING_RATE = 0.003
         self.LOSS_FUNCTION = "mse"
         self.TIME_BETWEEN_STEPS = 2.0
+
+        self.ONLY_INFERENCE = False  # options: True/False
+
         self.COPY_CAR1_NETWORK_TO_CAR2 = True  # options: True/False
         self.COPY_CAR1_NETWORK_TO_CAR2_EPISODE_AMOUNT = 1
-        self.CAR2_CONSTANT_ACTION = 1  # options: 1 (speed=0.75) / 0 (speed=0.4)
+
+        self.CAR2_CONSTANT_ACTION = 0  # options: 1 (speed=0.75) / 0 (speed=0.4)
+
+        self.SET_CAR2_INITIAL_DIRECTION_MANUALLY = True
+        self.CAR2_INITIAL_DIRECTION = 1
 
         # Logging Configuration
         self.LOG_WEIGHTS_AND_GRADIENTS_EVERY_X_EPISODES = 5
@@ -38,11 +46,14 @@ class Config:
         # Cars Configuration
         self.CAR1_NAME = "Car1"
         self.CAR2_NAME = "Car2"
-        self.CAR1_INITIAL_POSITION = [-25, 0]
-        self.CAR2_INITIAL_POSITION = [0, -30]
+        self.CAR1_INITIAL_POSITION = [-20, 0]
+        self.CAR2_INITIAL_POSITION = [0, -20]
         self.CAR1_INITIAL_YAW = 0
         self.CAR2_INITIAL_YAW = 90
         self.CAR1_DESIRED_POSITION = np.array([10, 0])
+
+        # State Configuration
+        self.AGENT_INPUT_SIZE = 3
 
         # Reward Configuration
         self.REACHED_TARGET_REWARD = 10

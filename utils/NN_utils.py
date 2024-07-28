@@ -43,23 +43,26 @@ class NN_handler:
         return model
 
     def init_network_agent_only(self, optimizer):
-    
-        # Define master_input and agent_input
-        agent_input = keras.Input(shape=(5,), name="agent_input")
-    
+
+        # Define agent_input
+        agent_input = keras.Input(shape=(self.config.AGENT_INPUT_SIZE,), name="agent_input")
+
+        # Normalization layer
+        agent_input = keras.layers.BatchNormalization()(agent_input)
+
         # Agent layers
         agent_layer_2 = keras.layers.Dense(units=16, activation='relu', kernel_initializer=keras.initializers.HeUniform(), name="agent_layer_2")(agent_input)
         agent_layer_3 = keras.layers.Dense(units=8, activation='relu', kernel_initializer=keras.initializers.HeUniform(), name="agent_layer_3")(agent_layer_2)
-    
+
         # Output layer
         outputs = keras.layers.Dense(units=2, activation='linear', name="outputs")(agent_layer_3)
-    
+
         # Create the model
         model = keras.Model(inputs=agent_input, outputs=outputs)
         model.compile(optimizer=optimizer, loss=self.config.LOSS_FUNCTION)
-    
+
         return model
-    
+
     @staticmethod
     def alternate_master_and_agent_training(network, freeze_master):
         # Pay attention: input layers do not have weights.
@@ -124,7 +127,18 @@ class NN_handler:
         # Save the weights to the specified directory
         save_path = f"{save_dir}/{self.config.WEIGHTS_TO_SAVE_NAME}.h5"
         network.save_weights(save_path)
-    
+
+    def load_weights_to_network(self, network):
+
+        weight_directory = self.config.LOAD_WEIGHT_DIRECTORY
+
+        if not os.path.exists(weight_directory):
+            raise FileNotFoundError(f"Weight directory {weight_directory} does not exist.")
+
+        network.load_weights(weight_directory)
+        print("Weights were loaded successfully.")
+        return network
+
     @staticmethod
     def are_weights_identical(model1, model2) -> bool:
         """Check if two Keras models have identical weights."""
@@ -160,3 +174,4 @@ class NN_handler:
             print(f"Error in copying network car1 to network car2...")
     
         return result
+

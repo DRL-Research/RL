@@ -39,6 +39,8 @@ class AirsimManager:
 
         # pick at random (car 2 goes from left/right)
         left_or_right = random.choice([1, -1])
+        if self.config.SET_CAR2_INITIAL_DIRECTION_MANUALLY:
+            left_or_right = self.config.CAR2_INITIAL_DIRECTION
 
         car1_start_location_x = self.config.CAR1_INITIAL_POSITION[0] - self.car1_x_offset
         car1_start_location_y = left_or_right * self.config.CAR1_INITIAL_POSITION[1] - self.car1_y_offset
@@ -51,6 +53,41 @@ class AirsimManager:
         reference_position = airsim.Pose(airsim.Vector3r(0.0, 0, -1), airsim.Quaternionr(0, 0.0, 0.0, 1.0))
         self.airsim_client.simSetVehiclePose(reference_position, True, self.config.CAR1_NAME)
         self.airsim_client.simSetVehiclePose(reference_position, True, self.config.CAR2_NAME)
+
+        # Convert yaw values from degrees to radians as AirSim uses radians
+        car1_start_yaw_rad = np.radians(car1_start_yaw)
+        car2_start_yaw_rad = np.radians(car2_start_yaw)
+
+        # Set initial position and yaw of Car1
+        initial_position_car1 = airsim.Vector3r(car1_start_location_x, car1_start_location_y, -1)
+        initial_orientation_car1 = airsim.to_quaternion(0, 0, car1_start_yaw_rad)  # Roll, Pitch, Yaw
+        initial_pose_car1 = airsim.Pose(initial_position_car1, initial_orientation_car1)
+        self.airsim_client.simSetVehiclePose(initial_pose_car1, True, self.config.CAR1_NAME)
+
+        # Set initial position and yaw of Car2
+        initial_position_car2 = airsim.Vector3r(car2_start_location_x, car2_start_location_y, -1)
+        initial_orientation_car2 = airsim.to_quaternion(0, 0, car2_start_yaw_rad)  # Roll, Pitch, Yaw
+        initial_pose_car2 = airsim.Pose(initial_position_car2, initial_orientation_car2)
+        self.airsim_client.simSetVehiclePose(initial_pose_car2, True, self.config.CAR2_NAME)
+
+    def reset_cars_to_initial_settings_file_positions(self):
+        self.airsim_client.reset()
+
+        # car1_start_location_x = self.config.CAR1_INITIAL_POSITION[0] - self.car1_x_offset
+        # car1_start_location_y = self.config.CAR1_INITIAL_POSITION[1] - self.car1_y_offset
+        # car2_start_location_x = self.config.CAR2_INITIAL_POSITION[0] - self.car2_x_offset
+        # car2_start_location_y = self.config.CAR2_INITIAL_POSITION[1] - self.car2_y_offset
+        car1_start_location_x = self.car1_x_offset
+        car1_start_location_y = self.car1_y_offset
+        car2_start_location_x = self.car2_x_offset
+        car2_start_location_y = self.car2_y_offset
+        car1_start_yaw = self.config.CAR1_INITIAL_YAW
+        car2_start_yaw = self.config.CAR2_INITIAL_YAW
+
+        # # Set the reference_position for Car1 and Car2 (Do not change this code)
+        # reference_position = airsim.Pose(airsim.Vector3r(0.0, 0, -1), airsim.Quaternionr(0, 0.0, 0.0, 1.0))
+        # self.airsim_client.simSetVehiclePose(reference_position, True, self.config.CAR1_NAME)
+        # self.airsim_client.simSetVehiclePose(reference_position, True, self.config.CAR2_NAME)
 
         # Convert yaw values from degrees to radians as AirSim uses radians
         car1_start_yaw_rad = np.radians(car1_start_yaw)
@@ -98,17 +135,17 @@ class AirsimManager:
 
     def get_car1_state(self, logger):
         car1_position_and_speed = self.get_car_position_and_speed(self.config.CAR1_NAME)
-        # car2_position_and_speed = self.get_car_position_and_speed(self.config.CAR2_NAME)
+        car2_position_and_speed = self.get_car_position_and_speed(self.config.CAR2_NAME)
         car1_state = np.array([
             car1_position_and_speed["x"],
-            car1_position_and_speed["y"],
+            # car1_position_and_speed["y"],
             car1_position_and_speed["Vx"],
-            car1_position_and_speed["Vy"],
+            # car1_position_and_speed["Vy"],
             # car2_position_and_speed["x"],
             # car2_position_and_speed["y"],
             # car2_position_and_speed["Vx"],
-            # car2_position_and_speed["Vy"],
-            self.get_cars_distance()
+            car2_position_and_speed["Vy"],
+            # self.get_cars_distance()
         ])
 
         if self.config.LOG_CAR_STATES:

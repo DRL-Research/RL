@@ -12,7 +12,7 @@ class RL:
         self.nn_handler = nn_handler
         self.optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=self.config.LEARNING_RATE)
         self.discount_factor = 0.95
-        self.epsilon = 0.9
+        self.epsilon = self.config.EPSILON
         self.epsilon_decay = self.config.EPSILON_DECAY
         if self.config.AGENT_ONLY:
             self.network = self.nn_handler.init_network_agent_only(self.optimizer)
@@ -30,10 +30,12 @@ class RL:
 
         # sample actions
         car1_action = self.sample_action_agent_only(car1_state)
+        car2_action = self.config.CAR2_CONSTANT_ACTION
+        print(f"car2 action: {self.config.CAR2_CONSTANT_ACTION}")
 
         # set updated controls according to sampled action + car2 is constant speed
         self.set_controls_according_to_sampled_action(self.config.CAR1_NAME, car1_action)
-        self.set_controls_according_to_sampled_action(self.config.CAR2_NAME, self.config.CAR2_CONSTANT_ACTION)
+        self.set_controls_according_to_sampled_action(self.config.CAR2_NAME, car2_action)
 
         # delay code in order to physically get the next state in the simulator
         time.sleep(self.config.TIME_BETWEEN_STEPS)
@@ -44,7 +46,7 @@ class RL:
         # calculate reward
         collision_occurred = self.airsim.collision_occurred()
         reached_target = self.airsim.has_reached_target(car1_next_state)
-        reward = self.calculate_reward(car1_next_state, collision_occurred, reached_target)
+        reward = self.calculate_reward(car1_next_state, collision_occurred, reached_target, car1_action, car2_action)
 
         # organize output
         # current_state = [[master_input, car1_state], [master_input, car2_state]]
@@ -80,7 +82,7 @@ class RL:
         # calculate reward
         collision_occurred = self.airsim.collision_occurred()
         reached_target = self.airsim.has_reached_target(car1_next_state)
-        reward = self.calculate_reward(car1_next_state, collision_occurred, reached_target)
+        reward = self.calculate_reward(car1_next_state, collision_occurred, reached_target, car1_action, car2_action)
 
         # Put together master input
         master_input = [car1_state, car2_state]
@@ -156,6 +158,10 @@ class RL:
             car1_inputs, car2_inputs = self.prepare_state_inputs(states, separate_state_for_each_car=True)
 
         car1_q_values_of_trajectory = self.network.predict(car1_inputs, verbose=0)
+
+        if self.config.LOG_Q_VALUES:
+            self.logger.log_q_values(self.config.CAR1_NAME, car1_q_values_of_trajectory)
+
         """ This code is for calculating q_values for each car with different networks """
         # car1_q_values_of_trajectory = self.network.predict(car1_inputs, verbose=0)
         # car2_q_values_of_trajectory = self.network.predict(car2_inputs, verbose=0)
@@ -172,20 +178,27 @@ class RL:
             actions = actions[::2]  # gather actions only from car1
             rewards = rewards[::2]  # gather rewards only from car1
 
-        # Calculate max Q-value for the next state
-        max_next_q_values = tf.reduce_max(next_q_values, axis=1)
+        """ Update Q-values using the DQN update rule for each step in the trajectory. """
+        max_next_q_values = np.max(next_q_values, axis=1)
         targets = rewards + self.discount_factor * max_next_q_values
+        for i, action in enumerate(actions):
+            current_q_values[i][action] += self.config.LEARNING_RATE * (targets[i] - current_q_values[i][action])
+        return current_q_values  # these are the updated q-values
 
-        # Gather the Q-values corresponding to the taken actions
-        indices = tf.stack([tf.range(len(actions)), actions], axis=1)
-        gathered_q_values = tf.gather_nd(current_q_values, indices)
-
-        # Update Q-values using the DQN update rule
-        updated_q_values = gathered_q_values + self.config.LEARNING_RATE * (targets - gathered_q_values)
-
-        # Update the current Q-values tensor with the updated values
-        updated_q_values_tensor = tf.tensor_scatter_nd_update(current_q_values, indices, updated_q_values)
-        return updated_q_values_tensor
+        # # Calculate max Q-value for the next state
+        # max_next_q_values = tf.reduce_max(next_q_values, axis=1)
+        # targets = rewards + self.discount_factor * max_next_q_values
+        #
+        # # Gather the Q-values corresponding to the taken actions
+        # indices = tf.stack([tf.range(len(actions)), actions], axis=1)
+        # gathered_q_values = tf.gather_nd(current_q_values, indices)
+        #
+        # # Update Q-values using the DQN update rule
+        # updated_q_values = gathered_q_values + self.config.LEARNING_RATE * (targets - gathered_q_values)
+        #
+        # # Update the current Q-values tensor with the updated values
+        # updated_q_values_tensor = tf.tensor_scatter_nd_update(current_q_values, indices, updated_q_values)
+        # return updated_q_values_tensor
 
     def apply_gradients(self, tape, states, updated_q_values):
         """ Calculate and apply gradients to the network.
@@ -220,7 +233,8 @@ class RL:
             return car1_action, car2_action
 
     def sample_action_agent_only(self, car1_state):
-        if np.random.binomial(1, p=self.epsilon):
+
+        if np.random.binomial(1, p=self.epsilon) and not self.config.ONLY_INFERENCE:
             random_action = np.random.randint(2)
             if self.config.LOG_ACTIONS_SELECTED:
                 self.logger.log_actions_selected_random(random_action)
@@ -237,7 +251,7 @@ class RL:
         updated_controls = self.action_to_controls(current_controls, sampled_action)
         self.airsim.set_car_controls(updated_controls, car_name)
 
-    def calculate_reward(self, car1_state, collision_occurred, reached_target):
+    def calculate_reward(self, car1_state, collision_occurred, reached_target, car1_action, car2_action):
 
         x_car1 = car1_state[0]  # TODO: make it more generic
         cars_distance = car1_state[-1]  # TODO: make it more generic
@@ -245,16 +259,16 @@ class RL:
         # avoid starvation
         reward = self.config.STARVATION_REWARD
 
-        # too close
-        # x_car1 < 2 is for not punishing after passing without collision (TODO: make it more generic)
-        if x_car1 < 2 and cars_distance < self.config.SAFETY_DISTANCE_FOR_PUNISH:
-            # print(f"too close: {car1_state[-1]}")
-            reward = self.config.NOT_KEEPING_SAFETY_DISTANCE_REWARD
+        # # too close
+        # # x_car1 < 2 is for not punishing after passing without collision (TODO: make it more generic)
+        # if x_car1 < 2 and cars_distance < self.config.SAFETY_DISTANCE_FOR_PUNISH:
+        #     # print(f"too close: {car1_state[-1]}")
+        #     reward = self.config.NOT_KEEPING_SAFETY_DISTANCE_REWARD
 
-        # keeping safety distance
-        if cars_distance > self.config.SAFETY_DISTANCE_FOR_BONUS:
-            # print(f"keeping safety distance: {car1_state[-1]}")
-            reward = self.config.KEEPING_SAFETY_DISTANCE_REWARD
+        # # keeping safety distance
+        # if cars_distance > self.config.SAFETY_DISTANCE_FOR_BONUS:
+        #     # print(f"keeping safety distance: {car1_state[-1]}")
+        #     reward = self.config.KEEPING_SAFETY_DISTANCE_REWARD
 
         # reached target
         if reached_target:
@@ -263,6 +277,13 @@ class RL:
         # collision occurred
         if collision_occurred:
             reward = self.config.COLLISION_REWARD
+
+        # if self.config.AGENT_ONLY:
+        #     if car1_action != car2_action:
+        #         print("different actions")
+        #         reward = 15
+        #     else:
+        #         reward = -10
 
         return reward
 
@@ -277,8 +298,6 @@ class RL:
 
     def predict_q_values(self, car_input, car_name, car_network):
         q_values = self.network.predict(car_input, verbose=0)
-        if self.config.LOG_Q_VALUES:
-            self.logger.log_q_values(q_values, car_name)
         action_selected = q_values.argmax()
         return action_selected
 
