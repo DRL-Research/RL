@@ -1,4 +1,7 @@
+import random
 import time
+from collections import deque
+
 import tensorflow as tf
 import numpy as np
 
@@ -11,9 +14,7 @@ class RL:
         self.airsim = airsim
         self.nn_handler = nn_handler
         self.optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=self.config.LEARNING_RATE)
-        self.discount_factor = 0.95
-        self.epsilon = self.config.EPSILON
-        self.epsilon_decay = self.config.EPSILON_DECAY
+        # self.discount_factor = 0.95
         if self.config.AGENT_ONLY:
             self.network = self.nn_handler.init_network_agent_only(self.optimizer)
         else:
@@ -21,8 +22,133 @@ class RL:
             self.network_car2 = self.nn_handler.create_network_copy(self.network)  # TODO: change name network and network_car2
         self.current_trajectory = []
         self.trajectories = []
-        # self.batch_size = BATCH_SIZE_FOR_TRAJECTORY_BATCH  # relevant for train_batch_of_trajectories function
         self.freeze_master = False
+        ############################################################
+        self.memory = deque(maxlen=100000)
+        self.gamma = 0.999  # discount rate
+        self.epsilon_min = 0.1
+        self.epsilon = 1.0
+        self.epsilon_decay = 0.9975
+        self.TAU = 0.1
+        self.train_start = 10  # from this size of memory we start to train
+        self.ddqn = True
+        self.Soft_Update = True
+        self.distribution = True
+        self.model = self.nn_handler.init_network_agent_only(self.optimizer)
+        self.target_model = self.nn_handler.init_network_agent_only(self.optimizer)
+
+    def update_target_model(self):
+        if not self.Soft_Update and self.ddqn:
+            self.target_model.set_weights(self.model.get_weights())
+            return
+        if self.Soft_Update and self.ddqn:
+            q_model_theta = self.model.get_weights()
+            target_model_theta = self.target_model.get_weights()
+            counter = 0
+            for q_weight, target_weight in zip(q_model_theta, target_model_theta):
+                target_weight = target_weight * (1 - self.TAU) + q_weight * self.TAU
+                target_model_theta[counter] = target_weight
+                counter += 1
+            self.target_model.set_weights(target_model_theta)
+
+    def act(self, state):
+        if np.random.random() <= self.epsilon:
+            return random.randrange(2)
+        else:
+            return np.argmax(self.model.predict(state))
+
+    def replay(self):
+        if len(self.memory) < self.train_start:
+            return
+        # Randomly sample minibatch from the memory
+        # minibatch = random.sample(self.memory, min(self.batch_size, self.batch_size))
+        # trajectories = random.sample(self.memory, min(self.batch_size, len(self.memory)))
+        # trajectories = random.sample(self.memory, min(len(self.memory), len(self.memory)))
+        # trajectories = list(self.memory)[-self.batch_size:]
+        trajectories = list(self.memory)
+
+        state, next_state, action, reward, done = [], [], [], [], []
+
+        # for i in range(self.batch_size):
+        #     # print(f"minibatch[{i}]: {minibatch[i]}")
+        #     state.append(minibatch[i][0])
+        #     action.append(minibatch[i][1])
+        #     reward.append(minibatch[i][2])
+        #     next_state.append(minibatch[i][3])
+        #     done.append(minibatch[i][4])
+        for trajectory in trajectories:
+            for transition in trajectory:
+                state.append(transition[0])
+                action.append(transition[1])
+                reward.append(transition[2])
+                next_state.append(transition[3])
+                done.append(transition[4])
+
+        state = np.array(state)
+        next_state = np.array(next_state)
+
+        # do batch prediction to save speed
+        target = self.model.predict(state)
+        target_next = self.model.predict(next_state)
+        target_val = self.target_model.predict(next_state)
+
+        # for i in range(len(minibatch)):
+        #     # correction on the Q value for the action used
+        #     if done[i]:
+        #         target[i][action[i]] = reward[i]
+        #     else:
+        #         if self.ddqn:  # Double - DQN
+        #             # current Q Network selects the action
+        #             # a'_max = argmax_a' Q(s', a')
+        #             a = np.argmax(target_next[i])
+        #             # target Q Network evaluates the action
+        #             # Q_max = Q_target(s', a'_max)
+        #             target[i][action[i]] = reward[i] + self.gamma * (target_val[i][a])
+        #         else:  # Standard - DQN
+        #             # DQN chooses the max Q value among next actions
+        #             # selection and evaluation of action is on the target Q Network
+        #             # Q_max = max_a' Q_target(s', a')
+        #             target[i][action[i]] = reward[i] + self.gamma * (np.amax(target_next[i]))
+        index = 0
+        for trajectory in trajectories:
+            for _ in trajectory:
+                if done[index]:
+                    target[index][action[index]] = reward[index]
+                else:
+                    if self.ddqn:  # Double - DQN
+                        a = np.argmax(target_next[index])
+                        target[index][action[index]] = reward[index] + self.gamma * target_val[index][a]
+                    else:  # Standard - DQN
+                        target[index][action[index]] = reward[index] + self.gamma * np.amax(target_next[index])
+                index += 1
+
+        # Train the Neural Network with batches
+        # history = self.model.fit(state, target, epochs=1, batch_size=self.batch_size, verbose=0)
+        # history = self.model.fit(state, target, epochs=1, batch_size=len(self.memory), verbose=0)
+        print("self.config.EPOCHS")
+        print(self.config.EPOCHS)
+        history = self.model.fit(state, target, epochs=self.config.EPOCHS, verbose=0)
+
+        return history.history['loss'][0]
+
+
+    def updateEpsilon(self):
+        if self.epsilon > self.epsilon_min:
+            self.epsilon *= self.epsilon_decay
+
+
+    #############################################################################
+    #############################################################################
+    #############################################################################
+    #############################################################################
+    #############################################################################
+    #############################################################################
+    #############################################################################
+    #############################################################################
+    #############################################################################
+    #############################################################################
+    #############################################################################
+    #############################################################################
 
     def step_agent_only(self):
         # get current state
@@ -33,6 +159,14 @@ class RL:
         car2_action = self.config.CAR2_CONSTANT_ACTION
         print(f"car2 action: {self.config.CAR2_CONSTANT_ACTION}")
 
+        if car1_action == car2_action:
+            car1_state[1] = 1
+        else:
+            car1_state[1] = 0
+
+        if self.config.LOG_CAR_STATES:
+            self.logger.log_state(car1_state, self.config.CAR1_NAME)
+
         # set updated controls according to sampled action + car2 is constant speed
         self.set_controls_according_to_sampled_action(self.config.CAR1_NAME, car1_action)
         self.set_controls_according_to_sampled_action(self.config.CAR2_NAME, car2_action)
@@ -42,6 +176,11 @@ class RL:
 
         # get next state
         car1_next_state = self.airsim.get_car1_state(self.logger)
+
+        if car1_action == car2_action:
+            car1_next_state[1] = 1
+        else:
+            car1_next_state[1] = 0
 
         # calculate reward
         collision_occurred = self.airsim.collision_occurred()
@@ -307,6 +446,3 @@ class RL:
 
         if self.config.LOG_WEIGHTS_ARE_IDENTICAL:
             self.nn_handler.are_weights_identical(self.network, self.network_car2)
-
-
-

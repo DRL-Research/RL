@@ -144,12 +144,12 @@ class AirsimManager:
             # car2_position_and_speed["x"],
             # car2_position_and_speed["y"],
             # car2_position_and_speed["Vx"],
-            car2_position_and_speed["Vy"],
+            # car2_position_and_speed["Vy"],
             # self.get_cars_distance()
         ])
 
-        if self.config.LOG_CAR_STATES:
-            logger.log_state(car1_state, self.config.CAR1_NAME)
+        # if self.config.LOG_CAR_STATES:
+        #     logger.log_state(car1_state, self.config.CAR1_NAME)
 
         return car1_state
 

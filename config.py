@@ -17,13 +17,12 @@ class Config:
         self.TRAIN_OPTION = "trajectory"  # options: step/trajectory/batch_of_trajectories
         self.ALTERNATE_MASTER_AND_AGENT_TRAINING = True  # options: True/False
         self.ALTERNATE_TRAINING_EPISODE_AMOUNT = 20
-        self.MAX_EPISODES = 100  # 100
+        self.MAX_EPISODES = 50  # 100
         self.MAX_STEPS = 500
-        self.EPSILON = 0.95
-        self.EPSILON_DECAY = 0.9  # 0.9
         self.LEARNING_RATE = 0.003
         self.LOSS_FUNCTION = "mse"
         self.TIME_BETWEEN_STEPS = 2.0
+        self.EPOCHS = 1
 
         self.ONLY_INFERENCE = False  # options: True/False
 
@@ -53,7 +52,7 @@ class Config:
         self.CAR1_DESIRED_POSITION = np.array([10, 0])
 
         # State Configuration
-        self.AGENT_INPUT_SIZE = 3
+        self.AGENT_INPUT_SIZE = 2
 
         # Reward Configuration
         self.REACHED_TARGET_REWARD = 10

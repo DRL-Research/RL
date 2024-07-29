@@ -5,20 +5,19 @@ from utils.training_loop import *
 
 if __name__ == "__main__":
 
-    # Define experiments
-    config_exp1 = {'EXPERIMENT_ID': 'EXP7',
+    config_exp1 = {'EXPERIMENT_ID': 'EXP6-EPOCHS-5-MAX_EPISODES-100',
                    'AGENT_ONLY': True,
                    'CAR1_INITIAL_POSITION': [-30, 0],
                    'CAR2_INITIAL_POSITION': [0, -30],
                    'LOG_Q_VALUES': True,
                    'LOG_CAR_STATES': True,
-                   'EPSILON_DECAY': 0.995,
-
-                   'LEARNING_RATE': 0.001,  # 0.001 / 0.0001 / 0.00001
-                   'EPSILON': 0.9,  # 0.9 / 0.1 (for inference only)
-                   'ONLY_INFERENCE': False,
-                   # 'LOAD_WEIGHT_DIRECTORY': "experiments/EXP4-state_is_only_velocities/weights/epochs_0_100.h5"
+                   ######################################
+                   'ONLY_INFERENCE': True,
+                   'EPOCHS': 5,
+                   'MAX_EPISODES': 100,
+                   'LOAD_WEIGHT_DIRECTORY': "experiments/EXP6-EPOCHS-5-MAX_EPISODES-100/weights/epochs_0_100.h5",
                    }
+    # Define experiments
     experiment1 = Experiment(config_exp1)
 
     # Define experiments list
@@ -30,7 +29,8 @@ if __name__ == "__main__":
         config.set_config(experiment.config_dict)
 
         if config.AGENT_ONLY:
-            training_loop_agent_only(config)
+            # training_loop_agent_only(config)
+            training_loop_ido(config)
         else:
             print("")
             # training_loop(config)

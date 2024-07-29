@@ -136,7 +136,7 @@ class NN_handler:
             raise FileNotFoundError(f"Weight directory {weight_directory} does not exist.")
 
         network.load_weights(weight_directory)
-        print("Weights were loaded successfully.")
+        print(f"Weights from: {weight_directory} were loaded successfully.")
         return network
 
     @staticmethod
