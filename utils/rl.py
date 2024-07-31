@@ -186,6 +186,7 @@ class RL:
         collision_occurred = self.airsim.collision_occurred()
         reached_target = self.airsim.has_reached_target(car1_next_state)
         reward = self.calculate_reward(car1_next_state, collision_occurred, reached_target, car1_action, car2_action)
+        print(f"reward: {reward}")
 
         # organize output
         # current_state = [[master_input, car1_state], [master_input, car2_state]]
