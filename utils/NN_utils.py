@@ -1,66 +1,50 @@
 import os
 from tensorflow import keras
 import numpy as np
+from stable_baselines3 import PPO
+
 class NN_handler:
-    
     def __init__(self, config):
         self.config = config
-
     def init_network_master_and_agent(self, optimizer):
-    
         # Define master_input and agent_input
         master_input = keras.layers.Input(shape=(10,), name="master_input")
         agent_input = keras.layers.Input(shape=(5,), name="agent_input")
-    
         # Master layer(s)
         master_layer_1 = keras.layers.Dense(units=32, kernel_initializer='he_uniform', name="master_layer_1")(master_input)
         master_layer_1 = keras.layers.BatchNormalization()(master_layer_1)
         master_layer_1 = keras.layers.LeakyReLU()(master_layer_1)
         master_layer_1 = keras.layers.Dropout(0.3)(master_layer_1)
-    
         # Combine master embedding with input of agent
         combined = keras.layers.Concatenate(name="combined")([master_layer_1, agent_input])
-    
         # Agent layers
         agent_layer_2 = keras.layers.Dense(units=32, kernel_initializer='he_uniform', name="agent_layer_2")(combined)
         agent_layer_2 = keras.layers.BatchNormalization()(agent_layer_2)
         agent_layer_2 = keras.layers.LeakyReLU()(agent_layer_2)
         agent_layer_2 = keras.layers.Dropout(0.3)(agent_layer_2)
-    
         agent_layer_3 = keras.layers.Dense(units=16, kernel_initializer='he_uniform', name="agent_layer_3")(agent_layer_2)
         agent_layer_3 = keras.layers.BatchNormalization()(agent_layer_3)
         agent_layer_3 = keras.layers.LeakyReLU()(agent_layer_3)
-    
         # Output layer
         outputs = keras.layers.Dense(units=2, activation='linear', name="outputs")(agent_layer_3)
-    
         # Create the model
         model = keras.Model(inputs=[master_input, agent_input], outputs=outputs)
         model.compile(optimizer=optimizer, loss=self.config.LOSS_FUNCTION)
-    
         return model
-
     def init_network_agent_only(self, optimizer):
-
         # Define agent_input
         agent_input = keras.Input(shape=(self.config.AGENT_INPUT_SIZE,), name="agent_input")
-
         # Normalization layer
         agent_input = keras.layers.BatchNormalization()(agent_input)
-
         # Agent layers
         agent_layer_2 = keras.layers.Dense(units=16, activation='relu', kernel_initializer=keras.initializers.HeUniform(), name="agent_layer_2")(agent_input)
         agent_layer_3 = keras.layers.Dense(units=8, activation='relu', kernel_initializer=keras.initializers.HeUniform(), name="agent_layer_3")(agent_layer_2)
-
         # Output layer
         outputs = keras.layers.Dense(units=2, activation='linear', name="outputs")(agent_layer_3)
-
         # Create the model
         model = keras.Model(inputs=agent_input, outputs=outputs)
         model.compile(optimizer=optimizer, loss=self.config.LOSS_FUNCTION)
-
         return model
-
     @staticmethod
     def alternate_master_and_agent_training(network, freeze_master):
         # Pay attention: input layers do not have weights.
@@ -71,10 +55,8 @@ class NN_handler:
                 layer.trainable = not freeze_master
             else:  # agent_layer_2, agent_layer_3, outputs
                 layer.trainable = freeze_master
-
     @staticmethod
     def create_network_using_agent_only_from_original(original_model):
-    
         agent_input = keras.Input(shape=(5,), name="agent_input")
         original_agent_layer_2 = original_model.get_layer("agent_layer_2")
         original_agent_layer_3 = original_model.get_layer("agent_layer_3")
@@ -116,26 +98,23 @@ class NN_handler:
         network_copy.set_weights(network.get_weights())
         return network_copy
 
+    def load_weights_to_network(self, network):
+        weight_directory = self.config.LOAD_WEIGHT_DIRECTORY
+        if not os.path.exists(weight_directory):
+            raise FileNotFoundError(f"Weight directory {weight_directory} does not exist.")
+        network=PPO.load(weight_directory)
+        print(f"Weights from: {weight_directory} were loaded successfully.")
+        return network
+
     def save_network_weights(self, network):
         # Create the directory if it doesn't exist
         save_dir = f"experiments/{self.config.EXPERIMENT_ID}/weights"
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
-    
-        # Save the weights to the specified directory
-        save_path = f"{save_dir}/{self.config.WEIGHTS_TO_SAVE_NAME}.h5"
-        network.save_weights(save_path)
-
-    def load_weights_to_network(self, network):
-
-        weight_directory = self.config.LOAD_WEIGHT_DIRECTORY
-
-        if not os.path.exists(weight_directory):
-            raise FileNotFoundError(f"Weight directory {weight_directory} does not exist.")
-
-        network.load_weights(weight_directory)
-        print(f"Weights from: {weight_directory} were loaded successfully.")
-        return network
+        # Save the entire PPO model as a .zip file
+        save_path = f"{save_dir}/{self.config.WEIGHTS_TO_SAVE_NAME}.zip"
+        network.save(save_path)
+        print(f"Weights saved at: {save_path}")
 
     @staticmethod
     def are_weights_identical(model1, model2) -> bool:
@@ -172,4 +151,3 @@ class NN_handler:
             print(f"Error in copying network car1 to network car2...")
     
         return result
-

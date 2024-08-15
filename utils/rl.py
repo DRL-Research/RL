@@ -7,7 +7,6 @@ import numpy as np
 
 
 class RL:
-
     def __init__(self, config, logger, airsim, nn_handler):
         self.config = config
         self.logger = logger
@@ -373,7 +372,6 @@ class RL:
             return car1_action, car2_action
 
     def sample_action_agent_only(self, car1_state):
-
         if np.random.binomial(1, p=self.epsilon) and not self.config.ONLY_INFERENCE:
             random_action = np.random.randint(2)
             if self.config.LOG_ACTIONS_SELECTED:
