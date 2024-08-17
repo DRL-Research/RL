@@ -8,10 +8,12 @@ def training_loop_ido(config):
     # classes init
     logger = Logger(config)
     airsim = AirsimManager(config)
+    print("reset potision")
+    airsim.reset_cars_to_initial_positions()
     nn_handler = NN_handler(config)
     rl = RL(config, logger, airsim, nn_handler)
 
-    if config.ONLY_INFERENCE:
+    if config.LOAD_WEIGHT_DIRECTORY is not None:
         rl.network = nn_handler.load_weights_to_network(rl.network)
 
     # Initialize counters for the experiment
@@ -68,7 +70,7 @@ def training_loop_ido(config):
                 break
 
         # Update epsilon greedy after each trajectory
-        rl.updateEpsilon()
+        rl.epsilon *= rl.epsilon_decay
         print(f"epsilon value: {rl.epsilon}")
 
         rl.memory.append(rl.current_trajectory)
@@ -79,17 +81,22 @@ def training_loop_ido(config):
             trajectory_loss = rl.replay()
             rl.update_target_model()
 
+            print(trajectory_loss)
             if trajectory_loss is not None:
                 logger.log_scaler("loss_per_trajectory", episode_counter, trajectory_loss)
 
             if config.LOG_SAME_ACTION_SELECTED_IN_TRAJECTORY:
                 logger.log_same_action_selected_in_trajectory()
 
+        # rl.trajectories.append(rl.current_trajectory)
+
+        # TODO: complete train_batch_of_trajectories
+        # if config.TRAIN_OPTION == 'batch_of_trajectories':
+        #     if episode_counter % batch_size:
+        #         agent.train_batch_of_trajectories(rl.trajectories)
+
     # Save the network weights after the experiment ended (name of weights file is set in config)
     nn_handler.save_network_weights(rl.network)
-
-    # reset cars to initial settings file position, before the next experiment
-    airsim.reset_cars_to_initial_settings_file_positions()
 
     print("---- Experiment Ended ----")
     print("The amount of collisions:")

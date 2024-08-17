@@ -1,6 +1,8 @@
 from datetime import datetime
 import numpy as np
 
+FIRST_EXPERIMENT = True
+
 
 class Config:    
 
@@ -17,12 +19,13 @@ class Config:
         self.TRAIN_OPTION = "trajectory"  # options: step/trajectory/batch_of_trajectories
         self.ALTERNATE_MASTER_AND_AGENT_TRAINING = True  # options: True/False
         self.ALTERNATE_TRAINING_EPISODE_AMOUNT = 20
-        self.MAX_EPISODES = 50  # 100
+        self.MAX_EPISODES = 200  # 100
         self.MAX_STEPS = 500
+        self.EPSILON = 0.95
+        self.EPSILON_DECAY = 0.9  # 0.9
         self.LEARNING_RATE = 0.003
         self.LOSS_FUNCTION = "mse"
         self.TIME_BETWEEN_STEPS = 2.0
-        self.EPOCHS = 1
 
         self.ONLY_INFERENCE = False  # options: True/False
 

@@ -3,6 +3,8 @@ import random
 import airsim
 import numpy as np
 
+from config import FIRST_EXPERIMENT
+
 
 class AirsimManager:
 
@@ -31,8 +33,6 @@ class AirsimManager:
         self.car1_y_offset = self.airsim_client.simGetObjectPose(self.config.CAR1_NAME).position.y_val
         self.car2_x_offset = self.airsim_client.simGetObjectPose(self.config.CAR2_NAME).position.x_val
         self.car2_y_offset = self.airsim_client.simGetObjectPose(self.config.CAR2_NAME).position.y_val
-
-        self.reset_cars_to_initial_positions()
 
     def reset_cars_to_initial_positions(self):
         self.airsim_client.reset()
@@ -71,16 +71,20 @@ class AirsimManager:
         self.airsim_client.simSetVehiclePose(initial_pose_car2, True, self.config.CAR2_NAME)
 
     def reset_cars_to_initial_settings_file_positions(self):
+
+        print("reset_cars_to_initial_settings_file_positions")
         self.airsim_client.reset()
 
         # car1_start_location_x = self.config.CAR1_INITIAL_POSITION[0] - self.car1_x_offset
         # car1_start_location_y = self.config.CAR1_INITIAL_POSITION[1] - self.car1_y_offset
         # car2_start_location_x = self.config.CAR2_INITIAL_POSITION[0] - self.car2_x_offset
         # car2_start_location_y = self.config.CAR2_INITIAL_POSITION[1] - self.car2_y_offset
-        car1_start_location_x = self.car1_x_offset
-        car1_start_location_y = self.car1_y_offset
-        car2_start_location_x = self.car2_x_offset
-        car2_start_location_y = self.car2_y_offset
+        car1_start_location_x = 0
+        car1_start_location_y = 0
+        car2_start_location_x = 5
+        car2_start_location_y = 5
+        print(car1_start_location_x, car1_start_location_y)
+        print(car2_start_location_x, car2_start_location_y)
         car1_start_yaw = self.config.CAR1_INITIAL_YAW
         car2_start_yaw = self.config.CAR2_INITIAL_YAW
 
@@ -138,9 +142,9 @@ class AirsimManager:
         car2_position_and_speed = self.get_car_position_and_speed(self.config.CAR2_NAME)
         car1_state = np.array([
             car1_position_and_speed["x"],
-            # car1_position_and_speed["y"],
+            car1_position_and_speed["y"],
             car1_position_and_speed["Vx"],
-            # car1_position_and_speed["Vy"],
+            car1_position_and_speed["Vy"],
             # car2_position_and_speed["x"],
             # car2_position_and_speed["y"],
             # car2_position_and_speed["Vx"],
