@@ -19,7 +19,7 @@ class Config:
         self.MAX_STEPS = 10
         self.LEARNING_RATE = 0.003
         self.LOSS_FUNCTION = "mse"
-        self.TIME_BETWEEN_STEPS = 2.0
+        self.TIME_BETWEEN_STEPS = 0.05
         self.EPOCHS = 1
         self.ONLY_INFERENCE = False  # options: True/False
         self.COPY_CAR1_NETWORK_TO_CAR2 = True  # options: True/False

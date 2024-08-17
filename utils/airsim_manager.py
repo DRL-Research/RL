@@ -33,6 +33,9 @@ class AirsimManager:
 
         self.reset_cars_to_initial_positions()
 
+        self.simulation_paused = False  # New flag
+
+
     def reset_cars_to_initial_positions(self):
         self.airsim_client.reset()
         # pick at random (car 2 goes from left/right)
@@ -160,3 +163,15 @@ class AirsimManager:
     def has_reached_target(self, car_state):
         # TODO: change car_state[0] to be more generic
         return car_state[0] > self.config.CAR1_DESIRED_POSITION[0]
+
+
+    def pause_simulation(self):
+        self.simulation_paused = True
+        self.airsim_client.simPause(True)
+
+    def resume_simulation(self):
+        self.simulation_paused = False
+        self.airsim_client.simPause(False)
+
+    def is_simulation_paused(self):
+        return self.simulation_paused
