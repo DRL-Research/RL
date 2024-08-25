@@ -138,21 +138,14 @@ class AirsimManager:
         if logger is not None and self.config.LOG_CAR_STATES:
             logger.log_state(car1_state, self.config.CAR1_NAME)
 
-        return car1_state  # מחזיר מערך NumPy
+        return car1_state
 
     def get_car2_state(self, logger):
         car2_position_and_speed = self.get_car_position_and_speed(self.config.CAR2_NAME)
         # car1_position_and_speed = self.get_car_position_and_speed(self.config.CAR1_NAME)
         car2_state = np.array([
-            car2_position_and_speed["x"],
             car2_position_and_speed["y"],
-            car2_position_and_speed["Vx"],
             car2_position_and_speed["Vy"],
-            # car1_position_and_speed["x"],
-            # car1_position_and_speed["y"],
-            # car1_position_and_speed["Vx"],
-            # car1_position_and_speed["Vy"],
-            self.get_cars_distance()
         ])
 
         if self.config.LOG_CAR_STATES:

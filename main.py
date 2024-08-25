@@ -23,6 +23,7 @@ if __name__ == "__main__":
         'SAVE_WEIGHT_DIRECTORY': path,
         #experiments/EXP6-EPOCHS-5-MAX_EPISODES-100/weights/epochs_0_100.h5
         'TRAIN_OPTION': 'trajectory',
+        'ROLE': 'Car1', #who using the DRL model? options are: Car1 or Car2 or Both
     }
     # Debuggingg.....
     print("Setting up experiment...")
