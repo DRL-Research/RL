@@ -41,27 +41,33 @@ def model_training(config, path):
                     action, _ = model.predict(obs, deterministic=True)
                 elif total_steps < config.EXPLORATION_EXPLOTATION_THRESHOLD:
                     action, _ = model.predict(obs, deterministic=False)
-                print(f"Action: {action}")
+                #print(f"Action: {action}")
             elif config.ONLY_INFERENCE:
                 action, _ = model.predict(obs, deterministic=True)
             obs, reward, done, _ = env.step(action)
-            steps_counter += 1
+            if reward == -20.0:
+                print(reward)
+                collision_counter += 1
             total_steps += 1
             episode_sum_of_rewards += reward
             if done:
+                if env.envs[0].airsim_manager.collision_occurred() is True:
+                    print('is true!')
+                    collision_counter += 1
                 if not config.ONLY_INFERENCE:
                     env.envs[0].pause_simulation()
                     model.learn(total_timesteps=steps_counter)
                     env.envs[0].resume_simulation()
-                if env.get_attr('airsim_manager')[0].collision_occurred():
-                    collision_counter += 1
+                    print(collision_counter)
                 break
-        print(f"Episode {episode_counter} finished with reward: {episode_sum_of_rewards}")
+        #print('collisions in this episode:', collision_counter_lst.count(True))
+        print('total collisions:', collision_counter)
+        #print(f"Episode {episode_counter} finished with reward: {episode_sum_of_rewards}")
         all_rewards.append(episode_sum_of_rewards)
         steps_counter = 0
     model.save(path + '/model')
     print('Model saved')
     print("Total collisions:", collision_counter)
-    PlottingUtils.plot_losses(path)
-    PlottingUtils.plot_rewards(all_rewards)
-    PlottingUtils.show_plots()
+    #PlottingUtils.plot_losses(path)
+    #PlottingUtils.plot_rewards(all_rewards)
+    #PlottingUtils.show_plots()

@@ -49,6 +49,7 @@ class AirsimManager:
         car1_start_yaw = self.config.CAR1_INITIAL_YAW
         car2_start_yaw = left_or_right * self.config.CAR2_INITIAL_YAW
         # Set the reference_position for Car1 and Car2 (Do not change this code)
+        # Set the reference_position for Car1 and Car2 (Do not change this code)
         reference_position = airsim.Pose(airsim.Vector3r(0.0, 0, -1), airsim.Quaternionr(0, 0.0, 0.0, 1.0))
         self.airsim_client.simSetVehiclePose(reference_position, True, self.config.CAR1_NAME)
         self.airsim_client.simSetVehiclePose(reference_position, True, self.config.CAR2_NAME)
@@ -102,7 +103,16 @@ class AirsimManager:
 
     def collision_occurred(self):
         collision_info = self.airsim_client.simGetCollisionInfo()
+        if collision_info.has_collided:
+            print('************************************Colission!!!!!**********************************************')
+            print(collision_info.has_collided)
         return collision_info.has_collided
+
+    def get_collision_occured_outside(self):
+        collision_info = self.airsim_client.simGetCollisionInfo()
+        if collision_info.has_collided:
+            return 1
+        return 0
 
     def get_car_controls(self, car_name):
         return self.airsim_client.getCarControls(car_name)

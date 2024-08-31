@@ -48,6 +48,7 @@ class Config:
         self.CAR1_INITIAL_YAW = 0
         self.CAR2_INITIAL_YAW = 90
         self.CAR1_DESIRED_POSITION = np.array([10, 0])
+        self.ROLE = None #which car using the DRL model?
 
         # State Configuration
         self.AGENT_INPUT_SIZE = 2
@@ -61,6 +62,7 @@ class Config:
         self.SAFETY_DISTANCE_FOR_PUNISH = 1200
         self.NOT_KEEPING_SAFETY_DISTANCE_REWARD = -2
         self.EXPLORATION_EXPLOTATION_THRESHOLD = 2500
+
 
     def set_config(self, config_dict):
         for attr_name, attr_value in config_dict.items():
