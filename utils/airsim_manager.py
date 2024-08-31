@@ -132,7 +132,9 @@ class AirsimManager:
         car1_position_and_speed = self.get_car_position_and_speed(self.config.CAR1_NAME)
         car1_state = np.array([
             car1_position_and_speed["x"],
+            car1_position_and_speed["y"],
             car1_position_and_speed["Vx"],
+            car1_position_and_speed["Vy"],
         ])
 
         if logger is not None and self.config.LOG_CAR_STATES:
@@ -144,7 +146,9 @@ class AirsimManager:
         car2_position_and_speed = self.get_car_position_and_speed(self.config.CAR2_NAME)
         # car1_position_and_speed = self.get_car_position_and_speed(self.config.CAR1_NAME)
         car2_state = np.array([
+            car2_position_and_speed["x"],
             car2_position_and_speed["y"],
+            car2_position_and_speed["Vx"],
             car2_position_and_speed["Vy"],
         ])
 
@@ -168,3 +172,13 @@ class AirsimManager:
 
     def is_simulation_paused(self):
         return self.simulation_paused
+    def set_car2_initial_position_and_yaw(self):
+        car2_side = random.choice(["left", "right"])
+        if car2_side == "left":
+            self.config.CAR2_INITIAL_POSITION = [0, -30]
+            self.config.CAR2_INITIAL_YAW = 90
+        else:
+            self.config.CAR2_INITIAL_POSITION = [0, 30]
+            self.config.CAR2_INITIAL_YAW = 270
+
+        print(f"Car 2 starts from {car2_side} with position {self.config.CAR2_INITIAL_POSITION} and yaw {self.config.CAR2_INITIAL_YAW}")

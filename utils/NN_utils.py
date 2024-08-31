@@ -107,13 +107,16 @@ class NN_handler:
         return network
 
     def save_network_weights(self, network):
-        # Create the directory if it doesn't exist
-        save_dir = f"experiments/{self.config.EXPERIMENT_ID}/weights"
+        # The save directory is already defined in config
+        save_dir = self.config.SAVE_WEIGHT_DIRECTORY
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
-        # Save the entire PPO model as a .zip file
         save_path = f"{save_dir}/{self.config.WEIGHTS_TO_SAVE_NAME}.zip"
+
+        # Save the entire PPO model as a .zip file
         network.save(save_path)
+
+        # Confirm where the weights were saved
         print(f"Weights saved at: {save_path}")
 
     @staticmethod
