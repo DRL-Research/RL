@@ -45,6 +45,7 @@ def model_training(config, path):
             elif config.ONLY_INFERENCE:
                 action, _ = model.predict(obs, deterministic=True)
             obs, reward, done, _ = env.step(action)
+            steps_counter += 1
             if reward == -20.0:
                 print(reward)
                 collision_counter += 1
@@ -66,8 +67,9 @@ def model_training(config, path):
         all_rewards.append(episode_sum_of_rewards)
         steps_counter = 0
     model.save(path + '/model')
+    new_logger.close()
     print('Model saved')
     print("Total collisions:", collision_counter)
-    #PlottingUtils.plot_losses(path)
-    #PlottingUtils.plot_rewards(all_rewards)
-    #PlottingUtils.show_plots()
+    PlottingUtils.plot_losses(path)
+    PlottingUtils.plot_rewards(all_rewards)
+    PlottingUtils.show_plots()
