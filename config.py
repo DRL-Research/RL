@@ -23,7 +23,7 @@ class Config:
         self.N_STEPS = 160
         self.BATCH_SIZE = 160
         self.LOSS_FUNCTION = "mse"
-        self.TIME_BETWEEN_STEPS = 0.05
+        self.TIME_BETWEEN_STEPS = 0.005
         self.EPOCHS = 1
         self.ONLY_INFERENCE = False
         self.COPY_CAR1_NETWORK_TO_CAR2 = True
@@ -31,6 +31,7 @@ class Config:
         self.CAR2_CONSTANT_ACTION = (0.75 + 0.5) / 2
         self.SET_CAR2_INITIAL_DIRECTION_MANUALLY = True
         self.CAR2_INITIAL_DIRECTION = 1
+        self.FIXED_THROTTLE = (0.75 + 0.5) / 2
 
         # Logging Configuration
         self.LOG_WEIGHTS_AND_GRADIENTS_EVERY_X_EPISODES = 5

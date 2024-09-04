@@ -12,14 +12,15 @@ if __name__ == "__main__":
         'CAR1_INITIAL_YAW': 0,
         'CAR2_INITIAL_YAW': 270,
         'ONLY_INFERENCE': False,
-        'MAX_EPISODES': 3,
+        'MAX_EPISODES': 100,
         'LOAD_WEIGHT_DIRECTORY': "experiments/24_08_2024-19_45_30Car_2_Random_Side/model.zip",
-        'ROLE': 'Car2',
+        'ROLE': 'Car1',
         'EXPLORATION_EXPLOTATION_THRESHOLD': 2500,
         'TIME_BETWEEN_STEPS': 0.05,
-        'LEARNING_RATE': 0.001,
+        'LEARNING_RATE': 1,
         'N_STEPS': 160,
         'BATCH_SIZE': 160,
+        'FIXED_THROTTLE': 1,
     }
 
     print("Setting up experiment...")

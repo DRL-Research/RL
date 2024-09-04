@@ -47,25 +47,21 @@ def model_training(config, path):
             obs, reward, done, _ = env.step(action)
             steps_counter += 1
             if reward == -20.0:
+                env.envs[0].pause_simulation()
                 print(reward)
                 collision_counter += 1
             total_steps += 1
             episode_sum_of_rewards += reward
             if done:
-                if env.envs[0].airsim_manager.collision_occurred() is True:
-                    print('is true!')
-                    collision_counter += 1
+                # if env.envs[0].airsim_manager.collision_occurred():
+                #     env.envs[0].pause_simulation()
                 if not config.ONLY_INFERENCE:
-                    env.envs[0].pause_simulation()
                     model.learn(total_timesteps=steps_counter)
-                    env.envs[0].resume_simulation()
-                    print(collision_counter)
                 break
-        #print('collisions in this episode:', collision_counter_lst.count(True))
-        print('total collisions:', collision_counter)
-        #print(f"Episode {episode_counter} finished with reward: {episode_sum_of_rewards}")
+        print(f"Episode {episode_counter} finished with reward: {episode_sum_of_rewards}")
         all_rewards.append(episode_sum_of_rewards)
         steps_counter = 0
+        env.envs[0].resume_simulation()
     model.save(path + '/model')
     new_logger.close()
     print('Model saved')
