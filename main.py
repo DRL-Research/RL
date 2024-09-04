@@ -21,6 +21,7 @@ if __name__ == "__main__":
         'N_STEPS': 160,
         'BATCH_SIZE': 160,
         'FIXED_THROTTLE': 1,
+        ####################
     }
 
     print("Setting up experiment...")
