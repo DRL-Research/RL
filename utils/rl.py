@@ -7,16 +7,13 @@ import numpy as np
 
 
 class RL:
-
     def __init__(self, config, logger, airsim, nn_handler):
         self.config = config
         self.logger = logger
         self.airsim = airsim
         self.nn_handler = nn_handler
         self.optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=self.config.LEARNING_RATE)
-        self.discount_factor = 0.95
-        self.epsilon = self.config.EPSILON
-        self.epsilon_decay = self.config.EPSILON_DECAY
+        # self.discount_factor = 0.95
         if self.config.AGENT_ONLY:
             self.network = self.nn_handler.init_network_agent_only(self.optimizer)
         else:
@@ -24,22 +21,18 @@ class RL:
             self.network_car2 = self.nn_handler.create_network_copy(self.network)  # TODO: change name network and network_car2
         self.current_trajectory = []
         self.trajectories = []
-        # self.batch_size = BATCH_SIZE_FOR_TRAJECTORY_BATCH  # relevant for train_batch_of_trajectories function
         self.freeze_master = False
-
-        # Idos' params:
+        ############################################################
         self.memory = deque(maxlen=100000)
         self.gamma = 0.999  # discount rate
-        self.epsilon = 1.0  # exploration rate
         self.epsilon_min = 0.1
+        self.epsilon = 1.0
         self.epsilon_decay = 0.9975
-        self.batch_size = 10
-        self.train_start = 10  # memory_size
-        # self.state_size = 2
+        self.TAU = 0.1
+        self.train_start = 10  # from this size of memory we start to train
         self.ddqn = True
         self.Soft_Update = True
         self.distribution = True
-        self.TAU = 0.1
         self.model = self.nn_handler.init_network_agent_only(self.optimizer)
         self.target_model = self.nn_handler.init_network_agent_only(self.optimizer)
 
@@ -70,7 +63,8 @@ class RL:
         # minibatch = random.sample(self.memory, min(self.batch_size, self.batch_size))
         # trajectories = random.sample(self.memory, min(self.batch_size, len(self.memory)))
         # trajectories = random.sample(self.memory, min(len(self.memory), len(self.memory)))
-        trajectories = list(self.memory)[-self.batch_size:]
+        # trajectories = list(self.memory)[-self.batch_size:]
+        trajectories = list(self.memory)
 
         state, next_state, action, reward, done = [], [], [], [], []
 
@@ -130,9 +124,12 @@ class RL:
         # Train the Neural Network with batches
         # history = self.model.fit(state, target, epochs=1, batch_size=self.batch_size, verbose=0)
         # history = self.model.fit(state, target, epochs=1, batch_size=len(self.memory), verbose=0)
-        history = self.model.fit(state, target, epochs=5, verbose=0)
-        print("model.fit")
+        print("self.config.EPOCHS")
+        print(self.config.EPOCHS)
+        history = self.model.fit(state, target, epochs=self.config.EPOCHS, verbose=0)
+
         return history.history['loss'][0]
+
 
     def updateEpsilon(self):
         if self.epsilon > self.epsilon_min:
@@ -188,6 +185,7 @@ class RL:
         collision_occurred = self.airsim.collision_occurred()
         reached_target = self.airsim.has_reached_target(car1_next_state)
         reward = self.calculate_reward(car1_next_state, collision_occurred, reached_target, car1_action, car2_action)
+        print(f"reward: {reward}")
 
         # organize output
         # current_state = [[master_input, car1_state], [master_input, car2_state]]
@@ -374,7 +372,6 @@ class RL:
             return car1_action, car2_action
 
     def sample_action_agent_only(self, car1_state):
-
         if np.random.binomial(1, p=self.epsilon) and not self.config.ONLY_INFERENCE:
             random_action = np.random.randint(2)
             if self.config.LOG_ACTIONS_SELECTED:
