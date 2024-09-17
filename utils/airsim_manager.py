@@ -53,23 +53,26 @@ class AirsimManager:
         reference_position = airsim.Pose(airsim.Vector3r(0.0, 0, -1), airsim.Quaternionr(0, 0.0, 0.0, 1.0))
         self.airsim_client.simSetVehiclePose(reference_position, True, self.config.CAR1_NAME)
         self.airsim_client.simSetVehiclePose(reference_position, True, self.config.CAR2_NAME)
+
         # Convert yaw values from degrees to radians as AirSim uses radians
         car1_start_yaw_rad = np.radians(car1_start_yaw)
         car2_start_yaw_rad = np.radians(car2_start_yaw)
+
         # Set initial position and yaw of Car1
         initial_position_car1 = airsim.Vector3r(car1_start_location_x, car1_start_location_y, -1)
         initial_orientation_car1 = airsim.to_quaternion(0, 0, car1_start_yaw_rad)  # Roll, Pitch, Yaw
         initial_pose_car1 = airsim.Pose(initial_position_car1, initial_orientation_car1)
         self.airsim_client.simSetVehiclePose(initial_pose_car1, True, self.config.CAR1_NAME)
+
         # Set initial position and yaw of Car2
         initial_position_car2 = airsim.Vector3r(car2_start_location_x, car2_start_location_y, -1)
         initial_orientation_car2 = airsim.to_quaternion(0, 0, car2_start_yaw_rad)  # Roll, Pitch, Yaw
         initial_pose_car2 = airsim.Pose(initial_position_car2, initial_orientation_car2)
         self.airsim_client.simSetVehiclePose(initial_pose_car2, True, self.config.CAR2_NAME)
 
-
     def reset_cars_to_initial_settings_file_positions(self):
         self.airsim_client.reset()
+
         # car1_start_location_x = self.config.CAR1_INITIAL_POSITION[0] - self.car1_x_offset
         # car1_start_location_y = self.config.CAR1_INITIAL_POSITION[1] - self.car1_y_offset
         # car2_start_location_x = self.config.CAR2_INITIAL_POSITION[0] - self.car2_x_offset
@@ -80,6 +83,7 @@ class AirsimManager:
         car2_start_location_y = self.car2_y_offset
         car1_start_yaw = self.config.CAR1_INITIAL_YAW
         car2_start_yaw = self.config.CAR2_INITIAL_YAW
+
         # # Set the reference_position for Car1 and Car2 (Do not change this code)
         # reference_position = airsim.Pose(airsim.Vector3r(0.0, 0, -1), airsim.Quaternionr(0, 0.0, 0.0, 1.0))
         # self.airsim_client.simSetVehiclePose(reference_position, True, self.config.CAR1_NAME)
