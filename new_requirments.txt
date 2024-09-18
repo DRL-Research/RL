@@ -1,0 +1,17 @@
+airsim==1.5.0
+gym==0.26.2
+gym-notices==0.0.8
+gymnasium==0.29.1
+-e git+https://github.com/heleidsn/UAV_Navigation_DRL_AirSim.git@139af3d519a1a679933b40d93d640d1bbf61a339#egg=gym_env&subdirectory=gym_env
+keras==3.4.1
+Keras-Preprocessing==1.1.2
+matplotlib==3.7.5
+msgpack-python==0.5.6
+msgpack-rpc-python==0.4.1
+numpy==1.24.4
+pandas==2.0.3
+stable_baselines3==2.3.2
+tensorboard==2.17.0
+tensorboard-data-server==0.7.2
+tensorboard-plugin-wit==1.8.1
+tqdm==4.66.5
