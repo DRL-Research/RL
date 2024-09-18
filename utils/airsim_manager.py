@@ -6,6 +6,7 @@ import numpy as np
 class AirsimManager:
 
     def __init__(self, experiment):
+
         self.experiment = experiment
         self.airsim_client = airsim.CarClient()  # Create an AirSim client for car simulation
         self.airsim_client.confirmConnection()  # Confirm the connection to the AirSim simulator
