@@ -7,6 +7,8 @@ class AirsimManager:
 
     def __init__(self, experiment):
 
+        self.simulation_paused = False
+
         self.experiment = experiment
         self.airsim_client = airsim.CarClient()  # Create an AirSim client for car simulation
         self.airsim_client.confirmConnection()  # Confirm the connection to the AirSim simulator
@@ -25,6 +27,7 @@ class AirsimManager:
         self.airsim_client.setCarControls(car_controls, self.experiment.CAR2_NAME)
 
         # get initial positions according to settings offset
+        # TODO: is the following 2 lines still true?
         # (later be used whenever we need to reset to initial position -> start of each epoch)
         # (arbitrary starting position in settings file as long as they are not spawned on top of each other)
         self.car1_x_offset = self.airsim_client.simGetObjectPose(self.experiment.CAR1_NAME).position.x_val
@@ -34,43 +37,41 @@ class AirsimManager:
 
         self.reset_cars_to_initial_positions()
 
-        self.simulation_paused = False  # New flag
-
 
     def reset_cars_to_initial_positions(self):
+
         self.airsim_client.reset()
+
+        # TODO: we pick left/right twice in the code... see the function: set_car2_initial_position_and_yaw
         # pick at random (car 2 goes from left/right)
         left_or_right = random.choice([1, -1])
-        if self.experiment.SET_CAR2_INITIAL_DIRECTION_MANUALLY:
-            left_or_right = self.experiment.CAR2_INITIAL_DIRECTION
+
         car1_start_location_x = self.experiment.CAR1_INITIAL_POSITION[0] - self.car1_x_offset
         car1_start_location_y = left_or_right * self.experiment.CAR1_INITIAL_POSITION[1] - self.car1_y_offset
         car2_start_location_x = self.experiment.CAR2_INITIAL_POSITION[0] - self.car2_x_offset
         car2_start_location_y = left_or_right * self.experiment.CAR2_INITIAL_POSITION[1] - self.car2_y_offset
         car1_start_yaw = self.experiment.CAR1_INITIAL_YAW
         car2_start_yaw = left_or_right * self.experiment.CAR2_INITIAL_YAW
-        # Set the reference_position for Car1 and Car2 (Do not change this code)
-        # Set the reference_position for Car1 and Car2 (Do not change this code)
+
+
+        # Set the reference_position for Car1 and Car2 (Do not change the following code)
         reference_position = airsim.Pose(airsim.Vector3r(0.0, 0, -1), airsim.Quaternionr(0, 0.0, 0.0, 1.0))
         self.airsim_client.simSetVehiclePose(reference_position, True, self.experiment.CAR1_NAME)
         self.airsim_client.simSetVehiclePose(reference_position, True, self.experiment.CAR2_NAME)
-
-        # Convert yaw values from degrees to radians as AirSim uses radians
-        car1_start_yaw_rad = np.radians(car1_start_yaw)
-        car2_start_yaw_rad = np.radians(car2_start_yaw)
-
+        car1_start_yaw_rad = np.radians(car1_start_yaw) # Convert yaw values from degrees to radians as AirSim uses radians
+        car2_start_yaw_rad = np.radians(car2_start_yaw) # Convert yaw values from degrees to radians as AirSim uses radians
         # Set initial position and yaw of Car1
         initial_position_car1 = airsim.Vector3r(car1_start_location_x, car1_start_location_y, -1)
         initial_orientation_car1 = airsim.to_quaternion(0, 0, car1_start_yaw_rad)  # Roll, Pitch, Yaw
         initial_pose_car1 = airsim.Pose(initial_position_car1, initial_orientation_car1)
         self.airsim_client.simSetVehiclePose(initial_pose_car1, True, self.experiment.CAR1_NAME)
-
         # Set initial position and yaw of Car2
         initial_position_car2 = airsim.Vector3r(car2_start_location_x, car2_start_location_y, -1)
         initial_orientation_car2 = airsim.to_quaternion(0, 0, car2_start_yaw_rad)  # Roll, Pitch, Yaw
         initial_pose_car2 = airsim.Pose(initial_position_car2, initial_orientation_car2)
         self.airsim_client.simSetVehiclePose(initial_pose_car2, True, self.experiment.CAR2_NAME)
 
+    # TODO: If this function is not used, delete it
     def reset_cars_to_initial_settings_file_positions(self):
         self.airsim_client.reset()
 
@@ -113,6 +114,7 @@ class AirsimManager:
             print(collision_info.has_collided)
         return collision_info.has_collided
 
+    # TODO: If this function is not used, delete it
     def get_collision_occured_outside(self):
         collision_info = self.airsim_client.simGetCollisionInfo()
         if collision_info.has_collided:
@@ -159,7 +161,6 @@ class AirsimManager:
 
     def get_car2_state(self, logger):
         car2_position_and_speed = self.get_car_position_and_speed(self.experiment.CAR2_NAME)
-        # car1_position_and_speed = self.get_car_position_and_speed(self.config.CAR1_NAME)
         car2_state = np.array([
             car2_position_and_speed["x"],
             car2_position_and_speed["y"],
@@ -185,11 +186,14 @@ class AirsimManager:
         self.simulation_paused = False
         self.airsim_client.simPause(False)
 
+    # TODO: If this function is not used, delete it
     def is_simulation_paused(self):
         return self.simulation_paused
+
     def set_car2_initial_position_and_yaw(self):
         car2_side = random.choice(["left", "right"])
         if car2_side == "left":
+            # TODO: if this is the function being used, CAR2_INITIAL_POSITION needs to be defined in experiment, not here.
             self.experiment.CAR2_INITIAL_POSITION = [0, -30]
             self.experiment.CAR2_INITIAL_YAW = 90
         else:

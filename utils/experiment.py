@@ -7,6 +7,9 @@ import numpy as np
 
 @dataclass
 class Experiment:
+
+    # TODO: go over all params, delete non-relevant, and define better the relevant.
+
     EXPERIMENT_ID: str = ""
     CAR1_INITIAL_POSITION: List[int] = [30, 0],
     CAR2_INITIAL_POSITION: List[int] = [0, 30],
@@ -67,6 +70,6 @@ class Experiment:
 
     # Constants
     EXPERIMENT_DATE_TIME = datetime.now().strftime("%d_%m_%Y-%H_%M_%S")
-    SAVE_WEIGHT_DIRECTORY = f"experiments/{EXPERIMENT_DATE_TIME}_{EXPERIMENT_ID}"
+    SAVE_MODEL_DIRECTORY = f"experiments/{EXPERIMENT_DATE_TIME}_{EXPERIMENT_ID}/model"
 
 

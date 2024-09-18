@@ -1,8 +1,11 @@
-from utils.training_loop import model_training
-
 from utils.experiment import Experiment
+from utils.training_loop import run_experiment
 
 if __name__ == "__main__":
+
+    # TODO: fix requirements
+    # TODO: what is the purpose of src folder?
+
 
     experiment1 = Experiment(
         EXPERIMENT_ID='Car_2_high_speed',
@@ -12,6 +15,7 @@ if __name__ == "__main__":
         CAR2_INITIAL_YAW=270,
         ONLY_INFERENCE=False,
         MAX_EPISODES=100,
+        # TODO: naming of LOAD_WEIGHT_DIRECTORY should be more generic + if saving only the model, than should be named trained_models (not experiments)
         LOAD_WEIGHT_DIRECTORY="experiments/24_08_2024-19_45_30Car_2_Random_Side/model.zip",
         ROLE='Car1',
         EXPLORATION_EXPLOTATION_THRESHOLD=2500,
@@ -20,9 +24,9 @@ if __name__ == "__main__":
         N_STEPS=160,
         BATCH_SIZE=160,
         FIXED_THROTTLE=1)
-    
+
     experiments = [experiment1]
     for experiment in experiments:
         print(f"Starting experiment: {experiment.EXPERIMENT_ID}")
-        model_training(experiment)
+        run_experiment(experiment)
         print(f"Experiment {experiment.EXPERIMENT_ID} completed.")

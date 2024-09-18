@@ -6,6 +6,8 @@ import tensorflow as tf
 import numpy as np
 
 
+# TODO: is this class being used now?
+
 class RL:
     def __init__(self, config, logger, airsim, nn_handler):
         self.config = config
