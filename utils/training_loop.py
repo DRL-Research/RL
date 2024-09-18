@@ -20,6 +20,7 @@ def run_experiment(experiment):
         print(f"Loaded weights for inference, from {experiment.LOAD_WEIGHT_DIRECTORY}.")
 
     ####
+    ####
 
     all_rewards = []
     collision_counter = 0
