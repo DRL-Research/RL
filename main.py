@@ -4,8 +4,7 @@ from utils.training_loop import run_experiment
 if __name__ == "__main__":
 
     # TODO: fix requirements
-    # TODO: what is the purpose of src folder?
-
+    # TODO: what is the purpose of src folder? if not relevant put in .gitignore
 
     experiment1 = Experiment(
         EXPERIMENT_ID='Car_2_high_speed',

@@ -8,7 +8,7 @@ import numpy as np
 @dataclass
 class Experiment:
 
-    # TODO: go over all params, delete non-relevant, and define better the relevant.
+    # TODO: go over all params, delete non-relevant, and define better the relevant (with gil, next meeting)
 
     EXPERIMENT_ID: str = ""
     CAR1_INITIAL_POSITION: List[int] = [30, 0],

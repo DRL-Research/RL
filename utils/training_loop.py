@@ -1,6 +1,6 @@
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
-from gym_enviroment import AirSimGymEnv
+from gym_enviroment import AirSimGymEnv  # TODO: fix typo
 from airsim_manager import AirsimManager
 from stable_baselines3.common.logger import configure
 from plotting_utils import PlottingUtils

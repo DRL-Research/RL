@@ -37,7 +37,6 @@ class AirsimManager:
 
         self.reset_cars_to_initial_positions()
 
-
     def reset_cars_to_initial_positions(self):
 
         self.airsim_client.reset()
