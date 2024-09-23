@@ -12,15 +12,15 @@ if __name__ == "__main__":
         'CAR1_INITIAL_YAW': 0,
         'CAR2_INITIAL_YAW': 270,
         'ONLY_INFERENCE': False,
-        'MAX_EPISODES': 100,
-        'LOAD_WEIGHT_DIRECTORY': "experiments/24_08_2024-19_45_30Car_2_Random_Side/model.zip",
+        'MAX_EPISODES': 50,
+        'LOAD_WEIGHT_DIRECTORY': 'experiments/12_09_2024-13_41_21_Car_2_Random_Side/model.zip',
         'ROLE': 'Car1',
-        'EXPLORATION_EXPLOTATION_THRESHOLD': 2500,
+        'EXPLORATION_EXPLOTATION_THRESHOLD': 500,
         'TIME_BETWEEN_STEPS': 0.05,
-        'LEARNING_RATE': 1,
-        'N_STEPS': 160,
-        'BATCH_SIZE': 160,
-        'FIXED_THROTTLE': 1,
+        'LEARNING_RATE': 0.01,
+        'N_STEPS': 2400,
+        'BATCH_SIZE': 2400,
+        'FIXED_THROTTLE': 0.75,
         ####################
     }
 
