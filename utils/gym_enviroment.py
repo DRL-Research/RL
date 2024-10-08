@@ -19,16 +19,15 @@ class AirSimGymEnv(gym.Env):
         self.reset()
 
     def reset(self):
-        print("Resetting environment for new episode...")
         self.airsim_manager.reset_cars_to_initial_positions()
+        self.airsim_manager.reset_for_new_episode()
         car1_state = self.airsim_manager.get_car1_state()
         self.state = np.array([car1_state[0], car1_state[1]], dtype=np.float32)
-        print(f"State after reset: {self.state}")
         return self.state
 
     def step(self, action):
         if self.airsim_manager.is_simulation_paused():
-            print("Simulation is paused, no step.")
+            #print("Simulation is paused, no step.")
             return self.state, 0, False, {}
         throttle = 1 if action == 0 else 0.5
         if self.config.ROLE == 'Car1':

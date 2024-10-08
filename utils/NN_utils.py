@@ -3,9 +3,14 @@ from tensorflow import keras
 import numpy as np
 from stable_baselines3 import PPO
 
+
+# TODO: is this class being used now?
+
 class NN_handler:
+
     def __init__(self, config):
         self.config = config
+
     def init_network_master_and_agent(self, optimizer):
         # Define master_input and agent_input
         master_input = keras.layers.Input(shape=(10,), name="master_input")
@@ -108,7 +113,7 @@ class NN_handler:
 
     def save_network_weights(self, network):
         # The save directory is already defined in config
-        save_dir = self.config.SAVE_WEIGHT_DIRECTORY
+        save_dir = self.config.SAVE_MODEL_DIRECTORY
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
         save_path = f"{save_dir}/{self.config.WEIGHTS_TO_SAVE_NAME}.zip"
