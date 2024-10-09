@@ -30,12 +30,14 @@ def run_experiment(experiment):
         done = False
         episode_sum_of_rewards, steps_counter = 0, 0
         episode_counter += 1
+        # TODO: make it transparent -> ___.resume_simulation()
         env.envs[0].resume_simulation()
         while not done:
             steps_counter += 1
             total_steps += 1
             if not experiment.ONLY_INFERENCE:
                 if total_steps > experiment.EXPLORATION_EXPLOTATION_THRESHOLD:
+                    # TODO: Create function -> action, _ = Agent.get_action
                     action, _ = model.predict(current_state, deterministic=True)
                     # print('Deterministic = True , ' , action)
                 elif total_steps < experiment.EXPLORATION_EXPLOTATION_THRESHOLD:

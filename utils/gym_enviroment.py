@@ -5,8 +5,13 @@ import gym
 import numpy as np
 from gym import spaces
 
-
+# TODO: change name to Agent + change file name
+# TODO: make function simpler (sub functions)
 class AirSimGymEnv(gym.Env):
+
+    """
+    Agent is responsible for handling RL agent (reset, step, action, ...)
+    """
 
     def __init__(self, experiment, airsim_manager):
         super(AirSimGymEnv, self).__init__()
@@ -84,14 +89,18 @@ class AirSimGymEnv(gym.Env):
         done = collision or reached_target
         return next_state, reward, done, {}
 
+    # TODO: is this function used?
     def render(self, mode='human'):
         pass
 
+    # TODO: is this function used?
     def close_env(self):
         self.airsim_manager.close()
 
+    # TODO: move to airsim manager
     def pause_simulation(self):
         self.airsim_manager.pause_simulation()
 
+    # TODO: move to airsim manager
     def resume_simulation(self):
         self.airsim_manager.resume_simulation()

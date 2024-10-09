@@ -7,6 +7,10 @@ import numpy as np
 
 class AirsimManager:
 
+    """
+    AirsimManager is responsible for handling cars (API between Simulation and code)
+    """
+
     def __init__(self, experiment):
         self.simulation_paused = False
         self.experiment = experiment
@@ -33,6 +37,7 @@ class AirsimManager:
 
     def reset_cars_to_initial_positions(self):
         self.airsim_client.reset()
+
         # Pick random directions for car1 and car2
         car1_direction = random.choice([1, -1])
         car2_direction = random.choice([1, -1])
@@ -69,6 +74,7 @@ class AirsimManager:
         self.airsim_client.simSetVehiclePose(initial_pose_car1, True, self.experiment.CAR1_NAME)
         self.airsim_client.simSetVehiclePose(initial_pose_car2, True, self.experiment.CAR2_NAME)
         time.sleep(1)
+
     def collision_occurred(self):
         collision_info = self.airsim_client.simGetCollisionInfo()
         if collision_info.has_collided:
@@ -111,7 +117,7 @@ class AirsimManager:
 
         if logger is not None and self.experiment.LOG_CAR_STATES:
             logger.log_state(car1_state, self.experiment.CAR1_NAME)
-        #print(car1_state[0])
+
         return car1_state
 
     def get_car2_state(self, logger):

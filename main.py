@@ -1,15 +1,11 @@
 from utils.experiment import Experiment
 from utils.training_loop import run_experiment
-from datetime import datetime
-import os
-
 
 if __name__ == "__main__":
 
-    # TODO: utils should not be root folder (avoid other developers headache)
-    # TODO: random init for N/W
-    # TODO: is src folder needed?
-    # TODO: Create agent class, env class, that support different libraries to handle agent and abstract the handling with env.
+    # TODO: create new interpreter with req file.
+
+    # TODO: create all (start with first 2) experiments configs, run them one after the other.
 
     experiment1 = Experiment(
         EXPERIMENT_ID='Car_2_high_speed',
