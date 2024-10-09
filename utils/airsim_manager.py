@@ -136,6 +136,7 @@ class AirsimManager:
         self.car1_initial_position_saved = None
 
     def has_reached_target(self, car_state):
+        # TODO: comments should be in english
         car1_initial_position = self.get_car1_initial_position()  # מקבל את המיקום ההתחלתי שמאוחסן
         print('Initial: ', car1_initial_position)
         print('Current :', car_state)

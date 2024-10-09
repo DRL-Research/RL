@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 class PlottingUtils:
+
     def plot_losses(path):
         loss_data = pd.read_csv(f"{path}/progress.csv")
         losses = loss_data["train/value_loss"]

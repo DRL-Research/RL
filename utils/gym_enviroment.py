@@ -1,45 +1,47 @@
-import gym
-from gym import spaces
-import numpy as np
-import airsim
 import time
+
+import airsim
+import gym
+import numpy as np
+from gym import spaces
 
 
 class AirSimGymEnv(gym.Env):
-    def __init__(self, config, airsim_manager):
+
+    def __init__(self, experiment, airsim_manager):
         super(AirSimGymEnv, self).__init__()
-        self.config = config
+        self.experiment = experiment
         self.airsim_manager = airsim_manager
-
-        # Define action and observation space
-        self.action_space = spaces.Discrete(2)  # 2 actions: Throttle 0.75 or 0.5
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(2,), dtype=np.float32)
-
+        self.action_space = spaces.Discrete(experiment.ACTION_SPACE_SIZE)
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(2,), dtype=np.float32)  # TODO: why observation is 2?
         self.state = None
         self.reset()
 
-    def reset(self):
+    def reset(self) -> np.ndarray:
         self.airsim_manager.reset_cars_to_initial_positions()
         self.airsim_manager.reset_for_new_episode()
         car1_state = self.airsim_manager.get_car1_state()
         self.state = np.array([car1_state[0], car1_state[1]], dtype=np.float32)
         return self.state
 
+    # TODO: step vs. step_rnd: what is the actual version?
+    # TODO: each time you define throttle - use experiment.THROTTLE_FAST or experiment.THROTTLE_SlOW
     def step(self, action):
         if self.airsim_manager.is_simulation_paused():
-            #print("Simulation is paused, no step.")
             return self.state, 0, False, {}
+
         throttle = 1 if action == 0 else 0.5
-        if self.config.ROLE == 'Car1':
-            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.config.CAR1_NAME)
-            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=0.75), self.config.CAR2_NAME)
-        elif self.config.ROLE == 'Car2':
-            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.config.CAR2_NAME)
-            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=0.75), self.config.CAR1_NAME)
-        elif self.config.ROLE == 'Both':
-            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.config.CAR1_NAME)
-            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.config.CAR2_NAME)
-        time.sleep(self.config.TIME_BETWEEN_STEPS)
+        if self.experiment.ROLE == 'Car1':
+            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR1_NAME)
+            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=0.75), self.experiment.CAR2_NAME)
+        elif self.experiment.ROLE == 'Car2':
+            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR2_NAME)
+            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=0.75), self.experiment.CAR1_NAME)
+        elif self.experiment.ROLE == 'Both':
+            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR1_NAME)
+            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR2_NAME)
+
+        time.sleep(self.experiment.TIME_BETWEEN_STEPS)
         car1_state = self.airsim_manager.get_car1_state()
         next_state = np.array([car1_state[0], car1_state[1]], dtype=np.float32)
         collision = self.airsim_manager.collision_occurred()
@@ -55,22 +57,21 @@ class AirSimGymEnv(gym.Env):
         return next_state, reward, done, {}
 
 
-
     def step_rnd(self, action):
         if self.airsim_manager.is_simulation_paused():
             print("Simulation is paused, no step.")
             return self.state, 0, False, {}
         throttle = 0.75 if action == 0 else 0.5
-        if self.config.ROLE == 'Car1':
-            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.config.CAR1_NAME)
-            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=self.config.FIXED_THROTTLE), self.config.CAR2_NAME)
-        elif self.config.ROLE == 'Car2':
-            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.config.CAR2_NAME)
-            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=self.config.FIXED_THROTTLE), self.config.CAR1_NAME)
-        elif self.config.ROLE == 'Both':
-            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.config.CAR1_NAME)
-            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.config.CAR2_NAME)
-        time.sleep(self.config.TIME_BETWEEN_STEPS)
+        if self.experiment.ROLE == 'Car1':
+            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR1_NAME)
+            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=self.experiment.FIXED_THROTTLE), self.experiment.CAR2_NAME)
+        elif self.experiment.ROLE == 'Car2':
+            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR2_NAME)
+            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=self.experiment.FIXED_THROTTLE), self.experiment.CAR1_NAME)
+        elif self.experiment.ROLE == 'Both':
+            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR1_NAME)
+            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR2_NAME)
+        time.sleep(self.experiment.TIME_BETWEEN_STEPS)
         car1_state = self.airsim_manager.get_car1_state()
         next_state = np.array([car1_state[0], car1_state[1]], dtype=np.float32)
         collision = self.airsim_manager.collision_occurred()

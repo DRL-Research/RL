@@ -1,60 +1,59 @@
-from dataclasses import dataclass
-from datetime import datetime
+from dataclasses import dataclass, field
 from typing import List
-from dataclasses import field
+from datetime import datetime
 import numpy as np
 
 
 @dataclass
 class Experiment:
-    #Cars positions and yaw
-    EXPERIMENT_ID: str = ""
-    CAR_INITAL_POS_NULL=None
+
+    # General Experiment Settings
+    EXPERIMENT_ID: str
+    ONLY_INFERENCE: bool = False
+    EXPERIMENT_DATE_TIME: str = datetime.now().strftime("%d_%m_%Y-%H_%M_%S")
+
+    # Model and Training Configuration
+    ROLE: str = ""  # Which car is using the DRL model
+    LOAD_WEIGHT_DIRECTORY: str = ""  # Directory for loading weights
+    LEARNING_RATE: float = 1.0
+    N_STEPS: int = 160
+    BATCH_SIZE: int = 160
+    EXPLORATION_EXPLOTATION_THRESHOLD: int = 2500
+    LOSS_FUNCTION: str = "mse"
+    EPOCHS: int = 100
+    TIME_BETWEEN_STEPS: float = 0.05
+
+    # Car 1 Settings
+    CAR1_NAME: str = "Car1"
     CAR1_INITIAL_POSITION_OPTION_1: List[int] = field(default_factory=lambda: [30, 0])
     CAR1_INITIAL_YAW_OPTION_1: int = 180
     CAR1_INITIAL_POSITION_OPTION_2: List[int] = field(default_factory=lambda: [-30, 0])
     CAR1_INITIAL_YAW_OPTION_2: int = 0
     CAR1_DESIRED_POSITION_OPTION_1 = np.array([-10, 0])
     CAR1_DESIRED_POSITION_OPTION_2 = np.array([10, 0])
+
+    # Car 2 Settings
+    CAR2_NAME: str = "Car2"
     CAR2_INITIAL_POSITION_OPTION_1: List[int] = field(default_factory=lambda: [0, 30])
     CAR2_INITIAL_YAW_OPTION_1: int = 270
     CAR2_INITIAL_POSITION_OPTION_2: List[int] = field(default_factory=lambda: [0, -30])
     CAR2_INITIAL_YAW_OPTION_2: int = 90
+    CAR2_CONSTANT_ACTION: float = (0.75 + 0.5) / 2
 
-    #Experimental and model
-    ONLY_INFERENCE: bool = False
-    MAX_EPISODES: int =  100
-    LOAD_WEIGHT_DIRECTORY: str = ""
-    ROLE: str = "" # which car using the DRL model
-    EXPLORATION_EXPLOTATION_THRESHOLD: int = 2500
-    TIME_BETWEEN_STEPS: float = 0.05
-    LEARNING_RATE: int = 1
-    N_STEPS: int = 160
-    BATCH_SIZE: int = 160
+    # Action Configuration
+    ACTION_SPACE_SIZE: int = 2
+    THROTTLE_FAST: float = 0.75
+    THROTTLE_SLOW: float = 0.5
     FIXED_THROTTLE: int = 1
 
-    # Path Configuration
-    WEIGHTS_TO_SAVE_NAME: str = ""
-    EXPERIMENT_DATE_TIME = datetime.now().strftime("%d_%m_%Y-%H_%M_%S")
-    SAVE_MODEL_DIRECTORY = f"experiments/{EXPERIMENT_DATE_TIME}_{EXPERIMENT_ID}/model"
-
-    # Training Configuration
-    AGENT_ONLY = False
-    LOSS_FUNCTION = "mse"
-    EPOCHS = 1
-    CAR2_CONSTANT_ACTION = (0.75 + 0.5) / 2
-
-    # Cars Configuration
-    CAR1_NAME = "Car1"
-    CAR2_NAME = "Car2"
-
-    # State Configuration
-    AGENT_INPUT_SIZE = 2
-
     # Reward Configuration
-    REACHED_TARGET_REWARD = 10
-    COLLISION_REWARD = -20
-    STARVATION_REWARD = -0.1
+    REACHED_TARGET_REWARD: int = 10
+    COLLISION_REWARD: int = -20
+    STARVATION_REWARD: float = -0.1
 
+    # Path Configuration
+    # WEIGHTS_TO_SAVE_NAME: str = ""  # uncomment If needed
 
-
+    def __post_init__(self):
+        self.EXPERIMENT_PATH = f"experiments/{self.EXPERIMENT_DATE_TIME}_{self.EXPERIMENT_ID}"
+        self.SAVE_MODEL_DIRECTORY = f"{self.EXPERIMENT_PATH}/trained_model"
