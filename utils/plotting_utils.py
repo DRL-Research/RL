@@ -27,3 +27,13 @@ class PlottingUtils:
     def show_plots():
         plt.tight_layout()
         plt.show()
+
+    @staticmethod
+    def plot_actions(all_actions):
+        plt.subplot(1, 3, 3)
+        for i, actions in enumerate(all_actions):
+            plt.plot(actions, label=f'Episode {i+1}')
+        plt.title('Actions of Car 1 Over Episodes')
+        plt.xlabel('step')
+        plt.ylabel('Action')
+        plt.legend()

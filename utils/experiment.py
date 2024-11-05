@@ -13,7 +13,7 @@ class Experiment:
     EXPERIMENT_DATE_TIME: str = datetime.now().strftime("%d_%m_%Y-%H_%M_%S")
 
     # Model and Training Configuration
-    ROLE: str = ""  # Which car is using the DRL model
+    ROLE: str = ""  # Which car is using the DRL model. Car1, Car2,Both
     LOAD_WEIGHT_DIRECTORY: str = ""  # Directory for loading weights
     LEARNING_RATE: float = 1.0
     N_STEPS: int = 160
@@ -44,7 +44,7 @@ class Experiment:
     ACTION_SPACE_SIZE: int = 2
     THROTTLE_FAST: float = 0.75
     THROTTLE_SLOW: float = 0.5
-    FIXED_THROTTLE: int = 1
+    FIXED_THROTTLE: float = (THROTTLE_FAST + THROTTLE_SLOW) / 2
 
     # Reward Configuration
     REACHED_TARGET_REWARD: int = 10
