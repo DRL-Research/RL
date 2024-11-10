@@ -7,7 +7,7 @@ from stable_baselines3.dqn.policies import DQNPolicy
 from utils.airsim_manager import AirsimManager
 from utils.Agent_Handler import Agent
 from utils.plotting_utils import PlottingUtils
-# commit
+# commit2
 
 def run_experiment(experiment):
     all_rewards = []
