@@ -55,7 +55,7 @@ class Agent(gym.Env):
             self.state = self.airsim_manager.get_car2_state()
 
         collision = self.airsim_manager.collision_occurred()
-        reached_target = self.airsim_manager.has_reached_target(self.state[:2])  # בודק אם רכב 1 הגיע ליעד
+        reached_target = self.airsim_manager.has_reached_target(self.state[:2])
 
         reward = -0.1
         if collision:

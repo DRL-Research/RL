@@ -112,7 +112,6 @@ class AirsimManager:
 
         if logger is not None and self.experiment.LOG_CAR_STATES:
             logger.log_state(car1_state, self.experiment.CAR1_NAME)
-
         return car1_state
 
     def get_car2_state(self, logger=None):
@@ -160,5 +159,4 @@ class AirsimManager:
 
     def is_simulation_paused(self):
         return self.simulation_paused
-
 

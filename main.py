@@ -32,13 +32,14 @@ if __name__ == "__main__":
         #Rewards and loss (during training): Success reward: +10 Collision reward: -20 Starvation reward: -0.1
         #Hence, negative cumulative reward even if success due to (starvation reward*steps) + success reward.
         ONLY_INFERENCE=False,
-        EPOCHS=8,
+        EPOCHS=50,
         ROLE='Car1',
-        EXPLORATION_EXPLOTATION_THRESHOLD=100,
+        EXPLORATION_EXPLOTATION_THRESHOLD=2500,
         TIME_BETWEEN_STEPS=0.05,
-        LEARNING_RATE=1,
-        N_STEPS=120,
-        BATCH_SIZE=120,
+        LEARNING_RATE=0.0000001,
+        N_STEPS=200,
+        BATCH_SIZE=200,
+        #LOAD_WEIGHT_DIRECTORY=get_latest_model("experiments")
         )
 
     # experiment2 = Experiment(

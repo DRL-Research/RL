@@ -41,7 +41,6 @@ def run_experiment(experiment):
             total_steps += 1
             action = agent.get_action(model, current_state, total_steps, experiment.EXPLORATION_EXPLOTATION_THRESHOLD)
             current_state, reward, done, _ = env.step(action)
-            print(current_state)
             episode_sum_of_rewards += reward
             if reward < experiment.COLLISION_REWARD or done:
                 pause_experiment_simulation(env)

@@ -38,11 +38,10 @@ class Experiment:
     CAR2_INITIAL_YAW_OPTION_1: int = 270
     CAR2_INITIAL_POSITION_OPTION_2: List[int] = field(default_factory=lambda: [0, -30])
     CAR2_INITIAL_YAW_OPTION_2: int = 90
-    CAR2_CONSTANT_ACTION: float = (0.75 + 0.5) / 2
 
     # Action Configuration
     ACTION_SPACE_SIZE: int = 2
-    THROTTLE_FAST: float = 0.75
+    THROTTLE_FAST: float = 0.3
     THROTTLE_SLOW: float = 0.5
     FIXED_THROTTLE: float = (THROTTLE_FAST + THROTTLE_SLOW) / 2
 
