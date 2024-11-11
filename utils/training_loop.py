@@ -1,32 +1,21 @@
-
 from stable_baselines3 import PPO
 from stable_baselines3.common.logger import configure
 from stable_baselines3.common.vec_env import DummyVecEnv
-from stable_baselines3.dqn.policies import DQNPolicy
 
+from config import PPO_MLP_Policy
+from utils.agent_handler import Agent
 from utils.airsim_manager import AirsimManager
-from utils.Agent_Handler import Agent
 from utils.plotting_utils import PlottingUtils
-# commit2s
 
-def run_experiment(experiment):
-    all_rewards = []
-    all_actions = []
-    logger = configure(experiment.EXPERIMENT_PATH, ["stdout", "csv", "tensorboard"])
-    airsim_manager = AirsimManager(experiment)
-    env = DummyVecEnv([lambda: Agent(experiment, airsim_manager)])
-    model = PPO('MlpPolicy', env, verbose=1,
-                learning_rate=experiment.LEARNING_RATE,
-                n_steps=experiment.N_STEPS,
-                batch_size=experiment.BATCH_SIZE)
-    model.set_logger(logger)
+
+def training_loop(experiment, env, agent, model):
     if experiment.ONLY_INFERENCE:
         print('Only Inference')
         model = PPO.load(experiment.LOAD_WEIGHT_DIRECTORY)
         print(f"Loaded weights from {experiment.LOAD_WEIGHT_DIRECTORY} for inference.")
 
     collision_counter, episode_counter, total_steps = 0, 0, 0
-    agent=Agent(experiment, airsim_manager)
+    all_rewards, all_actions = [], []
 
     for episode in range(experiment.EPOCHS):
         print(f"@ Episode {episode + 1} @")
@@ -45,7 +34,7 @@ def run_experiment(experiment):
             if reward < experiment.COLLISION_REWARD or done:
                 pause_experiment_simulation(env)
                 episode_sum_of_rewards += reward
-                if reward <= -20:
+                if reward <= experiment.COLLISION_REWARD:
                     collision_counter += 1
                     print('********* collision ***********')
                 break
@@ -59,18 +48,42 @@ def run_experiment(experiment):
             print(f"Model learned on {steps_counter} steps")
         resume_experiment_simulation(env)
 
+    return model, collision_counter, all_rewards, all_actions
+
+
+def plot_results(experiment, all_rewards, all_actions):
+    PlottingUtils.plot_losses(experiment.EXPERIMENT_PATH)
+    PlottingUtils.plot_rewards(all_rewards)
+    PlottingUtils.show_plots()
+    PlottingUtils.plot_actions(all_actions)
+
+
+def run_experiment(experiment):
+    logger = configure(experiment.EXPERIMENT_PATH, ["stdout", "csv", "tensorboard"])
+    airsim_manager = AirsimManager(experiment)
+    env = DummyVecEnv([lambda: Agent(experiment, airsim_manager)])
+    agent = Agent(experiment, airsim_manager)
+    model = PPO(policy=PPO_MLP_Policy, env=env, verbose=1,
+                learning_rate=experiment.LEARNING_RATE,
+                n_steps=experiment.N_STEPS,
+                batch_size=experiment.BATCH_SIZE)
+    model.set_logger(logger)
+
+    model, collision_counter, all_rewards, all_actions = training_loop(experiment=experiment, env=env, agent=agent,
+                                                                       model=model)
+
     model.save(experiment.SAVE_MODEL_DIRECTORY)
     logger.close()
     print('Model saved')
     print("Total collisions:", collision_counter)
 
     if not experiment.ONLY_INFERENCE:
-        PlottingUtils.plot_losses(experiment.EXPERIMENT_PATH)
-        PlottingUtils.plot_rewards(all_rewards)
-        PlottingUtils.show_plots()
-        PlottingUtils.plot_actions(all_actions)
+        plot_results(experiment=experiment, all_rewards=all_rewards, all_actions=all_actions)
 
-def resume_experiment_simulation(env):
+
+def resume_experiment_simulation(env):  # TODO: why not using resume_simulation from airsim manager?
     env.envs[0].airsim_manager.resume_simulation()
-def pause_experiment_simulation(env):
+
+
+def pause_experiment_simulation(env): # TODO: why not using pause_simulation from airsim manager?
     env.envs[0].airsim_manager.pause_simulation()

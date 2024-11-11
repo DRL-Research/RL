@@ -1,5 +1,3 @@
-import random
-from os_file_handler import get_latest_model
 from utils.experiment import Experiment
 from utils.training_loop import run_experiment
 

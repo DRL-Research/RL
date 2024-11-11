@@ -36,7 +36,6 @@ class AirsimManager:
 
     def reset_cars_to_initial_positions(self):
         self.airsim_client.reset()
-        #commit
         # Pick random directions for car1 and car2
         car1_direction = random.choice([1, -1])
         car2_direction = random.choice([1, -1])

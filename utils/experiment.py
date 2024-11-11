@@ -39,9 +39,12 @@ class Experiment:
     CAR2_INITIAL_POSITION_OPTION_2: List[int] = field(default_factory=lambda: [0, -30])
     CAR2_INITIAL_YAW_OPTION_2: int = 90
 
+    # State Configuration
+    INPUT_SIZE = 8
+
     # Action Configuration
     ACTION_SPACE_SIZE: int = 2
-    THROTTLE_FAST: float = 0.3
+    THROTTLE_FAST: float = 0.3  # TODO: fast is 0.3 and slow is 0.5?
     THROTTLE_SLOW: float = 0.5
     FIXED_THROTTLE: float = (THROTTLE_FAST + THROTTLE_SLOW) / 2
 
@@ -51,7 +54,7 @@ class Experiment:
     STARVATION_REWARD: float = -0.1
 
     # Path Configuration
-    # WEIGHTS_TO_SAVE_NAME: str = ""  # uncomment If needed
+    # WEIGHTS_TO_SAVE_NAME: str = ""  # TODO: delete if not used.
 
     def __post_init__(self):
         self.EXPERIMENT_PATH = f"experiments/{self.EXPERIMENT_DATE_TIME}_{self.EXPERIMENT_ID}"

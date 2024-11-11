@@ -1,6 +1,8 @@
 import os
 
 
+# TODO: create function that loads model from name of directory, not latest
+
 def get_latest_model(directory):
     files = []
     for root, dirs, filenames in os.walk(directory):
