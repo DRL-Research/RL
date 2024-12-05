@@ -5,7 +5,7 @@ import gym
 import numpy as np
 from gym import spaces
 
-from utils.experiment import Experiment
+from experiment.experiment_config import Experiment
 
 
 class Agent(gym.Env):
@@ -65,6 +65,7 @@ class Agent(gym.Env):
             reward = self.experiment.REACHED_TARGET_REWARD
         done = collision or reached_target
         return self.state, reward, done, {}
+
     @staticmethod
     def get_action(model, current_state, total_steps, exploration_threshold):
         if total_steps > exploration_threshold:
