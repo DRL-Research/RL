@@ -23,9 +23,15 @@ class Model:
 
     @staticmethod
     def define_model_params(experiment):
-        model_params = {
-            'learning_rate': experiment.LEARNING_RATE,
-            'n_steps': experiment.N_STEPS,
-            'batch_size': experiment.BATCH_SIZE
-        }
+        if experiment.MODEL_TYPE != ModelType.DQN:
+            model_params = {
+                'learning_rate': experiment.LEARNING_RATE,
+                'n_steps': experiment.N_STEPS,
+                'batch_size': experiment.BATCH_SIZE
+            }
+        else:
+            model_params = {
+                'learning_rate': experiment.LEARNING_RATE,
+                'batch_size': experiment.BATCH_SIZE
+            }
         return model_params

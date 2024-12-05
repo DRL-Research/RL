@@ -18,21 +18,25 @@ class AirsimManager:
         self.airsim_client.confirmConnection()
         self.airsim_client.enableApiControl(True, self.experiment.CAR1_NAME)  # Enable API control for Car1
         self.airsim_client.enableApiControl(True, self.experiment.CAR2_NAME)  # Enable API control for Car2
-        # Set car throttle:
+
+        # Set cars initial throttle:
         car_controls_car_1 = airsim.CarControls()
         car_controls_car_1.throttle = 1
         self.airsim_client.setCarControls(car_controls_car_1, self.experiment.CAR1_NAME)
-        car_controls = airsim.CarControls()
-        car_controls.throttle = 1
-        self.airsim_client.setCarControls(car_controls, self.experiment.CAR2_NAME)
-        # get initial positions according to settings offset
+        car_controls_car_2 = airsim.CarControls()
+        car_controls_car_2.throttle = 1
+        self.airsim_client.setCarControls(car_controls_car_2, self.experiment.CAR2_NAME)
+
+        # Get initial positions according to settings offset
         self.car1_x_offset = self.airsim_client.simGetObjectPose(self.experiment.CAR1_NAME).position.x_val
         self.car1_y_offset = self.airsim_client.simGetObjectPose(self.experiment.CAR1_NAME).position.y_val
         self.car2_x_offset = self.airsim_client.simGetObjectPose(self.experiment.CAR2_NAME).position.x_val
         self.car2_y_offset = self.airsim_client.simGetObjectPose(self.experiment.CAR2_NAME).position.y_val
+
         self.car1_initial_position_saved = None
-        self.reset_cars_to_initial_positions()
         self.simulation_paused = False
+
+        self.reset_cars_to_initial_positions()
 
     def reset_cars_to_initial_positions(self):
         self.airsim_client.reset()
@@ -48,6 +52,7 @@ class AirsimManager:
             car1_start_location_x = self.experiment.CAR1_INITIAL_POSITION_OPTION_2[0] - self.car1_x_offset
             car1_start_location_y = self.experiment.CAR1_INITIAL_POSITION_OPTION_2[1] - self.car1_y_offset
             car1_start_yaw = self.experiment.CAR1_INITIAL_YAW_OPTION_2
+
         # Apply random starting positions for Car2
         if car2_direction == 1:
             car2_start_location_x = self.experiment.CAR2_INITIAL_POSITION_OPTION_1[0] - self.car2_x_offset
@@ -57,17 +62,24 @@ class AirsimManager:
             car2_start_location_x = self.experiment.CAR2_INITIAL_POSITION_OPTION_2[0] - self.car2_x_offset
             car2_start_location_y = self.experiment.CAR2_INITIAL_POSITION_OPTION_2[1] - self.car2_y_offset
             car2_start_yaw = self.experiment.CAR2_INITIAL_YAW_OPTION_2
+
         # Set the new positions after reset
         car1_start_yaw_rad = np.radians(car1_start_yaw)  # Convert yaw from degrees to radians
         car2_start_yaw_rad = np.radians(car2_start_yaw)  # Convert yaw from degrees to radians
-        self.airsim_client.enableApiControl(True, self.experiment.CAR1_NAME)
-        self.airsim_client.enableApiControl(True, self.experiment.CAR2_NAME)
+
+        # Set the reference_position for Car1 and Car2 (Do not change this code)
+        reference_position = airsim.Pose(airsim.Vector3r(0.0, 0, -1), airsim.Quaternionr(0, 0.0, 0.0, 1.0))
+        self.airsim_client.simSetVehiclePose(reference_position, True, self.experiment.CAR1_NAME)
+        self.airsim_client.simSetVehiclePose(reference_position, True, self.experiment.CAR2_NAME)
+
         initial_position_car1 = airsim.Vector3r(car1_start_location_x, car1_start_location_y, -1)
         initial_orientation_car1 = airsim.to_quaternion(0, 0, car1_start_yaw_rad)
         initial_pose_car1 = airsim.Pose(initial_position_car1, initial_orientation_car1)
+
         initial_position_car2 = airsim.Vector3r(car2_start_location_x, car2_start_location_y, -1)
         initial_orientation_car2 = airsim.to_quaternion(0, 0, car2_start_yaw_rad)
         initial_pose_car2 = airsim.Pose(initial_position_car2, initial_orientation_car2)
+
         # Set the poses for both cars
         self.airsim_client.simSetVehiclePose(initial_pose_car1, True, self.experiment.CAR1_NAME)
         self.airsim_client.simSetVehiclePose(initial_pose_car2, True, self.experiment.CAR2_NAME)

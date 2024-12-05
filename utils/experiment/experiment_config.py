@@ -48,8 +48,8 @@ class Experiment:
 
     # Action Configuration
     ACTION_SPACE_SIZE: int = 2
-    THROTTLE_FAST: float = 0.1
-    THROTTLE_SLOW: float = 0.9
+    THROTTLE_FAST: float = 0.4
+    THROTTLE_SLOW: float = 0.7
     FIXED_THROTTLE: float = (THROTTLE_FAST + THROTTLE_SLOW) / 2
 
     # Reward Configuration

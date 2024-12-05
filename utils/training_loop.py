@@ -1,4 +1,3 @@
-from stable_baselines3 import PPO
 from stable_baselines3.common.logger import configure
 from stable_baselines3.common.vec_env import DummyVecEnv
 
@@ -65,14 +64,13 @@ def plot_results(experiment, all_rewards, all_actions):
 
 
 def run_experiment(experiment_config):
+
     airsim_manager = AirsimManager(experiment_config)
     env = DummyVecEnv([lambda: Agent(experiment_config, airsim_manager)])
     agent = Agent(experiment_config, airsim_manager)
-
-    # Initialize model selector with the desired type and configuration
     model = Model(env, experiment_config).model
-
     logger = configure(experiment_config.EXPERIMENT_PATH, ["stdout", "csv", "tensorboard"])
+
     model.set_logger(logger)
 
     model, collision_counter, all_rewards, all_actions = training_loop(experiment=experiment_config, env=env, agent=agent,
@@ -80,12 +78,14 @@ def run_experiment(experiment_config):
 
     model.save(experiment_config.SAVE_MODEL_DIRECTORY)
     logger.close()
+
     print('Model saved')
     print("Total collisions:", collision_counter)
 
     if not experiment_config.ONLY_INFERENCE:
         plot_results(experiment=experiment_config, all_rewards=all_rewards, all_actions=all_actions)
 
+    airsim_manager.reset_cars_to_initial_positions()
 
 # override the base function in "GYM" environment. do not touch!
 def resume_experiment_simulation(env):
