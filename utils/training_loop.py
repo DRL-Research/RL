@@ -1,7 +1,7 @@
 from stable_baselines3.common.logger import configure
 from stable_baselines3.common.vec_env import DummyVecEnv
 
-from model.model_selector import Model
+from model.model_handler import Model
 from utils.agent_handler import Agent
 from utils.airsim_manager import AirsimManager
 from utils.plotting_utils import PlottingUtils

@@ -1,4 +1,7 @@
+import os
+
 from stable_baselines3 import PPO, DQN, A2C
+
 from model.model_constants import ModelType, Policy
 
 
@@ -35,3 +38,35 @@ class Model:
                 'batch_size': experiment.BATCH_SIZE
             }
         return model_params
+
+    def get_latest_model(self, directory):
+        '''
+
+        Get last model from all directory. file must end with .zip
+        :param directory:
+        :return: last model
+        '''
+        files = []
+        for root, dirs, filenames in os.walk(directory):
+            for filename in filenames:
+                if filename.endswith(".zip"):
+                    files.append(os.path.join(root, filename))
+
+        if not files:
+            return None
+
+        latest_file = max(files, key=os.path.getctime)
+        print('Latest model:', latest_file)
+        return latest_file
+
+    def get_model_from_specific_directory(self, directory):
+        '''
+        return the last model from specific directory
+
+        :param directory:
+        :return: last model
+        '''
+        relevant_directory = os.chdir(directory)
+        for file in os.listdir(relevant_directory):
+            if file.endswith(".zip"):
+                return file
