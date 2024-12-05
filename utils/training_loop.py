@@ -1,17 +1,18 @@
 from stable_baselines3 import PPO
 from stable_baselines3.common.logger import configure
 from stable_baselines3.common.vec_env import DummyVecEnv
-from utils.drl_algorithm_selector import *
-from config import PPO_MLP_Policy
+
+from model.model_selector import Model
 from utils.agent_handler import Agent
 from utils.airsim_manager import AirsimManager
 from utils.plotting_utils import PlottingUtils
 
 
 def training_loop(experiment, env, agent, model):
+
     if experiment.ONLY_INFERENCE:
         print('Only Inference')
-        model = PPO.load(experiment.LOAD_WEIGHT_DIRECTORY)
+        model.load(experiment.LOAD_WEIGHT_DIRECTORY)
         print(f"Loaded weights from {experiment.LOAD_WEIGHT_DIRECTORY} for inference.")
     else:
         collision_counter, episode_counter, total_steps = 0, 0, 0
@@ -63,35 +64,33 @@ def plot_results(experiment, all_rewards, all_actions):
     PlottingUtils.plot_actions(all_actions)
 
 
-def run_experiment(experiment):
-    airsim_manager = AirsimManager(experiment)
-    env = DummyVecEnv([lambda: Agent(experiment, airsim_manager)])
-    agent = Agent(experiment, airsim_manager)
+def run_experiment(experiment_config):
+    airsim_manager = AirsimManager(experiment_config)
+    env = DummyVecEnv([lambda: Agent(experiment_config, airsim_manager)])
+    agent = Agent(experiment_config, airsim_manager)
+
     # Initialize model selector with the desired type and configuration
-    model_selector = ModelSelector(experiment.MODEL_TYPE, env, config={
-        'learning_rate': experiment.LEARNING_RATE,
-        'n_steps': experiment.N_STEPS,
-        'batch_size': experiment.BATCH_SIZE
-    })
-    model = model_selector.get_model()
-    logger = configure(experiment.EXPERIMENT_PATH, ["stdout", "csv", "tensorboard"])
+    model = Model(env, experiment_config).model
+
+    logger = configure(experiment_config.EXPERIMENT_PATH, ["stdout", "csv", "tensorboard"])
     model.set_logger(logger)
 
-    model, collision_counter, all_rewards, all_actions = training_loop(experiment=experiment, env=env, agent=agent,
+    model, collision_counter, all_rewards, all_actions = training_loop(experiment=experiment_config, env=env, agent=agent,
                                                                        model=model)
 
-    model.save(experiment.SAVE_MODEL_DIRECTORY)
+    model.save(experiment_config.SAVE_MODEL_DIRECTORY)
     logger.close()
     print('Model saved')
     print("Total collisions:", collision_counter)
 
-    if not experiment.ONLY_INFERENCE:
-        plot_results(experiment=experiment, all_rewards=all_rewards, all_actions=all_actions)
+    if not experiment_config.ONLY_INFERENCE:
+        plot_results(experiment=experiment_config, all_rewards=all_rewards, all_actions=all_actions)
 
 
-def resume_experiment_simulation(env):  # TODO: why not using resume_simulation from airsim manager?
+# override the base function in "GYM" environment. do not touch!
+def resume_experiment_simulation(env):
     env.envs[0].airsim_manager.resume_simulation()
 
-
-def pause_experiment_simulation(env): # TODO: why not using pause_simulation from airsim manager?
+# override the base function in "GYM" environment. do not touch!
+def pause_experiment_simulation(env):
     env.envs[0].airsim_manager.pause_simulation()

@@ -1,28 +1,10 @@
-from utils.experiment import Experiment
+from experiment.experiment_config import Experiment
+from experiment.experiment_constants import Role
+from model.model_constants import ModelType
 from utils.training_loop import run_experiment
-from utils.os_file_handler import get_latest_model
+
 if __name__ == "__main__":
 
-    # experiment1 = Experiment(
-    #     EXPERIMENT_ID='Experiment1',
-    #     #experiment details:
-    #     #Car2 (going right/left randomly) fixed speed (0.4) - 100 episodes learning. expecting to see that car1 will always go fast to avoid crashes.
-    #     #Rewards and loss (during training): Success reward: +10 Collision reward: -20 Starvation reward: -0.1
-    #     #Hence, negative cumulative reward even if success due to (starvation reward*steps) + success reward.
-    #     ONLY_INFERENCE=False,
-    #     EPOCHS=50,
-    #     ROLE='Car1',
-    #     EXPLORATION_EXPLOTATION_THRESHOLD=500,
-    #     TIME_BETWEEN_STEPS=0.05,
-    #     LEARNING_RATE=1,
-    #     N_STEPS=160,
-    #     BATCH_SIZE=160,
-    #     FIXED_THROTTLE=0.4,
-    #     THROTTLE_FAST=0.5,
-    #     THROTTLE_SLOW=0.3
-    #     )
-
-    #Debugging
     experiment1 = Experiment(
         EXPERIMENT_ID='Experiment1',
         #experiment details:
@@ -31,54 +13,15 @@ if __name__ == "__main__":
         #Hence, negative cumulative reward even if success due to (starvation reward*steps) + success reward.
         ONLY_INFERENCE=False,
         EPOCHS=50,
-        ROLE='Car1',
+        ROLE=Role.CAR1,
         EXPLORATION_EXPLOTATION_THRESHOLD=50,
-        MODEL_TYPE='A2C',
+        LEARNING_RATE=200,
+        MODEL_TYPE=ModelType.PPO,
         #LOAD_WEIGHT_DIRECTORY=get_latest_model("experiments")
         )
 
-    # experiment2 = Experiment(
-    #     EXPERIMENT_ID='Experiment2',
-    #     ONLY_INFERENCE=False,
-    #     EPOCHS=50,
-    #     ROLE='Car1',
-    #     EXPLORATION_EXPLOTATION_THRESHOLD=1000,
-    #     TIME_BETWEEN_STEPS=0.05,
-    #     LEARNING_RATE=1,
-    #     N_STEPS=190,
-    #     BATCH_SIZE=190,
-    #     FIXED_THROTTLE=0.75,
-    #     THROTTLE_FAST=0.75,
-    #     THROTTLE_SLOW=0.5
-    # )
-
-    # experiment2_INFERENCE_ONLY = Experiment(
-    #     EXPERIMENT_ID='Experiment2_INFERENCE_ONLY',
-    #     ONLY_INFERENCE=True,
-    #     EPOCHS=5,
-    #     ROLE='Car1',
-    #     EXPLORATION_EXPLOTATION_THRESHOLD=0,
-    #     LOAD_WEIGHT_DIRECTORY= get_latest_model("experiments"),
-    #     MODEL_TYPE='DQN'
-    # )
-
-    # experiment3 = Experiment(
-    #     EXPERIMENT_ID='Experiment3',
-    #     ONLY_INFERENCE=False,
-    #     EPOCHS=50,
-    #     ROLE='Both',
-    #     EXPLORATION_EXPLOTATION_THRESHOLD=500,
-    #     TIME_BETWEEN_STEPS=0.05,
-    #     LEARNING_RATE=1,
-    #     N_STEPS=160,
-    #     BATCH_SIZE=160,
-    #     FIXED_THROTTLE=random.uniform(0.4,0.75),
-    #     THROTTLE_FAST=0.75,
-    #     THROTTLE_SLOW=0.4
-    # )
-
     experiments = [experiment1]
-    for experiment in experiments:
-        print(f"Starting experiment: {experiment.EXPERIMENT_ID}")
-        run_experiment(experiment)
-        print(f"Experiment {experiment.EXPERIMENT_ID} completed.")
+    for experiment_config in experiments:
+        print(f"Starting experiment: {experiment_config.EXPERIMENT_ID}")
+        run_experiment(experiment_config)
+        print(f"Experiment {experiment_config.EXPERIMENT_ID} completed.")
