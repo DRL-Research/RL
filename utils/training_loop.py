@@ -1,7 +1,7 @@
 from stable_baselines3.common.logger import configure
 from stable_baselines3.common.vec_env import DummyVecEnv
 
-from model.model_handler import Model
+from utils.model.model_handler import Model
 from utils.agent_handler import Agent
 from utils.airsim_manager import AirsimManager
 from utils.plotting_utils import PlottingUtils
@@ -31,7 +31,7 @@ def training_loop(experiment, env, agent, model):
                 total_steps += 1
                 action = agent.get_action(model, current_state, total_steps,
                                           experiment.EXPLORATION_EXPLOTATION_THRESHOLD)
-                print(f"Action: {action}")
+                print(f"Action: {action[0]}")
                 current_state, reward, done, _ = env.step(action)
                 episode_sum_of_rewards += reward
                 if reward < experiment.COLLISION_REWARD or done:
@@ -85,7 +85,6 @@ def run_experiment(experiment_config):
     if not experiment_config.ONLY_INFERENCE:
         plot_results(experiment=experiment_config, all_rewards=all_rewards, all_actions=all_actions)
 
-    airsim_manager.reset_cars_to_initial_positions()
 
 # override the base function in "GYM" environment. do not touch!
 def resume_experiment_simulation(env):

@@ -4,13 +4,12 @@ from typing import List
 
 import numpy as np
 
-from experiment.experiment_constants import Role, CarName
-from model.model_constants import ModelType
+from utils.experiment.experiment_constants import Role, CarName
+from utils.model.model_constants import ModelType
 
 
 @dataclass
 class Experiment:
-
     # General Experiment Settings
     EXPERIMENT_ID: str = ""
     ONLY_INFERENCE: bool = False
@@ -59,5 +58,7 @@ class Experiment:
 
     # Path Configuration
     LOAD_MODEL_DIRECTORY: str = ""  # Directory for loading weights
-    EXPERIMENT_PATH = f"experiments/{EXPERIMENT_DATE_TIME}_{EXPERIMENT_ID}"
-    SAVE_MODEL_DIRECTORY = f"{EXPERIMENT_PATH}/trained_model"
+
+    def __post_init__(self):
+        self.EXPERIMENT_PATH = f"experiments/{self.EXPERIMENT_DATE_TIME}_{self.EXPERIMENT_ID}"
+        self.SAVE_MODEL_DIRECTORY = f"{self.EXPERIMENT_PATH}/trained_model"
