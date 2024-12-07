@@ -5,7 +5,7 @@ import gym
 import numpy as np
 from gym import spaces
 
-from experiment.experiment_config import Experiment
+from utils.experiment.experiment_config import Experiment
 
 
 class Agent(gym.Env):
