@@ -39,9 +39,9 @@ class Model:
             }
         return model_params
 
-    def get_latest_model(self, directory):
+    @staticmethod
+    def get_latest_model(directory):
         '''
-
         Get last model from all directory. file must end with .zip
         :param directory:
         :return: last model
@@ -58,7 +58,6 @@ class Model:
         latest_file = max(files, key=os.path.getctime)
         print('Latest model:', latest_file)
         return latest_file
-
     def get_model_from_specific_directory(self, directory):
         '''
         return the last model from specific directory

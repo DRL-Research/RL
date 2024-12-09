@@ -1,6 +1,5 @@
 import random
 import time
-
 import airsim
 import numpy as np
 
@@ -26,7 +25,6 @@ class AirsimManager:
         car_controls_car_2 = airsim.CarControls()
         car_controls_car_2.throttle = 1
         self.airsim_client.setCarControls(car_controls_car_2, self.experiment.CAR2_NAME)
-
         # Get initial positions according to settings offset
         self.car1_x_offset = 0  # Chane only if settings.json is changed.
         self.car1_y_offset = 0  # Chane only if settings.json is changed.
@@ -45,7 +43,9 @@ class AirsimManager:
         # Helper function to calculate starting position and orientation
         def get_initial_position_and_yaw(car_direction, position_option_1, position_option_2, yaw_option_1,
                                          yaw_option_2, x_offset, y_offset):
-            if car_direction == 1:
+            if car_direction == 1 or self.experiment.BYPASS_RANDOM_INITIALIZATION:
+                if self.experiment.BYPASS_RANDOM_INITIALIZATION:
+                    print('Random initialization is bypassed!')
                 start_location_x = position_option_1[0] - x_offset
                 start_location_y = position_option_1[1] - y_offset
                 start_yaw = yaw_option_1

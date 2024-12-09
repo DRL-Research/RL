@@ -19,12 +19,13 @@ class Experiment:
     ROLE: Role = None  # Which car is using the DRL model. Car1, Car2, Both
     LEARNING_RATE: float = None
     N_STEPS: int = 160
-    BATCH_SIZE: int = 160
+    BATCH_SIZE: int = 10
     EXPLORATION_EXPLOTATION_THRESHOLD: int = 2500
     LOSS_FUNCTION: str = "mse"
     EPOCHS: int = 100
     TIME_BETWEEN_STEPS: float = 0.5
     MODEL_TYPE: ModelType = None
+    LOAD_PREVIOUS_WEIGHT: bool = False
 
     # Car 1 Settings
     CAR1_NAME: CarName = CarName.CAR1
@@ -41,6 +42,7 @@ class Experiment:
     CAR2_INITIAL_YAW_OPTION_1: int = 270
     CAR2_INITIAL_POSITION_OPTION_2: List[int] = field(default_factory=lambda: [0, -30])
     CAR2_INITIAL_YAW_OPTION_2: int = 90
+    BYPASS_RANDOM_INITIALIZATION: bool = False
 
     # State Configuration
     INPUT_SIZE = 8
