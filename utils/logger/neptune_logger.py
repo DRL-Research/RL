@@ -45,9 +45,9 @@ class NeptuneLogger:
         self.run.stop()
 
 # Example usage:
-logger = NeptuneLogger("katiusha8642/DRL", "eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiIxNjJkY2Q5Zi03YWRkLTQxMjMtYmUwYi1iYzM5ZGNmNDkxMGEifQ==", run_name="Experiment 1", tags=["experiment", "test"])
-logger.log_hyperparameters({"learning_rate": 0.001, "batch_size": 32})
-logger.log_metric("accuracy", 0.95, step=1)
-logger.log_model("path/to/trained_model.pth")
-logger.log_text("experiment_notes", "This experiment tests Neptune integration.")
-logger.stop()
+# logger = NeptuneLogger("katiusha8642/DRL", "eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiIxNjJkY2Q5Zi03YWRkLTQxMjMtYmUwYi1iYzM5ZGNmNDkxMGEifQ==", run_name="Experiment 1", tags=["experiment", "test"])
+# logger.log_hyperparameters({"learning_rate": 0.001, "batch_size": 32})
+# logger.log_metric("accuracy", 0.95, step=1)
+# logger.log_model("path/to/trained_model.pth")
+# logger.log_text("experiment_notes", "This experiment tests Neptune integration.")
+# logger.stop()
