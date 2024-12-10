@@ -1,10 +1,9 @@
+import gymnasium as gym
+from stable_baselines3 import PPO
 from stable_baselines3.common.logger import configure
-from stable_baselines3.common.vec_env import DummyVecEnv
-
-from utils.model.model_handler import Model
-from utils.agent_handler import Agent
-from utils.airsim_manager import AirsimManager
 from utils.plotting_utils import PlottingUtils
+from matplotlib import pyplot as plt
+
 
 
 def training_loop(experiment, env, agent, model):
@@ -33,7 +32,7 @@ def training_loop(experiment, env, agent, model):
                 total_steps += 1
                 action = agent.get_action(model, current_state, total_steps,
                                           experiment.EXPLORATION_EXPLOTATION_THRESHOLD)
-                print(f"Action: {action[0]}")
+                #print(f"Action: {action[0]}")
                 current_state, reward, done, _ = env.step(action)
                 episode_sum_of_rewards += reward
                 if reward < experiment.COLLISION_REWARD or done:
@@ -66,27 +65,47 @@ def plot_results(experiment, all_rewards, all_actions):
 
 
 def run_experiment(experiment_config):
+    #env = gym.make("highway-v0", config={"vehicles_count": 2, "duration": 5},render_mode='rgb_array')
+    env = gym.make("intersection-v0", config={"vehicles_count": 1, "duration": 5,"initial_vehicle_count": 1,"destination": "o2"},render_mode='rgb_array')
+    model = PPO(
+        "MlpPolicy",
+        env,
+        learning_rate=experiment_config.LEARNING_RATE,
+        n_steps=experiment_config.N_STEPS,
+        batch_size=experiment_config.BATCH_SIZE,
+        verbose=1,
+    )
 
-    airsim_manager = AirsimManager(experiment_config)
-    env = DummyVecEnv([lambda: Agent(experiment_config, airsim_manager)])
-    agent = Agent(experiment_config, airsim_manager)
-    model = Model(env, experiment_config).model
-    logger = configure(experiment_config.EXPERIMENT_PATH, ["stdout", "csv", "tensorboard"])
+    # logger = configure(experiment_config.EXPERIMENT_PATH, ["stdout", "csv", "tensorboard"])
+    # model.set_logger(logger)
 
-    model.set_logger(logger)
+    for episode in range(experiment_config.EPOCHS):
+        state, _ = env.reset()  # Unpack the tuple
+        done = False
+        episode_reward = 0
 
-    model, collision_counter, all_rewards, all_actions = training_loop(experiment=experiment_config, env=env, agent=agent,
-                                                                       model=model)
+        while not done:
+            action, _ = model.predict(state)
+            result = env.step(action)
+            #print(f"Step output: {result}")
+            state, reward, done, info, __ = env.step(action)
+            env.render()
+            episode_reward += reward
 
-    model.save(experiment_config.SAVE_MODEL_DIRECTORY)
-    logger.close()
+            if done and info:
+                print("Collision occurred!")
+            elif done and not info:
+                print("Goal reached!")
 
-    print('Model saved')
-    print("Total collisions:", collision_counter)
+        print(f"Episode {episode + 1}: Reward = {episode_reward}")
 
-    if not experiment_config.ONLY_INFERENCE:
-        plot_results(experiment=experiment_config, all_rewards=all_rewards, all_actions=all_actions)
+        model.learn(total_timesteps=100)
+        plt.imshow(env.render())
+    plt.show()
 
+    # model.save(experiment_config.SAVE_MODEL_DIRECTORY)
+    # print("Model saved!")
+    # PlottingUtils.plot_rewards([episode_reward])
 
 # override the base function in "GYM" environment. do not touch!
 def resume_experiment_simulation(env):
