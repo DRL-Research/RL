@@ -6,7 +6,7 @@ class PlottingUtils:
 
     @staticmethod
     def plot_losses(path):
-        loss_data = pd.read_csv(f"{path}/progress.csv")
+        loss_data = pd.read_csv(f"{path}//progress.csv")
         losses = loss_data["train/value_loss"]
         plt.figure(figsize=(12, 6))
         plt.subplot(1, 2, 1)

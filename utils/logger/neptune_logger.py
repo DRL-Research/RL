@@ -1,6 +1,7 @@
 import os
 import neptune
 from neptune.types import File
+import pandas as pd
 
 class NeptuneLogger:
     def __init__(self, project_name, api_token, run_name=None, tags=None):
@@ -40,6 +41,50 @@ class NeptuneLogger:
             self.run[name].upload(File(image_path))
         else:
             print(f"Image file not found: {image_path}")
+
+
+    def log_chart_from_csv(self, chart_name, csv_path, x_column=None, y_column=None, x_label="X-Axis", y_label="Y-Axis", title="Chart"):
+        """
+        Logs a chart to Neptune directly from a CSV file.
+
+        Args:
+            chart_name (str): Name of the chart in Neptune.
+            csv_path (str): Path to the CSV file.
+            x_column (str): Column name for the X-axis. Defaults to the index if None.
+            y_column (str): Column name for the Y-axis. Required.
+            x_label (str): Label for the X-axis.
+            y_label (str): Label for the Y-axis.
+            title (str): Title of the chart.
+        """
+        if not os.path.exists(csv_path):
+            print(f"CSV file not found: {csv_path}")
+            return
+
+        try:
+            # Load the CSV
+            data = pd.read_csv(csv_path)
+
+            # Validate the y_column
+            if y_column not in data.columns:
+                print(f"Column '{y_column}' not found in CSV file.")
+                return
+
+            # Use index if x_column is not specified
+            x_data = data.index if x_column is None else data[x_column]
+            y_data = data[y_column]
+
+            # Log the chart
+            self.run[chart_name].log_chart(
+                title=title,
+                x=x_data.tolist(),
+                y=y_data.tolist(),
+                xaxis=x_label,
+                yaxis=y_label,
+            )
+            print(f"Chart '{chart_name}' logged successfully from CSV.")
+
+        except Exception as e:
+            print(f"Error logging chart from CSV: {e}")
 
     def stop(self):
         self.run.stop()
