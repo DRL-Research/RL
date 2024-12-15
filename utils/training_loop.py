@@ -31,7 +31,7 @@ def training_loop(experiment, env, agent, model):
                 total_steps += 1
                 action = agent.get_action(model, current_state, total_steps,
                                           experiment.EXPLORATION_EXPLOTATION_THRESHOLD)
-                print(f"Action: {action[0]}")
+                # print(f"Action: {action[0]}")
                 current_state, reward, done, _ = env.step(action)
                 episode_sum_of_rewards += reward
                 if reward < experiment.COLLISION_REWARD or done:

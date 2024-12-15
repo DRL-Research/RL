@@ -12,11 +12,15 @@ class Model:
         self.model = self.init_model()
 
     def init_model(self):
-        model_params = self.define_model_params(self.experiment_config)
+        model_params, policy_kwargs = self.define_model_params(self.experiment_config)
         match self.experiment_config.MODEL_TYPE:
             case ModelType.PPO:
-                print(PPO(policy=Policy, env=self.env, verbose=1, **model_params).learning_rate)
-                return PPO(policy=Policy, env=self.env, verbose=1, **model_params)
+                print(model_params)
+                print(policy_kwargs)
+                m = PPO(policy=Policy, env=self.env, verbose=1, policy_kwargs=policy_kwargs, **model_params)
+                print("Custom policy network:", m.policy.mlp_extractor.policy_net)
+                print("Custom value network:", m.policy.mlp_extractor.value_net)
+                return m
             case ModelType.DQN:
                 return DQN(policy=Policy, env=self.env, verbose=1, **model_params)
             case ModelType.A2C:
@@ -26,19 +30,41 @@ class Model:
 
     @staticmethod
     def define_model_params(experiment):
-        if experiment.MODEL_TYPE != ModelType.DQN:
-            model_params = {
-                'learning_rate': experiment.LEARNING_RATE,
-                'n_steps': experiment.N_STEPS,
-                'batch_size': experiment.BATCH_SIZE
-            }
-        else:
-            model_params = {
-                'learning_rate': experiment.LEARNING_RATE,
-                'batch_size': experiment.BATCH_SIZE
-            }
-        return model_params
 
+        policy_kwargs = None
+
+        common_params = {
+            'learning_rate': experiment.LEARNING_RATE,
+            'batch_size': experiment.BATCH_SIZE
+        }
+
+        match experiment.MODEL_TYPE:
+            case ModelType.PPO:
+                policy_kwargs = {
+                    'net_arch': [
+                        {'pi': [32, 32], 'vf': [32, 32]}
+                    ]
+                }
+                model_params = {
+                    **common_params,
+                    'n_steps': experiment.N_STEPS
+                }
+
+            case ModelType.A2C:
+                model_params = {
+                    **common_params,
+                    'n_steps': experiment.N_STEPS
+                }
+
+            case ModelType.DQN:
+                model_params = common_params
+
+            case _:
+                raise ValueError(f"Unsupported model type: {experiment}")
+
+        return model_params, policy_kwargs
+
+    @staticmethod
     def get_latest_model(self, directory):
         '''
 

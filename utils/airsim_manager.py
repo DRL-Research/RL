@@ -89,6 +89,9 @@ class AirsimManager:
         initial_pose_car1 = create_initial_pose(car1_start_location_x, car1_start_location_y, np.radians(car1_start_yaw))
         initial_pose_car2 = create_initial_pose(car2_start_location_x, car2_start_location_y, np.radians(car2_start_yaw))
 
+        print(f"Starting location of car1: {car1_start_location_x}, {car1_start_location_y}")
+        print(f"Starting location of car2: {car2_start_location_x}, {car2_start_location_y}")
+
         self.airsim_client.simSetVehiclePose(initial_pose_car1, True, self.experiment.CAR1_NAME)
         self.airsim_client.simSetVehiclePose(initial_pose_car2, True, self.experiment.CAR2_NAME)
 
