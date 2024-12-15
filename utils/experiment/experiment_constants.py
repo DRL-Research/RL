@@ -13,3 +13,7 @@ class Role:
     CAR2 = CarName.CAR2
     BOTH = "Both"
 
+@dataclass
+class StartingLocation:
+    LEFT = "Left"
+    RIGHT = "Right"
