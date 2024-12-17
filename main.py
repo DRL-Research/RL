@@ -4,8 +4,18 @@ from utils.experiment.experiment_constants import Role
 from utils.model.model_constants import ModelType
 from utils.training_loop import run_experiment
 from utils.model.model_handler import Model
+from gym.envs.registration import register
+from gymnasium.envs.registration import registry, register
+
 if __name__ == "__main__":
 
+    if "RELintersection-v0" not in registry:
+        register(
+            id="RELintersection-v0",
+            entry_point="highwayenv.intersection_class:IntersectionEnv",
+        )
+
+    print(registry.keys())
     # experiment1 = Experiment(
     #     EXPERIMENT_ID='Experiment1',
     #     # experiment details:
