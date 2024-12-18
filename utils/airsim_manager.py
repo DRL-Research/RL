@@ -1,8 +1,9 @@
 import random
-import time
 
 import airsim
 import numpy as np
+
+from utils.experiment.experiment_constants import StartingLocation
 
 
 class AirsimManager:
@@ -45,7 +46,7 @@ class AirsimManager:
         # Helper function to calculate starting position and orientation
         def get_initial_position_and_yaw(car_direction, position_option_1, position_option_2, yaw_option_1,
                                          yaw_option_2, x_offset, y_offset):
-            if car_direction == 1:
+            if car_direction == StartingLocation.RIGHT:
                 start_location_x = position_option_1[0] - x_offset
                 start_location_y = position_option_1[1] - y_offset
                 start_yaw = yaw_option_1
@@ -56,8 +57,9 @@ class AirsimManager:
             return start_location_x, start_location_y, start_yaw
 
         # Pick random directions for cars
-        car1_direction = random.choice([1, -1])
-        car2_direction = random.choice([1, -1])
+        if self.experiment.RANDOM_INIT:
+            car1_direction = random.choice([StartingLocation.LEFT, StartingLocation.RIGHT]) # TODO: change to UP and down
+            car2_direction = random.choice([StartingLocation.LEFT, StartingLocation.RIGHT])
 
         # Get starting positions and orientations for Car1 and Car2
         car1_start_location_x, car1_start_location_y, car1_start_yaw = get_initial_position_and_yaw(
@@ -88,6 +90,9 @@ class AirsimManager:
         # Set the poses for Car1 and Car2
         initial_pose_car1 = create_initial_pose(car1_start_location_x, car1_start_location_y, np.radians(car1_start_yaw))
         initial_pose_car2 = create_initial_pose(car2_start_location_x, car2_start_location_y, np.radians(car2_start_yaw))
+
+        print(f"Starting location of car1: {car1_start_location_x}, {car1_start_location_y}")
+        print(f"Starting location of car2: {car2_start_location_x}, {car2_start_location_y}")
 
         self.airsim_client.simSetVehiclePose(initial_pose_car1, True, self.experiment.CAR1_NAME)
         self.airsim_client.simSetVehiclePose(initial_pose_car2, True, self.experiment.CAR2_NAME)

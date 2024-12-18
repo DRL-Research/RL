@@ -16,15 +16,15 @@ class Experiment:
     EXPERIMENT_DATE_TIME: str = datetime.now().strftime("%d_%m_%Y-%H_%M_%S")
 
     # Model and Training Configuration
+    MODEL_TYPE: ModelType = None
     ROLE: Role = None  # Which car is using the DRL model. Car1, Car2, Both
-    LEARNING_RATE: float = None
+    EPOCHS: int = 100
+    LEARNING_RATE: float = 3e-4
     N_STEPS: int = 160
     BATCH_SIZE: int = 160
-    EXPLORATION_EXPLOTATION_THRESHOLD: int = 2500
-    LOSS_FUNCTION: str = "mse"
-    EPOCHS: int = 100
     TIME_BETWEEN_STEPS: float = 0.5
-    MODEL_TYPE: ModelType = None
+    LOSS_FUNCTION: str = "mse"
+    EXPLORATION_EXPLOTATION_THRESHOLD: int = 50
 
     # Car 1 Settings
     CAR1_NAME: CarName = CarName.CAR1
@@ -42,13 +42,19 @@ class Experiment:
     CAR2_INITIAL_POSITION_OPTION_2: List[int] = field(default_factory=lambda: [0, -30])
     CAR2_INITIAL_YAW_OPTION_2: int = 90
 
+    # Cars Setup Configuration
+    RANDOM_INIT = True
+
+    # Network Configuration
+    PPO_NETWORK_ARCHITECTURE = {'pi': [32, 32], 'vf': [32, 32]}
+
     # State Configuration
     INPUT_SIZE = 8
 
     # Action Configuration
     ACTION_SPACE_SIZE: int = 2
-    THROTTLE_FAST: float = 0.4
-    THROTTLE_SLOW: float = 0.7
+    THROTTLE_FAST: float = 0.7
+    THROTTLE_SLOW: float = 0.4
     FIXED_THROTTLE: float = (THROTTLE_FAST + THROTTLE_SLOW) / 2
 
     # Reward Configuration

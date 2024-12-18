@@ -12,11 +12,10 @@ class Model:
         self.model = self.init_model()
 
     def init_model(self):
-        model_params = self.define_model_params(self.experiment_config)
+        model_params, policy_kwargs = self.define_model_params(self.experiment_config)
         match self.experiment_config.MODEL_TYPE:
             case ModelType.PPO:
-                print(PPO(policy=Policy, env=self.env, verbose=1, **model_params).learning_rate)
-                return PPO(policy=Policy, env=self.env, verbose=1, **model_params)
+                return PPO(policy=Policy, env=self.env, verbose=1, policy_kwargs=policy_kwargs, **model_params)
             case ModelType.DQN:
                 return DQN(policy=Policy, env=self.env, verbose=1, **model_params)
             case ModelType.A2C:
@@ -26,47 +25,62 @@ class Model:
 
     @staticmethod
     def define_model_params(experiment):
-        if experiment.MODEL_TYPE != ModelType.DQN:
-            model_params = {
-                'learning_rate': experiment.LEARNING_RATE,
-                'n_steps': experiment.N_STEPS,
-                'batch_size': experiment.BATCH_SIZE
-            }
-        else:
-            model_params = {
-                'learning_rate': experiment.LEARNING_RATE,
-                'batch_size': experiment.BATCH_SIZE
-            }
-        return model_params
 
-    def get_latest_model(self, directory):
-        '''
+        policy_kwargs = None
 
-        Get last model from all directory. file must end with .zip
-        :param directory:
-        :return: last model
-        '''
-        files = []
-        for root, dirs, filenames in os.walk(directory):
-            for filename in filenames:
-                if filename.endswith(".zip"):
-                    files.append(os.path.join(root, filename))
+        common_params = {
+            'learning_rate': experiment.LEARNING_RATE,
+            'batch_size': experiment.BATCH_SIZE
+        }
 
-        if not files:
-            return None
+        match experiment.MODEL_TYPE:
+            case ModelType.PPO:
+                policy_kwargs = {
+                    'net_arch': [
+                        experiment.PPO_NETWORK_ARCHITECTURE
+                    ]
+                }
+                model_params = {
+                    **common_params,
+                    'n_steps': experiment.N_STEPS
+                }
 
-        latest_file = max(files, key=os.path.getctime)
-        print('Latest model:', latest_file)
-        return latest_file
+            case ModelType.A2C:
+                model_params = {
+                    **common_params,
+                    'n_steps': experiment.N_STEPS
+                }
 
-    def get_model_from_specific_directory(self, directory):
-        '''
-        return the last model from specific directory
+            case ModelType.DQN:
+                model_params = common_params
 
-        :param directory:
-        :return: last model
-        '''
-        relevant_directory = os.chdir(directory)
-        for file in os.listdir(relevant_directory):
-            if file.endswith(".zip"):
-                return file
+            case _:
+                raise ValueError(f"Unsupported model type: {experiment}")
+
+        return model_params, policy_kwargs
+
+
+def get_latest_model(directory):
+    '''
+
+    Get last model from all directory. file must end with .zip
+    :param directory:
+    :return: last model
+    '''
+    files = []
+    for root, dirs, filenames in os.walk(directory):
+        for filename in filenames:
+            if filename.endswith(".zip"):
+                files.append(os.path.join(root, filename))
+
+    if not files:
+        return None
+
+    latest_file = max(files, key=os.path.getctime)
+    print('Latest model:', latest_file)
+    return latest_file
+
+
+def get_model_path_from_experiment_name(experiment_name):
+    full_directory = os.path.join("experiments", experiment_name, "trained_model")
+    return full_directory
