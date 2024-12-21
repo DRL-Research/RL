@@ -1,3 +1,4 @@
+import pandas as pd
 from stable_baselines3.common.logger import configure
 from stable_baselines3.common.vec_env import DummyVecEnv
 
@@ -5,10 +6,16 @@ from utils.model.model_handler import Model
 from utils.agent_handler import Agent
 from utils.airsim_manager import AirsimManager
 from utils.plotting_utils import PlottingUtils
-import os
+
+def log_losses(path, logger):
+    loss_data = pd.read_csv(f"{path}//progress.csv")
+    losses = loss_data["train/value_loss"].tolist()
+    for record in losses:
+        logger.log_metric("loss_episode", record)
 
 
-def training_loop(experiment, env, agent, model, logger):
+def training_loop(experiment, env, agent, model):
+
     if experiment.ONLY_INFERENCE:
         print('Only Inference')
         model.load(experiment.LOAD_WEIGHT_DIRECTORY)
@@ -34,33 +41,35 @@ def training_loop(experiment, env, agent, model, logger):
                 print(f"Action: {action[0]}")
                 current_state, reward, done, _ = env.step(action)
                 episode_sum_of_rewards += reward
-
-                # Log step-wise rewards
-                logger.log_metric("reward_step", reward, step=total_steps)
-
                 if reward < experiment.COLLISION_REWARD or done:
                     pause_experiment_simulation(env)
                     episode_sum_of_rewards += reward
                     if reward <= experiment.COLLISION_REWARD:
                         collision_counter += 1
-                        logger.log_metric("collisions", collision_counter, step=episode)
                         print('********* collision ***********')
                     break
-
-            # Log episode metrics
-            logger.log_metric("reward_episode", episode_sum_of_rewards, step=episode)
-            logger.log_metric("steps_per_episode", steps_counter, step=episode)
 
             print(f"Episode {episode_counter} finished with reward: {episode_sum_of_rewards}")
             print(f"Total Steps: {total_steps}, Episode steps: {steps_counter}")
             all_rewards.append(episode_sum_of_rewards)
             all_actions.append(actions_per_episode)
 
+            # Log episode metrics
+            experiment.logger.log_metric("reward_episode", episode_sum_of_rewards, step=episode)
+            experiment.logger.log_metric("steps_per_episode", steps_counter, step=episode)
+
+
+
             if not experiment.ONLY_INFERENCE:
                 model.learn(total_timesteps=steps_counter, log_interval=1)
                 print(f"Model learned on {steps_counter} steps")
 
         resume_experiment_simulation(env)
+
+        experiment.logger.log_model(experiment.SAVE_MODEL_DIRECTORY, "trained_model")
+        log_losses(experiment.EXPERIMENT_PATH, experiment.logger)
+        experiment.logger.stop()
+
 
         return model, collision_counter, all_rewards, all_actions
 
@@ -72,39 +81,30 @@ def plot_results(experiment, all_rewards, all_actions):
     PlottingUtils.plot_actions(all_actions)
 
 
-def run_experiment(experiment_config, neptune_logger):
+
+
+def run_experiment(experiment_config):
+
     airsim_manager = AirsimManager(experiment_config)
     env = DummyVecEnv([lambda: Agent(experiment_config, airsim_manager)])
     agent = Agent(experiment_config, airsim_manager)
     model = Model(env, experiment_config).model
     logger = configure(experiment_config.EXPERIMENT_PATH, ["stdout", "csv", "tensorboard"])
+
     model.set_logger(logger)
 
     model, collision_counter, all_rewards, all_actions = training_loop(experiment=experiment_config, env=env, agent=agent,
-                                                                       model=model, logger=neptune_logger)
-
+                                                                       model=model)
     model.save(experiment_config.SAVE_MODEL_DIRECTORY)
-    neptune_logger.log_model(experiment_config.SAVE_MODEL_DIRECTORY, "trained_model")
 
+    logger.close()
 
     print('Model saved')
     print("Total collisions:", collision_counter)
 
-    # Log loss chart from progress.csv
-    progress_file = f"{experiment_config.EXPERIMENT_PATH}/progress.csv"
-    if os.path.exists(progress_file):
-        neptune_logger.log_chart_from_csv(
-            chart_name="loss_over_time",
-            csv_path=progress_file,
-            y_column="value_loss",
-            x_label="Training Steps",
-            y_label="Loss",
-            title="Value Loss Over Time"
-        )
+    if not experiment_config.ONLY_INFERENCE:
+        plot_results(experiment=experiment_config, all_rewards=all_rewards, all_actions=all_actions)
 
-
-    logger.close()
-    neptune_logger.stop()
 
 # override the base function in "GYM" environment. do not touch!
 def resume_experiment_simulation(env):

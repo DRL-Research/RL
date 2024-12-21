@@ -1,6 +1,5 @@
 import random
 import time
-
 import airsim
 import numpy as np
 
@@ -45,7 +44,7 @@ class AirsimManager:
         # Helper function to calculate starting position and orientation
         def get_initial_position_and_yaw(car_direction, position_option_1, position_option_2, yaw_option_1,
                                          yaw_option_2, x_offset, y_offset):
-            if car_direction == 1:
+            if car_direction == 2:
                 start_location_x = position_option_1[0] - x_offset
                 start_location_y = position_option_1[1] - y_offset
                 start_yaw = yaw_option_1

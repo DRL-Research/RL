@@ -5,6 +5,7 @@ from typing import List
 import numpy as np
 
 from utils.experiment.experiment_constants import Role, CarName
+from utils.logger.neptune_logger import NeptuneLogger
 from utils.model.model_constants import ModelType
 
 
@@ -59,6 +60,14 @@ class Experiment:
     # Path Configuration
     LOAD_MODEL_DIRECTORY: str = ""  # Directory for loading weights
 
+    # Neptune Configuration
+
     def __post_init__(self):
         self.EXPERIMENT_PATH = f"experiments/{self.EXPERIMENT_DATE_TIME}_{self.EXPERIMENT_ID}"
         self.SAVE_MODEL_DIRECTORY = f"{self.EXPERIMENT_PATH}/trained_model"
+        self.logger = NeptuneLogger(
+            project_name="katiusha8642/DRL",
+            api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiIxNjJkY2Q5Zi03YWRkLTQxMjMtYmUwYi1iYzM5ZGNmNDkxMGEifQ==",
+            run_name=self.EXPERIMENT_ID,
+            tags=["experiment", "training"]
+        )
