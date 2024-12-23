@@ -1,59 +1,149 @@
 from stable_baselines3.common.logger import configure
 from stable_baselines3.common.vec_env import DummyVecEnv
 
+from experiment.experiment_constants import CarName
 from utils.model.model_handler import Model
 from utils.agent_handler import Agent
 from utils.airsim_manager import AirsimManager
 from utils.plotting_utils import PlottingUtils
 
 
-def training_loop(experiment, env, agent, model):
+def old_training_loop(experiment, env, agent, model):
 
     if experiment.ONLY_INFERENCE:
         print('Only Inference')
         model.load(experiment.LOAD_MODEL_DIRECTORY)
         print(f"Loaded weights from {experiment.LOAD_MODEL_DIRECTORY} for inference.")
-    else:
-        collision_counter, episode_counter, total_steps = 0, 0, 0
-        all_rewards, all_actions = [], []
+    collision_counter, episode_counter, total_steps = 0, 0, 0
+    all_rewards, all_actions = [], []
 
-        for episode in range(experiment.EPOCHS):
-            print(f"@ Episode {episode + 1} @")
-            current_state = env.reset()
-            done = False
-            episode_sum_of_rewards, steps_counter = 0, 0
-            episode_counter += 1
-            resume_experiment_simulation(env)
-            actions_per_episode = []
-
-            while not done:
-                steps_counter += 1
-                total_steps += 1
-                action = agent.get_action(model, current_state, total_steps,
-                                          experiment.EXPLORATION_EXPLOTATION_THRESHOLD)
-                # print(f"Action: {action[0]}")
-                current_state, reward, done, _ = env.step(action)
-                episode_sum_of_rewards += reward
-                if reward < experiment.COLLISION_REWARD or done:
-                    pause_experiment_simulation(env)
-                    episode_sum_of_rewards += reward
-                    if reward <= experiment.COLLISION_REWARD:
-                        collision_counter += 1
-                        print('********* collision ***********')
-                    break
-
-            print(f"Episode {episode_counter} finished with reward: {episode_sum_of_rewards}")
-            print(f"Total Steps: {total_steps}, Episode steps: {steps_counter}")
-            all_rewards.append(episode_sum_of_rewards)
-            all_actions.append(actions_per_episode)
-
-            if not experiment.ONLY_INFERENCE:
-                model.learn(total_timesteps=steps_counter, log_interval=1)
-                print(f"Model learned on {steps_counter} steps")
-
+    for episode in range(experiment.EPOCHS):
+        print(f"@ Episode {episode + 1} @")
+        current_state = env.reset()
+        done = False
+        episode_sum_of_rewards, steps_counter = 0, 0
+        episode_counter += 1
         resume_experiment_simulation(env)
+        actions_per_episode = []
 
-        return model, collision_counter, all_rewards, all_actions
+        while not done:
+            steps_counter += 1
+            total_steps += 1
+            action = agent.get_action(model, current_state, total_steps,
+                                      experiment.EXPLORATION_EXPLOTATION_THRESHOLD)
+            current_state, reward, done, _ = env.step(action)
+            episode_sum_of_rewards += reward
+            if done:
+                pause_experiment_simulation(env)
+                episode_sum_of_rewards += reward
+                if reward <= experiment.COLLISION_REWARD:
+                    collision_counter += 1
+                    print('********* collision ***********')
+                break
+
+        print(f"Episode {episode_counter} finished with reward: {episode_sum_of_rewards}")
+        print(f"Total Steps: {total_steps}, Episode steps: {steps_counter}")
+        all_rewards.append(episode_sum_of_rewards)
+        all_actions.append(actions_per_episode)
+
+        if not experiment.ONLY_INFERENCE:
+            model.learn(total_timesteps=steps_counter, log_interval=1)
+            print(f"Model learned on {steps_counter} steps")
+
+    resume_experiment_simulation(env)
+    print('debug^%&%^&%^&%^&%^&%^&%^&%^&')
+    print('model', model, 'collision_counter', collision_counter, 'all_rewards', all_rewards, 'all_actions', all_actions)
+    return model, collision_counter, all_rewards, all_actions
+
+
+def training_loop(experiment, env, agent, model):
+    if experiment.ONLY_INFERENCE:
+        print('Only Inference')
+        model.load(experiment.LOAD_MODEL_DIRECTORY)
+        print(f"Loaded weights from {experiment.LOAD_MODEL_DIRECTORY} for inference.")
+
+    collision_counter, episode_counter, total_steps = 0, 0, 0
+    all_rewards, all_actions = [], []
+
+    for cycle in range(experiment.CYCLES):
+        print(f"@ Cycle {cycle + 1}/{experiment.CYCLES} @")
+
+        # car 1 training , car 2 infer
+        experiment.ROLE = CarName.CAR1
+        print("Car1 is training, Car2 is using the model.")
+        for episode in range(experiment.EPISODES_PER_CYCLE // 2):  # 75
+            episode_counter += 1
+            print(f"  @ Episode {episode_counter} (Car1 Training) @")
+            episode_rewards, episode_actions, steps = run_episode(env, agent, model, experiment,
+                                                                  training_car=CarName.CAR1)
+            total_steps += steps
+            all_rewards.append(episode_rewards)
+            all_actions.append(episode_actions)
+            if not experiment.ONLY_INFERENCE:
+                model.learn(total_timesteps=steps, log_interval=1)
+                print(f"Car1 model learned on {steps} steps")
+
+        # car 2 training , car 1 infer
+        experiment.ROLE = CarName.CAR2
+        print("Car2 is training, Car1 is using the model.")
+        for episode in range(experiment.EPISODES_PER_CYCLE // 2):
+            episode_counter += 1
+            print(f"  @ Episode {episode_counter} (Car2 Training) @")
+            episode_rewards, episode_actions, steps = run_episode(env, agent, model, experiment,
+                                                                  training_car=CarName.CAR2)
+            total_steps += steps
+            all_rewards.append(episode_rewards)
+            all_actions.append(episode_actions)
+            if not experiment.ONLY_INFERENCE:
+                model.learn(total_timesteps=steps, log_interval=1)
+                print(f"Car2 model learned on {steps} steps")
+
+    resume_experiment_simulation(env)
+    print('Training completed.')
+    print('model:', model, 'collision_counter:', collision_counter, 'all_rewards:', all_rewards, 'all_actions:',
+          all_actions)
+    return model, collision_counter, all_rewards, all_actions
+
+
+def run_episode(env, agent, model, experiment, training_car):
+    '''
+    run one episode of the simulation
+    :param env:
+    :param agent:
+    :param model:
+    :param experiment:
+    :param training_car:
+    :return:
+    '''
+    current_state = env.reset()
+    done = False
+    episode_sum_of_rewards, steps_counter = 0, 0
+    actions_per_episode = []
+
+    resume_experiment_simulation(env)
+
+    while not done:
+        steps_counter += 1
+        if training_car == CarName.CAR1:
+            # car 1 is learning
+            action = agent.get_action(model, current_state, steps_counter,
+                                      experiment.EXPLORATION_EXPLOTATION_THRESHOLD)
+        elif training_car == CarName.CAR2:
+            # car 2 is learning
+            action = agent.get_action(model, current_state, steps_counter,
+                                      experiment.EXPLORATION_EXPLOTATION_THRESHOLD)
+
+        current_state, reward, done, _ = env.step(action)
+        episode_sum_of_rewards += reward
+        actions_per_episode.append(action)
+
+        if done:
+            pause_experiment_simulation(env)
+            if reward <= experiment.COLLISION_REWARD:
+                print('********* collision ***********')
+            break
+
+    return episode_sum_of_rewards, actions_per_episode, steps_counter
 
 
 def plot_results(experiment, all_rewards, all_actions):

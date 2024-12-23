@@ -2,8 +2,7 @@ import random
 
 import airsim
 import numpy as np
-
-from utils.experiment.experiment_constants import StartingLocation
+from utils.experiment.experiment_constants import StartingLocation,CarName
 
 
 class AirsimManager:
@@ -35,6 +34,7 @@ class AirsimManager:
         self.car2_y_offset = 5  # Chane only if settings.json is changed.
 
         self.car1_initial_position_saved = None
+        self.car2_initial_position_saved = None
         self.simulation_paused = False
 
         self.reset_cars_to_initial_positions()
@@ -80,7 +80,7 @@ class AirsimManager:
             self.car2_x_offset,
             self.car2_y_offset
         )
-
+        print(car1_start_location_x,car2_start_location_y)
         # Helper function to create initial pose
         def create_initial_pose(x, y, yaw_rad):
             position = airsim.Vector3r(x, y, -1.0)
@@ -151,6 +151,7 @@ class AirsimManager:
             car1_position_and_speed["Vx"],
             car1_position_and_speed["Vy"]
         ])
+        print(car2_position_and_speed["x"],car2_position_and_speed["y"])
 
         if logger is not None and self.experiment.LOG_CAR_STATES:
             logger.log_state(car2_state, self.experiment.CAR2_NAME)
@@ -163,16 +164,29 @@ class AirsimManager:
             self.car1_initial_position_saved = np.array([car1_position_and_speed["x"], car1_position_and_speed["y"]])
         return self.car1_initial_position_saved
 
+    def get_car2_initial_position(self):
+        if self.car2_initial_position_saved is None:
+            car2_position_and_speed = self.get_car_position_and_speed(self.experiment.CAR2_NAME)
+            self.car2_initial_position_saved = np.array([car2_position_and_speed["x"], car2_position_and_speed["y"]])
+        return self.car2_initial_position_saved
+
     def reset_for_new_episode(self):
         self.car1_initial_position_saved = None
 
     def has_reached_target(self, car_state):
-        car1_initial_position = self.get_car1_initial_position()
-        if car1_initial_position[0] > 0:
-            return car_state[0] < self.experiment.CAR1_DESIRED_POSITION_OPTION_1[0]
-        elif car1_initial_position[0] < 0:
-            return car_state[0] > self.experiment.CAR1_DESIRED_POSITION_OPTION_2[0]
+        if self.experiment.ROLE is CarName.CAR1:
+            car1_initial_position = self.get_car1_initial_position()
+            if car1_initial_position[0] > 0:
+                return car_state[0] < self.experiment.CAR1_DESIRED_POSITION_OPTION_1[0]
+            elif car1_initial_position[0] < 0:
+                return car_state[0] > self.experiment.CAR1_DESIRED_POSITION_OPTION_2[0]
 
+        if self.experiment.ROLE is CarName.CAR2:
+            car2_initial_position = self.get_car2_initial_position()
+            if car2_initial_position[1] > 0:
+                return car_state[1] < self.experiment.CAR2_DESIRED_POSITION_OPTION_1[1]
+            elif car2_initial_position[1] < 0:
+                return car_state[1] > self.experiment.CAR2_DESIRED_POSITION_OPTION_2[1]
     def pause_simulation(self):
         self.simulation_paused = True
         self.airsim_client.simPause(True)

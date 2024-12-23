@@ -40,6 +40,7 @@ class Agent(gym.Env):
             self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR1_NAME)
             self.airsim_manager.set_car_controls(airsim.CarControls(throttle=Experiment.FIXED_THROTTLE),
                                                  self.experiment.CAR2_NAME)
+
         elif self.experiment.ROLE == self.experiment.CAR2_NAME:
             self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR2_NAME)
             self.airsim_manager.set_car_controls(airsim.CarControls(throttle=Experiment.FIXED_THROTTLE),
@@ -54,7 +55,6 @@ class Agent(gym.Env):
             self.state = self.airsim_manager.get_car1_state()
         else:
             self.state = self.airsim_manager.get_car2_state()
-
         collision = self.airsim_manager.collision_occurred()
         reached_target = self.airsim_manager.has_reached_target(self.state[:2])
 
@@ -70,8 +70,10 @@ class Agent(gym.Env):
     def get_action(model, current_state, total_steps, exploration_threshold):
         if total_steps > exploration_threshold:
             action = model.predict(current_state, deterministic=True)
+            print(f"Exploiting action: {action}")
         else:
             action = model.predict(current_state, deterministic=False)
+            print(f"Exploring action: {action}")
         return action
 
     # This function override base function in "GYM" environment. do not touch!

@@ -11,6 +11,8 @@ from utils.model.model_constants import ModelType
 @dataclass
 class Experiment:
     # General Experiment Settings
+    EPISODES_PER_CYCLE = 75
+    CYCLES = 5
     EXPERIMENT_ID: str = ""
     ONLY_INFERENCE: bool = False
     EXPERIMENT_DATE_TIME: str = datetime.now().strftime("%d_%m_%Y-%H_%M_%S")
@@ -22,7 +24,7 @@ class Experiment:
     LEARNING_RATE: float = 3e-4
     N_STEPS: int = 160
     BATCH_SIZE: int = 160
-    TIME_BETWEEN_STEPS: float = 0.5
+    TIME_BETWEEN_STEPS: float = 0.05
     LOSS_FUNCTION: str = "mse"
     EXPLORATION_EXPLOTATION_THRESHOLD: int = 50
 
@@ -41,12 +43,14 @@ class Experiment:
     CAR2_INITIAL_YAW_OPTION_1: int = 270
     CAR2_INITIAL_POSITION_OPTION_2: List[int] = field(default_factory=lambda: [0, -30])
     CAR2_INITIAL_YAW_OPTION_2: int = 90
+    CAR2_DESIRED_POSITION_OPTION_1 = np.array([0, -10])
+    CAR2_DESIRED_POSITION_OPTION_2 = np.array([0, 10])
 
     # Cars Setup Configuration
     RANDOM_INIT = True
 
     # Network Configuration
-    PPO_NETWORK_ARCHITECTURE = {'pi': [32, 32], 'vf': [32, 32]}
+    PPO_NETWORK_ARCHITECTURE = {'pi': [32, 16], 'vf': [32, 32]}
 
     # State Configuration
     INPUT_SIZE = 8
@@ -64,6 +68,8 @@ class Experiment:
 
     # Path Configuration
     LOAD_MODEL_DIRECTORY: str = ""  # Directory for loading weights
+
+
 
     def __post_init__(self):
         self.EXPERIMENT_PATH = f"experiments/{self.EXPERIMENT_DATE_TIME}_{self.EXPERIMENT_ID}"
