@@ -22,10 +22,6 @@ class Agent(gym.Env):
         self.state = None
         self.reset()
 
-    def change_state_values(self, state: np.ndarray) -> np.ndarray: # this function takes a state (x,y,z) and changes the values of the state ( round down the values for now)
-        state[:3] = np.floor(state[:3])
-        return state
-
     def reset(self) -> np.ndarray:
         self.airsim_manager.reset_cars_to_initial_positions()
         self.airsim_manager.reset_for_new_episode()
@@ -33,8 +29,7 @@ class Agent(gym.Env):
             self.state = self.airsim_manager.get_car1_state()
         else:
             self.state = self.airsim_manager.get_car2_state()
-        # return self.state
-        return self.change_state_values(self.state)
+        return self.state
 
     def step(self, action):
         if self.airsim_manager.is_simulation_paused():
@@ -69,8 +64,8 @@ class Agent(gym.Env):
         elif reached_target:
             reward = self.experiment.REACHED_TARGET_REWARD
         done = collision or reached_target
-        # return self.state, reward, done, {}
-        return self.change_state_values(self.state), reward, done, {}
+        return self.state, reward, done, {}
+
     @staticmethod
     def get_action(model, current_state, total_steps, exploration_threshold):
         if total_steps > exploration_threshold:

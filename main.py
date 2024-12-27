@@ -12,7 +12,7 @@ if __name__ == "__main__":
         # Car2 (going right/left randomly) fixed speed (0.4) - 100 episodes learning. expecting to see that car1 will always go fast to avoid crashes.
         # Rewards and loss (during training): Success reward: +10 Collision reward: -20 Starvation reward: -0.1
         # Hence, negative cumulative reward even if success due to (starvation reward*steps) + success reward.
-        EPOCHS=20,
+        EPOCHS=50,
         ROLE=Role.CAR1,
         MODEL_TYPE=ModelType.PPO,
         # INFERENCE Mode
