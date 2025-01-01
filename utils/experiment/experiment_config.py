@@ -26,6 +26,9 @@ class Experiment:
     LOSS_FUNCTION: str = "mse"
     EXPLORATION_EXPLOTATION_THRESHOLD: int = 50
 
+    # Seed for reproducibility
+    SEED: int = 42
+
     # Car 1 Settings
     CAR1_NAME: CarName = CarName.CAR1
     CAR1_INITIAL_POSITION_OPTION_1: List[int] = field(default_factory=lambda: [30, 0])
