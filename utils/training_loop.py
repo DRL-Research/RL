@@ -47,11 +47,21 @@ def training_loop(experiment, env, agent, model):
             all_rewards.append(episode_sum_of_rewards)
             all_actions.append(actions_per_episode)
 
+            # Log episode metrics
+            experiment.logger.log_metric("reward_episode", episode_sum_of_rewards, step=episode)
+            experiment.logger.log_metric("steps_per_episode", steps_counter, step=episode)
+
             if not experiment.ONLY_INFERENCE:
                 model.learn(total_timesteps=steps_counter, log_interval=1)
                 print(f"Model learned on {steps_counter} steps")
 
         resume_experiment_simulation(env)
+
+        experiment.logger.log_model(experiment.SAVE_MODEL_DIRECTORY, "trained_model")
+        experiment.logger.log_from_csv(path=f"{experiment.EXPERIMENT_PATH}/progress.csv",
+            column_name="train/value_loss",
+            metric_name="loss_episode")
+        experiment.logger.stop()
 
         return model, collision_counter, all_rewards, all_actions
 
