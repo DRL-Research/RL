@@ -1,0 +1,9 @@
+numpy
+matplotlib
+opencv-python
+scipy
+scikit-learn
+msgpack-python==0.5.6
+msgpack-rpc-python==0.4.1
+wheel==0.38.4
+airsim==1.5.0
