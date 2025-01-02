@@ -77,7 +77,7 @@ class Experiment:
 
         # Load API token from external JSON file
         try:
-            with open("config.json", "r") as f:
+            with open("utils/logger/token.json", "r") as f:
                 config = json.load(f)
                 api_token = config["api_token"]
         except (FileNotFoundError, KeyError) as e:
