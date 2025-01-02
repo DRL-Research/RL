@@ -88,6 +88,25 @@ def run_experiment(experiment_config):
 
     model.set_logger(logger)
 
+    hyperparams = {
+        "experiment_id": experiment_config.EXPERIMENT_ID,
+        "epochs": experiment_config.EPOCHS,
+        "learning_rate": experiment_config.LEARNING_RATE,
+        "n_steps": experiment_config.N_STEPS,
+        "batch_size": experiment_config.BATCH_SIZE,
+        "seed": experiment_config.SEED,
+        "ppo_network_architecture": experiment_config.PPO_NETWORK_ARCHITECTURE,
+        "collision_reward": experiment_config.COLLISION_REWARD,
+        "reached_target_reward": experiment_config.REACHED_TARGET_REWARD,
+        "starvation_reward": experiment_config.STARVATION_REWARD,
+        "loss_function": experiment_config.LOSS_FUNCTION,
+        "random_init": experiment_config.RANDOM_INIT,
+        "time_between_steps": experiment_config.TIME_BETWEEN_STEPS,
+        "exploration_threshold": experiment_config.EXPLORATION_EXPLOTATION_THRESHOLD,
+    }
+
+    experiment_config.logger.log_hyperparameters(hyperparams)
+
     model, collision_counter, all_rewards, all_actions = training_loop(experiment=experiment_config, env=env, agent=agent,
                                                                        model=model)
 
