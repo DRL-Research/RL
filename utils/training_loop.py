@@ -57,11 +57,16 @@ def training_loop(experiment, env, agent, model):
 
         resume_experiment_simulation(env)
 
-        experiment.logger.log_model(experiment.SAVE_MODEL_DIRECTORY, "trained_model")
-        experiment.logger.log_from_csv(path=f"{experiment.EXPERIMENT_PATH}/progress.csv",
-            column_name="train/value_loss",
-            metric_name="loss_episode")
-        experiment.logger.stop()
+        # Save model and log training metrics
+        if not experiment.ONLY_INFERENCE:
+            experiment.logger.log_model(experiment.SAVE_MODEL_DIRECTORY, "trained_model")
+            experiment.logger.log_from_csv(
+                path=f"{experiment.EXPERIMENT_PATH}/progress.csv",
+                column_name="train/value_loss",
+                metric_name="loss_episode"
+            )
+            experiment.logger.stop()
+
 
         return model, collision_counter, all_rewards, all_actions
 
