@@ -18,8 +18,10 @@ class NeptuneLogger:
         else:
             self.run[name].append(value)
 
+
     def log_hyperparameters(self, params):
         self.run["hyperparameters"] = params
+
 
     def log_model(self, model_path, model_name="trained_model"):
         if os.path.exists(model_path):
@@ -27,14 +29,17 @@ class NeptuneLogger:
         else:
             print(f"Model file not found: {model_path}")
 
+
     def log_artifact(self, artifact_path, artifact_name):
         if os.path.exists(artifact_path):
             self.run[f"artifacts/{artifact_name}"].upload(File(artifact_path))
         else:
             print(f"Artifact file not found: {artifact_path}")
 
+
     def log_text(self, name, text):
         self.run[name] = text
+
 
     def log_image(self, name, image_path):
         if os.path.exists(image_path):
@@ -43,48 +48,24 @@ class NeptuneLogger:
             print(f"Image file not found: {image_path}")
 
 
-    def log_chart_from_csv(self, chart_name, csv_path, x_column=None, y_column=None, x_label="X-Axis", y_label="Y-Axis", title="Chart"):
-        """
-        Logs a chart to Neptune directly from a CSV file.
-
-        Args:
-            chart_name (str): Name of the chart in Neptune.
-            csv_path (str): Path to the CSV file.
-            x_column (str): Column name for the X-axis. Defaults to the index if None.
-            y_column (str): Column name for the Y-axis. Required.
-            x_label (str): Label for the X-axis.
-            y_label (str): Label for the Y-axis.
-            title (str): Title of the chart.
-        """
-        if not os.path.exists(csv_path):
-            print(f"CSV file not found: {csv_path}")
-            return
-
+    def log_from_csv(self, path, column_name, metric_name):
         try:
-            # Load the CSV
-            data = pd.read_csv(csv_path)
+            data = pd.read_csv(path)
 
-            # Validate the y_column
-            if y_column not in data.columns:
-                print(f"Column '{y_column}' not found in CSV file.")
-                return
+            # Extract values from the specified column
+            values = data[column_name].tolist()
 
-            # Use index if x_column is not specified
-            x_data = data.index if x_column is None else data[x_column]
-            y_data = data[y_column]
+            # Log each value to Neptune
+            for step, value in enumerate(values):
+                self.log_metric(metric_name, value, step=step)
 
-            # Log the chart
-            self.run[chart_name].log_chart(
-                title=title,
-                x=x_data.tolist(),
-                y=y_data.tolist(),
-                xaxis=x_label,
-                yaxis=y_label,
-            )
-            print(f"Chart '{chart_name}' logged successfully from CSV.")
-
+            print(f"Successfully logged '{metric_name}' from '{column_name}' in '{path}'.")
+        except FileNotFoundError:
+            print(f"CSV file not found: {path}")
+        except KeyError:
+            print(f"Column '{column_name}' not found in CSV file.")
         except Exception as e:
-            print(f"Error logging chart from CSV: {e}")
+            print(f"Error logging data from CSV: {e}")
 
     def stop(self):
         self.run.stop()
