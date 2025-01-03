@@ -120,9 +120,22 @@ class AirsimManager:
         }
         return car_position_and_speed
 
+    def embed_position_and_speed(self, car_position_and_speed):
+        embedded_values = {
+            "x": np.floor(car_position_and_speed["x"]),
+            "y": np.floor(car_position_and_speed["y"]),
+            "Vx": np.floor(car_position_and_speed["Vx"]),
+            "Vy": np.floor(car_position_and_speed["Vy"]),
+        }
+        return embedded_values
+
     def get_car1_state(self, logger=None):
         car1_position_and_speed = self.get_car_position_and_speed(self.experiment.CAR1_NAME)
         car2_position_and_speed = self.get_car_position_and_speed(self.experiment.CAR2_NAME)
+        ##################embedding the position and speed#########################
+        car1_position_and_speed = self.embed_position_and_speed(car1_position_and_speed)
+        car2_position_and_speed = self.embed_position_and_speed(car2_position_and_speed)
+        ##################embedding the position and speed#########################
         car1_state = np.array([
             car1_position_and_speed["x"],
             car1_position_and_speed["y"],
@@ -141,6 +154,10 @@ class AirsimManager:
     def get_car2_state(self, logger=None):
         car2_position_and_speed = self.get_car_position_and_speed(self.experiment.CAR2_NAME)
         car1_position_and_speed = self.get_car_position_and_speed(self.experiment.CAR1_NAME)
+        ##################embedding the position and speed#########################
+        car1_position_and_speed = self.embed_position_and_speed(car1_position_and_speed)
+        car2_position_and_speed = self.embed_position_and_speed(car2_position_and_speed)
+        ##################embedding the position and speed#########################
         car2_state = np.array([
             car2_position_and_speed["x"],
             car2_position_and_speed["y"],
@@ -160,6 +177,8 @@ class AirsimManager:
     def get_car1_initial_position(self):
         if self.car1_initial_position_saved is None:
             car1_position_and_speed = self.get_car_position_and_speed(self.experiment.CAR1_NAME)
+            ############# embedding values ################
+            car1_position_and_speed = self.embed_position_and_speed(car1_position_and_speed)
             self.car1_initial_position_saved = np.array([car1_position_and_speed["x"], car1_position_and_speed["y"]])
         return self.car1_initial_position_saved
 
