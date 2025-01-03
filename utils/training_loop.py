@@ -5,11 +5,10 @@ from utils.model.model_handler import Model
 from utils.agent_handler import Agent
 from utils.airsim_manager import AirsimManager
 from utils.plotting_utils import PlottingUtils
-from utils.logger_utils import log_metrics, save_model, log_hyperparameters
+from utils.logger.neptune_logger import log_hyperparameters
 
 
 def training_loop(experiment, env, agent, model):
-
     if experiment.ONLY_INFERENCE:
         print('Only Inference')
         model.load(experiment.LOAD_MODEL_DIRECTORY)
@@ -32,7 +31,8 @@ def training_loop(experiment, env, agent, model):
                 total_steps += 1
                 action = agent.get_action(model, current_state, total_steps,
                                           experiment.EXPLORATION_EXPLOTATION_THRESHOLD)
-                # print(f"Action: {action[0]}")
+                print(f"Action: {action[0]}")
+                actions_per_episode.append(action[0])
                 current_state, reward, done, _ = env.step(action)
                 episode_sum_of_rewards += reward
                 if reward < experiment.COLLISION_REWARD or done:
@@ -46,6 +46,7 @@ def training_loop(experiment, env, agent, model):
             print(f"Episode {episode_counter} finished with reward: {episode_sum_of_rewards}")
             print(f"Total Steps: {total_steps}, Episode steps: {steps_counter}")
             all_rewards.append(episode_sum_of_rewards)
+            experiment.logger.log_actions_per_episode(actions_per_episode, experiment.CAR1_NAME)
             all_actions.append(actions_per_episode)
 
             metrics = {
@@ -54,7 +55,7 @@ def training_loop(experiment, env, agent, model):
                 "collisions_episode": collision_counter
             }
 
-            log_metrics(experiment.logger, metrics, step=episode)
+            experiment.logger.log_metrics(metrics, step=episode)
 
             # Log episode metrics
             # experiment.logger.log_metric("reward_episode", episode_sum_of_rewards, step=episode)
@@ -70,28 +71,34 @@ def training_loop(experiment, env, agent, model):
         # Save model and log training metrics
         if not experiment.ONLY_INFERENCE:
             experiment.logger.log_model(experiment.SAVE_MODEL_DIRECTORY, "trained_model")
+            # logger_utils.save_model(model, experiment.SAVE_MODEL_DIRECTORY)
             experiment.logger.log_from_csv(
                 path=f"{experiment.EXPERIMENT_PATH}/progress.csv",
                 column_name="train/value_loss",
                 metric_name="loss_episode"
             )
+
+            experiment.logger.log_from_csv(
+                path=f"{experiment.EXPERIMENT_PATH}/progress.csv",
+                column_name="train/policy_gradient_loss",
+                metric_name="policy_gradient_loss"
+            )
+
             experiment.logger.log_metric("total_collisions", collision_counter)
 
         experiment.logger.stop()
-
 
         return model, collision_counter, all_rewards, all_actions
 
 
 def plot_results(experiment, all_rewards, all_actions):
-    PlottingUtils.plot_losses(experiment.EXPERIMENT_PATH)
+    # PlottingUtils.plot_losses(experiment.EXPERIMENT_PATH)
     PlottingUtils.plot_rewards(all_rewards)
     PlottingUtils.show_plots()
     PlottingUtils.plot_actions(all_actions)
 
 
 def run_experiment(experiment_config):
-
     airsim_manager = AirsimManager(experiment_config)
     env = DummyVecEnv([lambda: Agent(experiment_config, airsim_manager)])
     agent = Agent(experiment_config, airsim_manager)
@@ -102,7 +109,8 @@ def run_experiment(experiment_config):
 
     log_hyperparameters(logger, experiment_config)
 
-    model, collision_counter, all_rewards, all_actions = training_loop(experiment=experiment_config, env=env, agent=agent,
+    model, collision_counter, all_rewards, all_actions = training_loop(experiment=experiment_config, env=env,
+                                                                       agent=agent,
                                                                        model=model)
 
     model.save(experiment_config.SAVE_MODEL_DIRECTORY)
@@ -118,6 +126,7 @@ def run_experiment(experiment_config):
 # override the base function in "GYM" environment. do not touch!
 def resume_experiment_simulation(env):
     env.envs[0].airsim_manager.resume_simulation()
+
 
 # override the base function in "GYM" environment. do not touch!
 def pause_experiment_simulation(env):
