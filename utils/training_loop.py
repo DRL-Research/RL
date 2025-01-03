@@ -7,7 +7,7 @@ from utils.agent_handler import Agent
 from utils.airsim_manager import AirsimManager
 from utils.plotting_utils import PlottingUtils
 
-
+#FGHFH
 def training_loop(experiment, env, agent, model_training, model_inference):
     """
     Training loop for the experiment.
