@@ -80,7 +80,7 @@ class AirsimManager:
             self.car2_x_offset,
             self.car2_y_offset
         )
-        print(car1_start_location_x,car2_start_location_y)
+        #print(car1_start_location_x,car2_start_location_y)
         # Helper function to create initial pose
         def create_initial_pose(x, y, yaw_rad):
             position = airsim.Vector3r(x, y, -1.0)
@@ -120,7 +120,7 @@ class AirsimManager:
         }
         return car_position_and_speed
 
-    def get_car1_state(self, logger=None):
+    def get_car1_state(self,):
         car1_position_and_speed = self.get_car_position_and_speed(self.experiment.CAR1_NAME)
         car2_position_and_speed = self.get_car_position_and_speed(self.experiment.CAR2_NAME)
         car1_state = np.array([
@@ -133,12 +133,12 @@ class AirsimManager:
             car2_position_and_speed["Vx"],
             car2_position_and_speed["Vy"]
         ])
-
-        if logger is not None and self.experiment.LOG_CAR_STATES:
-            logger.log_state(car1_state, self.experiment.CAR1_NAME)
+        #
+        # if logger is not None and self.experiment.LOG_CAR_STATES:
+        #     logger.log_state(car1_state, self.experiment.CAR1_NAME)
         return car1_state
 
-    def get_car2_state(self, logger=None):
+    def get_car2_state(self):
         car2_position_and_speed = self.get_car_position_and_speed(self.experiment.CAR2_NAME)
         car1_position_and_speed = self.get_car_position_and_speed(self.experiment.CAR1_NAME)
         car2_state = np.array([
@@ -151,10 +151,10 @@ class AirsimManager:
             car1_position_and_speed["Vx"],
             car1_position_and_speed["Vy"]
         ])
-        print(car2_position_and_speed["x"],car2_position_and_speed["y"])
+        #print(car2_position_and_speed["x"],car2_position_and_speed["y"])
 
-        if logger is not None and self.experiment.LOG_CAR_STATES:
-            logger.log_state(car2_state, self.experiment.CAR2_NAME)
+        # if logger is not None and self.experiment.LOG_CAR_STATES:
+        #     logger.log_state(car2_state, self.experiment.CAR2_NAME)
 
         return car2_state
 

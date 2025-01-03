@@ -25,10 +25,13 @@ class Agent(gym.Env):
     def reset(self) -> np.ndarray:
         self.airsim_manager.reset_cars_to_initial_positions()
         self.airsim_manager.reset_for_new_episode()
-        if self.experiment.ROLE == self.experiment.CAR1_NAME:
+        if self.experiment.ROLE == self.experiment.CAR1_NAME and not self.experiment.SELF_PLAY_MODE:
             self.state = self.airsim_manager.get_car1_state()
-        else:
+        if self.experiment.ROLE == self.experiment.CAR2_NAME and not self.experiment.SELF_PLAY_MODE:
             self.state = self.airsim_manager.get_car2_state()
+        if self.experiment.SELF_PLAY_MODE:
+            self.state = self.airsim_manager.get_car1_state()
+
         return self.state
 
     def step(self, action):
@@ -70,10 +73,10 @@ class Agent(gym.Env):
     def get_action(model, current_state, total_steps, exploration_threshold):
         if total_steps > exploration_threshold:
             action = model.predict(current_state, deterministic=True)
-            print(f"Exploiting action: {action}")
+            #print(f"Exploiting action: {action}")
         else:
             action = model.predict(current_state, deterministic=False)
-            print(f"Exploring action: {action}")
+            #print(f"Exploring action: {action}")
         return action
 
     # This function override base function in "GYM" environment. do not touch!
