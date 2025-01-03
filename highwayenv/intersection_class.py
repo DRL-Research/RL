@@ -5,6 +5,7 @@ from highway_env.envs.common.abstract import AbstractEnv
 from highway_env.road.lane import AbstractLane, CircularLane, LineType, StraightLane
 from highway_env.road.regulation import RegulatedRoad
 from highway_env.road.road import RoadNetwork
+from highway_env.vehicle.behavior import IDMVehicle
 from highway_env.vehicle.kinematics import Vehicle
 import gym
 
@@ -44,7 +45,7 @@ class IntersectionEnv(AbstractEnv):
                 },
                 "duration": 13,  # [s]
                 "destination": "o2",
-                "controlled_vehicles": 1,
+                "controlled_vehicles": 2,
                 "initial_vehicle_count": 1,
                 "spawn_probability": 0.6,
                 "screen_width": 600,
@@ -141,7 +142,7 @@ class IntersectionEnv(AbstractEnv):
     def step(self, action: int) -> tuple[np.ndarray, float, bool, bool, dict]:
         obs, reward, terminated, truncated, info = super().step(action)
         self._clear_vehicles()
-        self._spawn_vehicle(spawn_probability=self.config["spawn_probability"])
+        # self._spawn_vehicle(spawn_probability=self.config["spawn_probability"])
         return obs, reward, terminated, truncated, info
 
 
@@ -291,64 +292,79 @@ class IntersectionEnv(AbstractEnv):
             speed_deviation=0,
         )
 
-        # Controlled vehicles
+        # # Controlled vehicles
+        # self.controlled_vehicles = []
+        # for ego_id in range(0, self.config["controlled_vehicles"]):
+        #     ego_lane = self.road.network.get_lane(
+        #         (f"o{ego_id % 4}", f"ir{ego_id % 4}", 0)
+        #     )
+        #     # destination = self.config["destination"] or "o" + str(
+        #     #     self.np_random.integers(1, 4)
+        #     destination = f"o{(ego_id+2) % 4}"
+        #     if ego_id == 1:
+        #         ego_vehicle = self.action_type.vehicle_class(
+        #             self.road,
+        #             ego_lane.position(60, 0),
+        #             # speed=7, # constant speed
+        #             heading=ego_lane.heading_at(60),
+        #         )
+        #         ego_vehicle.speed_control(2)  # Set constant speed to 10 m/s
+        #
+        #     else:
+        #         ego_vehicle = self.action_type.vehicle_class(
+        #             self.road,
+        #             ego_lane.position(60 , 0),
+        #             # speed=ego_lane.speed_limit,
+        #             speed=0,  # constant speed
+        #
+        #             heading=ego_lane.heading_at(60),
+        #         )
+        #     try:
+        #         ego_vehicle.plan_route_to(destination)
+        #         ego_vehicle.speed_index = ego_vehicle.speed_to_index(
+        #             ego_lane.speed_limit
+        #         )
+        #         ego_vehicle.target_speed = ego_vehicle.index_to_speed(
+        #             ego_vehicle.speed_index
+        #         )
+        #     except AttributeError:
+        #         pass
+
+
         self.controlled_vehicles = []
-        for ego_id in range(0, self.config["controlled_vehicles"]):
-            ego_lane = self.road.network.get_lane(
-                (f"o{ego_id % 4}", f"ir{ego_id % 4}", 0)
-            )
-            destination = self.config["destination"] or "o" + str(
-                self.np_random.integers(1, 4)
-            )
-            ego_vehicle = self.action_type.vehicle_class(
-                self.road,
-                ego_lane.position(60 + 5 * self.np_random.normal(1), 0),
-                speed=ego_lane.speed_limit,
-                heading=ego_lane.heading_at(60),
-            )
-            try:
-                ego_vehicle.plan_route_to(destination)
-                ego_vehicle.speed_index = ego_vehicle.speed_to_index(
-                    ego_lane.speed_limit
-                )
-                ego_vehicle.target_speed = ego_vehicle.index_to_speed(
-                    ego_vehicle.speed_index
-                )
-            except AttributeError:
-                pass
 
-            self.road.vehicles.append(ego_vehicle)
-            self.controlled_vehicles.append(ego_vehicle)
-            for v in self.road.vehicles:  # Prevent early collisions
-                if (
-                    v is not ego_vehicle
-                    and np.linalg.norm(v.position - ego_vehicle.position) < 20
-                ):
-                    self.road.vehicles.remove(v)
-
-    def _make_vehicles_s(self, n_vehicles: int = 1) -> None:
-        """
-        Create the controlled and uncontrolled vehicles.
-        """
-        # Controlled vehicle (North to South)
-        north_lane = self.road.network.get_lane(("o2", "ir2", 0))
-        ego_vehicle = Vehicle.create_random(
+        # Controlled Vehicle: Speed can change
+        lane_1 = self.road.network.get_lane(("o0", "ir0", 0))  # South-to-North
+        controlled_vehicle = self.action_type.vehicle_class(
             self.road,
-            north_lane.position(-30, 0)
+            lane_1.position(40, 0),  # Start 40m from the intersection
+            speed=10,  # Initial speed
+            heading=lane_1.heading_at(40),
         )
-        ego_vehicle.plan_route_to("o0")  # Target: South
-        self.road.vehicles.append(ego_vehicle)
-        self.controlled_vehicles.append(ego_vehicle)
+        controlled_vehicle.plan_route_to("o2")  # North exit
+        self.road.vehicles.append(controlled_vehicle)
+        self.controlled_vehicles.append(controlled_vehicle)
 
-        # Uncontrolled vehicle (East to West)
-        east_lane = self.road.network.get_lane(("o3", "ir3", 0))
-        other_vehicle = Vehicle.create_random(
+        # Regular Vehicle: Constant speed
+        lane_2 = self.road.network.get_lane(("o1", "ir1", 0))  # East-to-West
+        regular_vehicle = IDMVehicle(
             self.road,
-            east_lane.position(10, 0),  # Start 10m from the east
-            speed=7.5  # Constant speed
+            lane_2.position(30, 0),  # Start 30m from the intersection
+            speed=8,  # Constant speed
+            heading=lane_2.heading_at(30),
         )
-        other_vehicle.plan_route_to("o1")  # Target: West
-        self.road.vehicles.append(other_vehicle)
+        regular_vehicle.plan_route_to("o3")  # West exit
+        self.road.vehicles.append(regular_vehicle)
+
+        # self.road.vehicles.append(ego_vehicle)
+        # self.controlled_vehicles.append(ego_vehicle)
+        for v in self.road.vehicles:  # Prevent early collisions
+            if (
+                v is not controlled_vehicle
+                and np.linalg.norm(v.position - controlled_vehicle.position) < 20
+            ):
+                self.road.vehicles.remove(v)
+
 
     def _spawn_vehicle(
         self,

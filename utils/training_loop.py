@@ -15,7 +15,7 @@ def training_loop(experiment, env, model):
         print(f"Loaded weights from {experiment.LOAD_MODEL_DIRECTORY} for inference.")
     else:
         if experiment.LOAD_PREVIOUS_WEIGHT:
-            model.load(experiment.LOAD_MODEL_DIRECTORY)
+            # model.load(experiment.LOAD_MODEL_DIRECTORY)
             print(f"Loaded weights from {experiment.LOAD_MODEL_DIRECTORY}, the model will be trained from this point! ")
         collision_counter, episode_counter, total_steps = 0, 0, 0
         all_rewards, all_actions = [], []

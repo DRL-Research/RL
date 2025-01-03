@@ -1,4 +1,4 @@
-from model.model_handler import Model
+from utils.model.model_handler import Model
 from utils.experiment.experiment_config import Experiment
 from utils.experiment.experiment_constants import Role
 from utils.model.model_constants import ModelType
@@ -41,7 +41,7 @@ if __name__ == "__main__":
         # Rewards and loss (during training): Success reward: +10 Collision reward: -20 Starvation reward: -0.1
         # Hence, negative cumulative reward even if success due to (starvation reward*steps) + success reward.
         ONLY_INFERENCE=False,
-        EPOCHS=50,
+        EPOCHS=3,
         ROLE=Role.CAR1,
         EXPLORATION_EXPLOTATION_THRESHOLD=1,
         LEARNING_RATE=1e-4,
