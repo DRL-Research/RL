@@ -71,6 +71,10 @@ class Experiment:
     # Path Configuration
     LOAD_MODEL_DIRECTORY: str = ""  # Directory for loading weights
 
+    # tags: List[str] = field(default_factory=lambda: ["experiment", "training"])
+
+    logger_tags = ["experiment", "training"]
+
     def __post_init__(self):
         self.EXPERIMENT_PATH = f"experiments/{self.EXPERIMENT_DATE_TIME}_{self.EXPERIMENT_ID}"
         self.SAVE_MODEL_DIRECTORY = f"{self.EXPERIMENT_PATH}/trained_model"
@@ -87,5 +91,5 @@ class Experiment:
             project_name="AS-DRL/DRL-Research",
             api_token=api_token,
             run_name=self.EXPERIMENT_ID,
-            tags=["experiment", "training"]
+            tags=self.logger_tags
         )
