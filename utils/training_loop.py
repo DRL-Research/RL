@@ -5,7 +5,6 @@ from utils.model.model_handler import Model
 from utils.agent_handler import Agent
 from utils.airsim_manager import AirsimManager
 from utils.plotting_utils import PlottingUtils
-from utils.logger.neptune_logger import log_hyperparameters
 
 
 def training_loop(experiment, env, agent, model):
@@ -70,8 +69,6 @@ def training_loop(experiment, env, agent, model):
 
         # Save model and log training metrics
         if not experiment.ONLY_INFERENCE:
-            experiment.logger.log_model(experiment.SAVE_MODEL_DIRECTORY, "trained_model")
-            # logger_utils.save_model(model, experiment.SAVE_MODEL_DIRECTORY)
             experiment.logger.log_from_csv(
                 path=f"{experiment.EXPERIMENT_PATH}/progress.csv",
                 column_name="train/value_loss",
@@ -86,13 +83,11 @@ def training_loop(experiment, env, agent, model):
 
             experiment.logger.log_metric("total_collisions", collision_counter)
 
-        experiment.logger.stop()
-
         return model, collision_counter, all_rewards, all_actions
 
 
 def plot_results(experiment, all_rewards, all_actions):
-    # PlottingUtils.plot_losses(experiment.EXPERIMENT_PATH)
+    PlottingUtils.plot_losses(experiment.EXPERIMENT_PATH)
     PlottingUtils.plot_rewards(all_rewards)
     PlottingUtils.show_plots()
     PlottingUtils.plot_actions(all_actions)
@@ -107,14 +102,18 @@ def run_experiment(experiment_config):
 
     model.set_logger(logger)
 
-    log_hyperparameters(logger, experiment_config)
+    experiment_config.logger.log_hyperparameters(experiment_config)
 
     model, collision_counter, all_rewards, all_actions = training_loop(experiment=experiment_config, env=env,
                                                                        agent=agent,
                                                                        model=model)
 
+
     model.save(experiment_config.SAVE_MODEL_DIRECTORY)
     logger.close()
+
+    experiment_config.logger.log_model(experiment_config.SAVE_MODEL_DIRECTORY, model_name="trained_model")
+    experiment_config.logger.stop()
 
     print('Model saved')
     print("Total collisions:", collision_counter)
