@@ -17,7 +17,6 @@ if __name__ == "__main__":
         MODEL_TYPE=ModelType.PPO,
         # INFERENCE Mode
         ONLY_INFERENCE=False,
-        # LOAD_MODEL_DIRECTORY=get_model_path_from_experiment_name("15_12_2024-20_08_51_Experiment1")
     )
 
     # experiments = [experiment1, experiment2]
