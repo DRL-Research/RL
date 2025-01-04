@@ -1,6 +1,6 @@
-from project24.initialization.config_v1 import *
+from project24.initialization.config_turns import *
 import airsim
-from project24.initialization.setup_simulation_v1 import SetupManager
+from project24.initialization.setup_simulation_turns import SetupManager
 
 
 class AirsimManager:

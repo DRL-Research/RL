@@ -1,17 +1,17 @@
 import logging
-from project24.utils import spatial_utils_v1, plots_utils_v1
-from project24.initialization.config_v1 import *
-from project24.path_planning import bezier_v1
-from project24.utils.path_planning import spline_utils_v1
+from project24.utils import spatial_utils, plots_utils_turns
+from project24.initialization.config_turns import *
+from project24.path_planning import bezier, path_following
+from project24.utils.path_planning import spline_utils
 
-from project24.initialization.config_v1 import CREATE_SUB_PLOTS
+from project24.initialization.config_turns import CREATE_SUB_PLOTS
 
 
 def airsim_point_to_global_full_version(airsim_point, execution_time, curr_vel, transition_matrix):
     # we didnt use this function since the transition matrix is crucial for the transformations.
     # in case of 4 cars, each has its own matrix.
     airsim_point_copy = airsim_point.copy()
-    centroid_eng, dump = spatial_utils_v1.convert_eng_airsim(airsim_point_copy, [0, 0, 0])
+    centroid_eng, dump = spatial_utils.convert_eng_airsim(airsim_point_copy, [0, 0, 0])
     centroid_eng[0] -= execution_time * curr_vel * 2.0  # Compensate for sensor sync
     centroid_lidar = np.append(centroid_eng, 1)
     global_point = np.matmul(transition_matrix, centroid_lidar)[:3]
@@ -20,7 +20,7 @@ def airsim_point_to_global_full_version(airsim_point, execution_time, curr_vel, 
 
 def airsim_point_to_global(airsim_point):
     airsim_point_copy = airsim_point.copy()
-    centroid_eng, dump = spatial_utils_v1.convert_eng_airsim(airsim_point_copy, BASE_ROTATION)
+    centroid_eng, dump = spatial_utils.convert_eng_airsim(airsim_point_copy, BASE_ROTATION)
     return centroid_eng
 
 
@@ -174,7 +174,7 @@ def create_bezier_curve(client, initial_yaw, vehicle_pose, direction, moving_car
     start_point_global_np = np.array(
         [start_point_x_coordinate, start_point_y_coordinate])  # needed for creating the bezier
 
-    global_curve_points = bezier_v1.generate_curve_points(start_point_global_np, control_point_global,
+    global_curve_points = path_following.generate_curve_points(start_point_global_np, control_point_global,
                                                           destination_point_global)
     global_curve_points_with_z_set_to_zero = []
     for point_as_tuple in global_curve_points:
@@ -201,7 +201,7 @@ def create_keep_straight_bezier_curve(client, initial_yaw, vehicle_pose, directi
     start_point_global_np = np.array(
         [start_point_x_coordinate, start_point_y_coordinate])  # needed for creating the bezier
 
-    global_curve_points = bezier_v1.generate_curve_points(start_point_global_np, control_point_global,
+    global_curve_points = path_following.generate_curve_points(start_point_global_np, control_point_global,
                                                           destination_point_global)
     global_curve_points_with_z_set_to_zero = []
     for point_as_tuple in global_curve_points:
@@ -218,8 +218,8 @@ def create_keep_straight_bezier_curve(client, initial_yaw, vehicle_pose, directi
 def filter_tracked_points_and_generate_spline(tracked_points,moving_car_name):
     x = [sublist[0] for sublist in tracked_points[::2]]
     y = [sublist[1] for sublist in tracked_points[::2]]
-    spline_obj = spline_utils_v1.PathSpline(x, y)
+    spline_obj = spline_utils.PathSpline(x, y)
     spline_obj.generate_spline(amount=0.1, meters=True, smoothing=1, summation=len(x))
     if CREATE_SUB_PLOTS:
-        plots_utils_v1.plot_the_spline(spline_obj.xi, -1 * spline_obj.yi, moving_car_name)
+        plots_utils.plot_the_spline(spline_obj.xi, -1 * spline_obj.yi, moving_car_name)
     return spline_obj

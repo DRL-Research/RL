@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import interpolate
-from project24.utils.perception import tracker_utils
+from project24.utils import tracker_utils
 
 
 class PathSpline:

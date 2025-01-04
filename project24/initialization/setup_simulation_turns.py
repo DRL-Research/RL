@@ -1,5 +1,5 @@
 from typing import NamedTuple, Dict
-from project24.initialization.config_v1 import *
+from project24.initialization.config_turns import *
 import airsim
 
 class Car(NamedTuple):

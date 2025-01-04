@@ -14,37 +14,11 @@ from scipy.spatial.transform import Rotation
 
 bottom_row = np.array([0.0, 0.0, 0.0, 1.0]).reshape(1, 4)
 
-
-# Convert between 2 coordinate systems and vice-vera are the same function!
-# Input should be numpy arrays. Behavior with lists is undefined.
-def convert_eng_unreal(pos, rot):
-    pos[1] *= -1
-    rot[:2] *= -1
-    return pos, rot
-
-
 def convert_eng_airsim(pos, rot):
     pos[1] *= -1
     pos[2] *= -1
     rot[:2] *= -1
     return pos, rot
-
-
-def convert_unreal_airsim(pos, rot):
-    pos[2] *= -1
-    return pos, rot
-
-
-# Convert from engineering to camera coordinate systems without messing with rotation matrix calculations.
-def eng_to_camera(pos):
-    new_pos = np.array([-pos[1], -pos[2], pos[0]])
-    return new_pos
-
-
-def camera_to_eng(pos):
-    new_pos = np.array([pos[2], -pos[0], -pos[1]])
-    return new_pos
-
 
 def set_airsim_pose(airsim_client, desired_position, desired_rot, inherit_z=True, moving_car_name='Car1'):
     # Input is in ENG coordinate system!
@@ -105,14 +79,6 @@ def tf_matrix_from_eng_pose(position, rotation):
     return tf_matrix
 
 
-def tf_matrix_from_unreal_pose(position, rotation):
-    # Input is position and rotation objects in Unreal coordinate system.
-    # Output is a 4x4 transform matrix in ENG coordinate system.
-    yaw_pitch_roll = np.array(rotation)
-    pos, rot = convert_eng_unreal(position, yaw_pitch_roll)
-    return tf_matrix_from_eng_pose(pos, rot)
-
-
 def tf_matrix_from_airsim_pose(position, rotation):
     # Input is position and rotation objects in Airsim coordinate system.
     # Output is a 4x4 transform matrix in ENG coordinate system.
@@ -158,6 +124,7 @@ def calculate_distance_in_2d_from_3dvector(position1, position2):
     # distance = np.linalg.norm(position1 - position2)
 
     return distance
+
 def calculate_distance_in_2d_from_array(position1, position2):
     """
     Calculate the Euclidean distance between two points in 2D or 3D space.
