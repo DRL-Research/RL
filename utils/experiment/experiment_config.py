@@ -11,7 +11,7 @@ from utils.model.model_constants import ModelType
 @dataclass
 class Experiment:
     # General Experiment Settings
-    EPISODES_PER_CYCLE = 2
+    EPISODES_PER_CYCLE = 20
     CYCLES = 5
     EXPERIMENT_ID: str = ""
     ONLY_INFERENCE: bool = False
@@ -58,8 +58,8 @@ class Experiment:
 
     # Action Configuration
     ACTION_SPACE_SIZE: int = 2
-    THROTTLE_FAST: float = 0.7
-    THROTTLE_SLOW: float = 0.4
+    THROTTLE_FAST: float = 1
+    THROTTLE_SLOW: float = 0.6
     FIXED_THROTTLE: float = (THROTTLE_FAST + THROTTLE_SLOW) / 2
 
     # Reward Configuration

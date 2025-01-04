@@ -68,15 +68,15 @@ if __name__ == "__main__":
         # Car2 (going right/left randomly) fixed high speed - 100 episodes learning.
         # expecting to see that car1 will always slow down to avoid crashes.
         EPOCHS= Experiment.CYCLES* Experiment.EPISODES_PER_CYCLE,
-        ROLE=Role.CAR1,
+        #ROLE=Role.CAR1,
         MODEL_TYPE=ModelType.PPO,
         TIME_BETWEEN_STEPS=0.75,
-        EXPLORATION_EXPLOTATION_THRESHOLD=20,
+        EXPLORATION_EXPLOTATION_THRESHOLD=25,
         # INFERENCE Mode
         ONLY_INFERENCE=False,
-        THROTTLE_SLOW=0.4,
-        THROTTLE_FAST=0.6,
-        FIXED_THROTTLE=0.5,
+        THROTTLE_SLOW=0.6,
+        THROTTLE_FAST=1.0,
+        FIXED_THROTTLE=np.random.uniform(0.6, 1.0, 1),
         LEARNING_RATE=0.01,
         SELF_PLAY_MODE=True
         # LOAD_MODEL_DIRECTORY=get_model_path_from_experiment_name("15_12_2024-20_08_51_Experiment1")
@@ -101,8 +101,27 @@ if __name__ == "__main__":
         LOAD_MODEL_DIRECTORY=get_latest_model('experiments')
     )
 
+    experiment4_infernce = Experiment(
+        EXPERIMENT_ID='Experiment4_infernce',
+        # experiment details:
+        # Car2 (going right/left randomly) fixed high speed - 100 episodes learning.
+        # expecting to see that car1 will always slow down to avoid crashes.
+        EPOCHS=50,
+        ROLE=Role.BOTH,
+        MODEL_TYPE=ModelType.PPO,
+        TIME_BETWEEN_STEPS=0.75,
+        EXPLORATION_EXPLOTATION_THRESHOLD=1,
+        # INFERENCE Mode
+        ONLY_INFERENCE=True,
+        THROTTLE_SLOW=0.6,
+        THROTTLE_FAST=1.0,
+        FIXED_THROTTLE=np.random.uniform(0.6, 1.0),
+        LEARNING_RATE=0.01,
+        LOAD_MODEL_DIRECTORY=get_latest_model('experiments')
+    )
+
     # experiments = [experiment1, experiment2]
-    experiments = [experiment4]
+    experiments = [experiment4_infernce]
     for experiment_config in experiments:
         print(f"Starting experiment: {experiment_config.EXPERIMENT_ID}")
         run_experiment(experiment_config)

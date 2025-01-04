@@ -1,6 +1,6 @@
 from stable_baselines3.common.logger import configure
 from stable_baselines3.common.vec_env import DummyVecEnv
-
+import numpy as np
 from experiment.experiment_constants import CarName
 from utils.model.model_handler import Model
 from utils.agent_handler import Agent
@@ -101,7 +101,7 @@ def run_episode(env, agent, training_model, experiment, training_car, inference_
     :param inference_model: The model used for inference (if applicable).
     :return: Episode rewards, actions, and steps.
     '''
-
+    action_inference = np.random.choice([experiment.THROTTLE_SLOW, experiment.THROTTLE_FAST])
     if training_car == CarName.CAR1:
         current_state_training = env.envs[0].airsim_manager.get_car1_state()
         current_state_inference = None
@@ -128,7 +128,6 @@ def run_episode(env, agent, training_model, experiment, training_car, inference_
             training_model, current_state_training, steps_counter,
             experiment.EXPLORATION_EXPLOTATION_THRESHOLD
         )
-        action_inference = None
         if inference_car:
             action_inference = agent.get_action(
                 inference_model, current_state_inference, steps_counter,
@@ -173,7 +172,9 @@ def run_experiment(experiment_config):
     agent = Agent(experiment_config, airsim_manager)
 
     # Initialize two models: one for training and one for inference
-    model_training = Model(env, experiment_config).model
+    #model_training = Model(env, experiment_config).model
+    model_training=Model(env, experiment_config).model
+    model_training.load('experiments/22_12_2024-10_42_16_Experiment3_infernce/trained_model.zip')
     model_inference = Model(env, experiment_config).model  # Separate model for inference
 
     # Configure logger

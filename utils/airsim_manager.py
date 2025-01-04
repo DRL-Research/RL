@@ -31,7 +31,7 @@ class AirsimManager:
         self.car1_x_offset = 0  # Chane only if settings.json is changed.
         self.car1_y_offset = 0  # Chane only if settings.json is changed.
         self.car2_x_offset = 0  # Chane only if settings.json is changed.
-        self.car2_y_offset = 5  # Chane only if settings.json is changed.
+        self.car2_y_offset = 0  # Chane only if settings.json is changed.
 
         self.car1_initial_position_saved = None
         self.car2_initial_position_saved = None
