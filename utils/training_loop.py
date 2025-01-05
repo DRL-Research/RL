@@ -80,28 +80,28 @@ def run_episode(experiment,total_steps,env, agent, master_model, agent_model, tr
     while not done:
         steps_counter += 1
 
+        # Retrieve states of both cars
+        state_car1 = env.envs[0].airsim_manager.get_car1_state()
+        state_car2 = env.envs[0].airsim_manager.get_car2_state()
+
+        # Concatenate states for master network input
+        master_input = torch.tensor(
+            [state_car1.tolist() + state_car2.tolist()], dtype=torch.float32
+        )
+
         # Get embedding from master network
-        environment_embedding = master_model.inference(master_input)
+        environment_embedding = master_model.inference(master_input).squeeze(0)
 
-        # State vector of Car1: shape [8]
-        state_car1_tensor = torch.tensor(state_car1, dtype=torch.float32).unsqueeze(0)  # Shape [1, 8]
+        # Combine car1 state with environment embedding for agent input
+        state_car1 = np.concatenate((state_car1, environment_embedding))
 
-        # Flatten environment embedding to match dimensions
-        environment_embedding_flat = environment_embedding.squeeze()  # Shape [4] or [2]
 
-        # Concatenate the state of Car1 and the environment embedding
-        agent_input = torch.cat((state_car1_tensor.squeeze(0), environment_embedding_flat), dim=0)  # Shape [8 + 4 = 12]
-
-        # Debugging shapes
-        print("state_car1_tensor shape (after squeeze):", state_car1_tensor.squeeze(0).shape)  # Expected: [8]
-        print("environment_embedding_flat shape:", environment_embedding_flat.shape)  # Expected: [4]
-        print("agent_input shape:", agent_input.shape)  # Expected: [12]
 
         # Determine action based on which network is being trained
         if training_master:
             action = master_model.inference(master_input)
         else:
-            action = agent.get_action(master_model, master_input, total_steps,exploration_threshold=experiment.EXPLORATION_EXPLOTATION_THRESHOLD)
+            action = agent.get_action(agent_model, state_car1, total_steps,exploration_threshold=experiment.EXPLORATION_EXPLOTATION_THRESHOLD)
 
         # Step in environment
         _, reward, done, _ = env.step(action)

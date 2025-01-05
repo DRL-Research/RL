@@ -30,25 +30,9 @@ class Agent(gym.Env):
     def step(self, action):
         if self.airsim_manager.is_simulation_paused():
             return self.state, 0, False, {}
-
-        # Convert action tensor to scalar
-        if isinstance(action, torch.Tensor):
-            action = action.item()
-
-
         throttle = Experiment.THROTTLE_FAST if action == 0 else Experiment.THROTTLE_SLOW
         self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR1_NAME)
-
         time.sleep(self.experiment.TIME_BETWEEN_STEPS)
-
-        # Update state
-        state_car1 = self.airsim_manager.get_car1_state()
-        state_car2 = self.airsim_manager.get_car2_state()
-        combined_state = np.concatenate((state_car1, state_car2))
-        combined_state_tensor = torch.tensor(combined_state, dtype=torch.float32).unsqueeze(0)
-        master_embedding = self.master_model.inference(combined_state_tensor).squeeze(0).numpy()
-        self.state = np.concatenate((state_car1, master_embedding))
-
         collision = self.airsim_manager.collision_occurred()
         reached_target = self.airsim_manager.has_reached_target(self.state[:2])
 
