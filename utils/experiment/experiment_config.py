@@ -54,7 +54,7 @@ class Experiment:
     PPO_NETWORK_ARCHITECTURE = {'pi': [32, 16], 'vf': [32, 32]}
 
     # State Configuration
-    INPUT_SIZE = 8
+    INPUT_SIZE = 16
 
     # Action Configuration
     ACTION_SPACE_SIZE: int = 2
