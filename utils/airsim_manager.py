@@ -1,5 +1,5 @@
 import random
-
+import torch
 import airsim
 import numpy as np
 from utils.experiment.experiment_constants import StartingLocation,CarName
@@ -157,6 +157,14 @@ class AirsimManager:
         #     logger.log_state(car2_state, self.experiment.CAR2_NAME)
 
         return car2_state
+
+    def get_combined_states(self):
+        """
+        Get the concatenated states of Car1 and Car2 for input to the MasterNetwork.
+        """
+        car1_state = self.get_car1_state()
+        car2_state = self.get_car2_state()
+        return torch.tensor(np.concatenate((car1_state, car2_state)), dtype=torch.float32)
 
     def get_car1_initial_position(self):
         if self.car1_initial_position_saved is None:

@@ -1,5 +1,5 @@
 import time
-
+import torch
 import airsim
 import gym
 import numpy as np
@@ -9,55 +9,46 @@ from utils.experiment.experiment_config import Experiment
 
 
 class Agent(gym.Env):
-    """
-    Agent is responsible for handling RL agent (reset, step, action, ...)
-    """
-
-    def __init__(self, experiment, airsim_manager):
+    def __init__(self, experiment, airsim_manager, master_model):
         super(Agent, self).__init__()
         self.experiment = experiment
         self.airsim_manager = airsim_manager
+        self.master_model = master_model  # Store the MasterModel
         self.action_space = spaces.Discrete(experiment.ACTION_SPACE_SIZE)
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(experiment.INPUT_SIZE,), dtype=np.float32)
         self.state = None
         self.reset()
 
-    def reset(self) -> np.ndarray:
+    def reset(self):
         self.airsim_manager.reset_cars_to_initial_positions()
-        self.airsim_manager.reset_for_new_episode()
-        if self.experiment.ROLE == self.experiment.CAR1_NAME and not self.experiment.SELF_PLAY_MODE:
-            self.state = self.airsim_manager.get_car1_state()
-        if self.experiment.ROLE == self.experiment.CAR2_NAME and not self.experiment.SELF_PLAY_MODE:
-            self.state = self.airsim_manager.get_car2_state()
-        if self.experiment.SELF_PLAY_MODE:
-            self.state = self.airsim_manager.get_car1_state()
-
+        combined_state = self.airsim_manager.get_combined_states()
+        master_embedding = self.master_model.inference(combined_state.unsqueeze(0)).squeeze(0).numpy()
+        self.state = np.concatenate((self.airsim_manager.get_car1_state(), master_embedding))
         return self.state
+
 
     def step(self, action):
         if self.airsim_manager.is_simulation_paused():
             return self.state, 0, False, {}
 
-        throttle = Experiment.THROTTLE_FAST if action == 0 else Experiment.THROTTLE_SLOW
-        if self.experiment.ROLE == self.experiment.CAR1_NAME:
-            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR1_NAME)
-            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=Experiment.FIXED_THROTTLE),
-                                                 self.experiment.CAR2_NAME)
+        # Convert action tensor to scalar
+        if isinstance(action, torch.Tensor):
+            action = action.item()
 
-        elif self.experiment.ROLE == self.experiment.CAR2_NAME:
-            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR2_NAME)
-            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=Experiment.FIXED_THROTTLE),
-                                                 self.experiment.CAR1_NAME)
-        elif self.experiment.ROLE == 'Both':
-            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR1_NAME)
-            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR2_NAME)
+
+        throttle = Experiment.THROTTLE_FAST if action == 0 else Experiment.THROTTLE_SLOW
+        self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR1_NAME)
 
         time.sleep(self.experiment.TIME_BETWEEN_STEPS)
 
-        if self.experiment.ROLE == self.experiment.CAR1_NAME:
-            self.state = self.airsim_manager.get_car1_state()
-        else:
-            self.state = self.airsim_manager.get_car2_state()
+        # Update state
+        state_car1 = self.airsim_manager.get_car1_state()
+        state_car2 = self.airsim_manager.get_car2_state()
+        combined_state = np.concatenate((state_car1, state_car2))
+        combined_state_tensor = torch.tensor(combined_state, dtype=torch.float32).unsqueeze(0)
+        master_embedding = self.master_model.inference(combined_state_tensor).squeeze(0).numpy()
+        self.state = np.concatenate((state_car1, master_embedding))
+
         collision = self.airsim_manager.collision_occurred()
         reached_target = self.airsim_manager.has_reached_target(self.state[:2])
 
@@ -68,6 +59,7 @@ class Agent(gym.Env):
             reward = self.experiment.REACHED_TARGET_REWARD
         done = collision or reached_target
         return self.state, reward, done, {}
+
 
     @staticmethod
     def get_action(model, current_state, total_steps, exploration_threshold):

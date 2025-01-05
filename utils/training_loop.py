@@ -6,156 +6,113 @@ from utils.model.model_handler import Model
 from utils.agent_handler import Agent
 from utils.airsim_manager import AirsimManager
 from utils.plotting_utils import PlottingUtils
+from master_handler import MasterModel
+import torch
 
-#FGHFH
-def training_loop(experiment, env, agent, model_training, model_inference):
-    """
-    Training loop for the experiment.
-    :param experiment: The experiment configuration.
-    :param env: The simulation environment.
-    :param agent: The agent controlling the cars.
-    :param model_training: The model currently being trained.
-    :param model_inference: The model currently being used for inference.
-    """
+def training_loop(experiment, env, agent, master_model, agent_model):
     collision_counter, episode_counter, total_steps = 0, 0, 0
     all_rewards, all_actions = [], []
 
     for cycle in range(experiment.CYCLES):
         print(f"@ Cycle {cycle + 1}/{experiment.CYCLES} @")
 
-        if cycle == 0:
-            # Initial training phase: Car1 trains, Car2 drives at fixed speed
-            experiment.ROLE = CarName.CAR1
-            print("Initial phase: Car1 is training, Car2 is driving at fixed speed.")
+        if cycle % 2 == 0:
+            # Master Network Training
+            print("Training Master Network (Agent Network is frozen)")
+            master_model.unfreeze()
+            agent_model.policy.set_training_mode(False)  # Freeze PPO by toggling training mode
+
             for episode in range(experiment.EPISODES_PER_CYCLE):
                 episode_counter += 1
-                print(f"  @ Episode {episode_counter} (Car1 Training) @")
-                episode_rewards, episode_actions, steps = run_episode(
-                    env, agent, model_training, experiment, training_car=CarName.CAR1
+                print(f"  @ Episode {episode_counter} (Master Training) @")
+                episode_rewards, episode_actions, steps = run_episode(experiment,total_steps,
+                    env, agent, master_model, agent_model, training_master=True
                 )
                 total_steps += steps
                 all_rewards.append(episode_rewards)
                 all_actions.append(episode_actions)
-                model_training.learn(total_timesteps=steps, log_interval=1)
-                print(f"Car1 model learned on {steps} steps")
 
         else:
-            # Alternate between training and inference roles every 20 episodes
-            if cycle % 2 == 1:
-                # Car1 trains, Car2 uses model_inference
-                experiment.ROLE = CarName.CAR1
-                print("Car1 is training, Car2 is using model_inference.")
-                for episode in range(experiment.EPISODES_PER_CYCLE):
-                    episode_counter += 1
-                    print(f"  @ Episode {episode_counter} (Car1 Training) @")
-                    episode_rewards, episode_actions, steps = run_episode(
-                        env, agent, model_training, experiment,
-                        training_car=CarName.CAR1,
-                        inference_car=CarName.CAR2,
-                        inference_model=model_inference
-                    )
-                    total_steps += steps
-                    all_rewards.append(episode_rewards)
-                    all_actions.append(episode_actions)
-                    model_training.learn(total_timesteps=steps, log_interval=1)
-                    print(f"Car1 model learned on {steps} steps")
-            else:
-                # Car2 trains, Car1 uses model_inference
-                experiment.ROLE = CarName.CAR2
-                print("Car2 is training, Car1 is using model_inference.")
-                for episode in range(experiment.EPISODES_PER_CYCLE):
-                    episode_counter += 1
-                    print(f"  @ Episode {episode_counter} (Car2 Training) @")
-                    episode_rewards, episode_actions, steps = run_episode(
-                        env, agent, model_training, experiment,
-                        training_car=CarName.CAR2,
-                        inference_car=CarName.CAR1,
-                        inference_model=model_inference
-                    )
-                    total_steps += steps
-                    all_rewards.append(episode_rewards)
-                    all_actions.append(episode_actions)
-                    model_training.learn(total_timesteps=steps, log_interval=1)
-                    print(f"Car2 model learned on {steps} steps")
+            # Agent Network Training
+            print("Training Agent Network (Master Network is frozen)")
+            master_model.freeze()
+            agent_model.policy.set_training_mode(True)  # Unfreeze PPO by toggling training mode
 
-        # Swap models at the end of the cycle
-        temp_weights = model_training.get_parameters()
-        print(temp_weights)
-        model_inference.set_parameters(temp_weights)
-        print(f"Swapped weights between training and inference models at the end of cycle {cycle + 1}")
+            for episode in range(experiment.EPISODES_PER_CYCLE):
+                episode_counter += 1
+                print(f"  @ Episode {episode_counter} (Agent Training) @")
+                episode_rewards, episode_actions, steps = run_episode(
+                    env, agent, master_model, agent_model, training_master=False
+                )
+                total_steps += steps
+                all_rewards.append(episode_rewards)
+                all_actions.append(episode_actions)
 
-    resume_experiment_simulation(env)
     print("Training completed.")
-    return model_training, collision_counter, all_rewards, all_actions
+    return agent_model, collision_counter, all_rewards, all_actions
 
 
-def run_episode(env, agent, training_model, experiment, training_car, inference_car=None, inference_model=None):
+def run_episode(experiment,total_steps,env, agent, master_model, agent_model, training_master):
     '''
     Run one episode of the simulation.
     :param env: The environment instance.
     :param agent: The agent instance.
-    :param training_model: The model used for training.
-    :param experiment: The experiment configuration.
-    :param training_car: The car currently being trained.
-    :param inference_car: The car performing inference only.
-    :param inference_model: The model used for inference (if applicable).
+    :param master_model: The master network model.
+    :param agent_model: The agent network model.
+    :param training_master: Whether the master network is being trained.
     :return: Episode rewards, actions, and steps.
     '''
-    action_inference = np.random.choice([experiment.THROTTLE_SLOW, experiment.THROTTLE_FAST])
-    if training_car == CarName.CAR1:
-        current_state_training = env.envs[0].airsim_manager.get_car1_state()
-        current_state_inference = None
-    if training_car == CarName.CAR2:
-        current_state_training = env.envs[0].airsim_manager.get_car2_state()
-        current_state_inference = None
-    if inference_car:
-        if inference_car == CarName.CAR1:
-            current_state_inference = env.envs[0].airsim_manager.get_car1_state()
-        else:
-            current_state_inference = env.envs[0].airsim_manager.get_car2_state()
+    # Retrieve states
+    state_car1 = env.envs[0].airsim_manager.get_car1_state()
+    state_car2 = env.envs[0].airsim_manager.get_car2_state()
+
+    # Concatenate states for master network input
+    master_input = torch.tensor(
+        [state_car1.tolist() + state_car2.tolist()], dtype=torch.float32
+    )
 
     done = False
     episode_sum_of_rewards, steps_counter = 0, 0
-    actions_per_episode_training = []
-    actions_per_episode_inference = []
+    actions_per_episode = []
+
     resume_experiment_simulation(env)
 
     while not done:
         steps_counter += 1
 
-        # Get actions for training and inference cars
-        action_training = agent.get_action(
-            training_model, current_state_training, steps_counter,
-            experiment.EXPLORATION_EXPLOTATION_THRESHOLD
-        )
-        if inference_car:
-            action_inference = agent.get_action(
-                inference_model, current_state_inference, steps_counter,
-                experiment.EXPLORATION_EXPLOTATION_THRESHOLD
-            )
-        print(f"Action for training car: {action_training}")
-        print(f"Action for inference car: {action_inference}")
-        # Perform steps in the environment
-        next_state_training, reward, done, _ = env.step(action_training)  # Step for training car
+        # Get embedding from master network
+        environment_embedding = master_model.inference(master_input)
+
+        # State vector of Car1: shape [8]
+        state_car1_tensor = torch.tensor(state_car1, dtype=torch.float32).unsqueeze(0)  # Shape [1, 8]
+
+        # Flatten environment embedding to match dimensions
+        environment_embedding_flat = environment_embedding.squeeze()  # Shape [4] or [2]
+
+        # Concatenate the state of Car1 and the environment embedding
+        agent_input = torch.cat((state_car1_tensor.squeeze(0), environment_embedding_flat), dim=0)  # Shape [8 + 4 = 12]
+
+        # Debugging shapes
+        print("state_car1_tensor shape (after squeeze):", state_car1_tensor.squeeze(0).shape)  # Expected: [8]
+        print("environment_embedding_flat shape:", environment_embedding_flat.shape)  # Expected: [4]
+        print("agent_input shape:", agent_input.shape)  # Expected: [12]
+
+        # Determine action based on which network is being trained
+        if training_master:
+            action = master_model.inference(master_input)
+        else:
+            action = agent.get_action(master_model, master_input, total_steps,exploration_threshold=experiment.EXPLORATION_EXPLOTATION_THRESHOLD)
+
+        # Step in environment
+        _, reward, done, _ = env.step(action)
         episode_sum_of_rewards += reward
-        actions_per_episode_training.append(action_training)
-
-        if inference_car:
-            next_state_inference, _, _, _ = env.step(action_inference)  # Step for inference car
-            actions_per_episode_inference.append(action_inference)
-
-        # Update states
-        current_state_training = next_state_training
-        if inference_car:
-            current_state_inference = next_state_inference
+        actions_per_episode.append(action)
 
         if done:
             pause_experiment_simulation(env)
-            if reward <= experiment.COLLISION_REWARD:
-                print('********* collision ***********')
             break
 
-    return episode_sum_of_rewards, actions_per_episode_training, steps_counter
+    return episode_sum_of_rewards, actions_per_episode, steps_counter
 
 
 def plot_results(experiment, all_rewards, all_actions):
@@ -166,38 +123,38 @@ def plot_results(experiment, all_rewards, all_actions):
 
 
 def run_experiment(experiment_config):
-    # Initialize AirSim manager and environment
-    airsim_manager = AirsimManager(experiment_config)
-    env = DummyVecEnv([lambda: Agent(experiment_config, airsim_manager)])
-    agent = Agent(experiment_config, airsim_manager)
+    # Initialize MasterModel and Agent model
+    master_model = MasterModel(input_size=16, embedding_size=8, learning_rate=1e-3)
 
-    # Initialize two models: one for training and one for inference
-    #model_training = Model(env, experiment_config).model
-    model_training=Model(env, experiment_config).model
-    model_training.load('experiments/22_12_2024-10_42_16_Experiment3_infernce/trained_model.zip')
-    model_inference = Model(env, experiment_config).model  # Separate model for inference
+    # Initialize AirSim manager
+    airsim_manager = AirsimManager(experiment_config)
+
+    # Initialize Agent model
+    env = DummyVecEnv([lambda: Agent(experiment_config, airsim_manager, master_model)])
+    agent_model = Model(env, experiment_config).model
 
     # Configure logger
     logger = configure(experiment_config.EXPERIMENT_PATH, ["stdout", "csv", "tensorboard"])
-    model_training.set_logger(logger)
+    agent_model.set_logger(logger)
 
     # Run the training loop
-    model_training, collision_counter, all_rewards, all_actions = training_loop(
+    agent_model, collision_counter, all_rewards, all_actions = training_loop(
         experiment=experiment_config,
         env=env,
-        agent=agent,
-        model_training=model_training,
-        model_inference=model_inference
+        agent=Agent(experiment_config, airsim_manager, master_model),
+        master_model=master_model,
+        agent_model=agent_model  # This line fixes the error
     )
 
-    # Save the final trained model
-    model_training.save(experiment_config.SAVE_MODEL_DIRECTORY)
+    # Save the final trained models
+    master_model.save(f"{experiment_config.SAVE_MODEL_DIRECTORY}_master.pth")
+    agent_model.save(experiment_config.SAVE_MODEL_DIRECTORY)
     logger.close()
 
-    print("Model saved")
+    print("Models saved")
     print("Total collisions:", collision_counter)
 
-    # Plot results if not in inference mode
+    # Plot results
     if not experiment_config.ONLY_INFERENCE:
         plot_results(experiment=experiment_config, all_rewards=all_rewards, all_actions=all_actions)
 

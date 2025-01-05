@@ -10,6 +10,8 @@ class Model:
         self.env = env
         self.experiment_config = experiment_config
         self.model = self.init_model()
+        # self.freeze = self.freeze()
+        # self.unfreeze = self.unfreeze()
 
     def init_model(self):
         model_params, policy_kwargs = self.define_model_params(self.experiment_config)
@@ -58,6 +60,8 @@ class Model:
                 raise ValueError(f"Unsupported model type: {experiment}")
 
         return model_params, policy_kwargs
+
+
 
 
 def get_latest_model(directory):
