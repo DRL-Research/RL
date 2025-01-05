@@ -124,7 +124,7 @@ def plot_results(experiment, all_rewards, all_actions):
 
 def run_experiment(experiment_config):
     # Initialize MasterModel and Agent model
-    master_model = MasterModel(input_size=16, embedding_size=8, learning_rate=1e-3)
+    master_model = MasterModel(input_size=16, embedding_size=4, learning_rate=1e-3)
 
     # Initialize AirSim manager
     airsim_manager = AirsimManager(experiment_config)
