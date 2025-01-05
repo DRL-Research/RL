@@ -34,9 +34,16 @@ class MasterModel:
         with torch.no_grad():
             outputs = self.network(inputs)
         return outputs
+    def get_proto_action(self, inputs):
+        self.network.eval()
+        with torch.no_grad():
+            embedding = self.network(inputs)
+        proto_action = embedding.squeeze(0)
+        return proto_action
 
     def save(self, path):
         torch.save(self.network.state_dict(), path)
+
 
     def load(self, path):
         self.network.load_state_dict(torch.load(path))
@@ -49,6 +56,3 @@ class MasterModel:
     def unfreeze(self):
         for param in self.network.parameters():
             param.requires_grad = True
-
-# Example usage:
-master_model = MasterModel(input_size=16, embedding_size=8, learning_rate=1e-3)

@@ -62,19 +62,11 @@ def run_episode(experiment,total_steps,env, agent, master_model, agent_model, tr
     :param training_master: Whether the master network is being trained.
     :return: Episode rewards, actions, and steps.
     '''
-    # Retrieve states
-    state_car1 = env.envs[0].airsim_manager.get_car1_state()
-    state_car2 = env.envs[0].airsim_manager.get_car2_state()
-
-    # Concatenate states for master network input
-    master_input = torch.tensor(
-        [state_car1.tolist() + state_car2.tolist()], dtype=torch.float32
-    )
-
     done = False
     episode_sum_of_rewards, steps_counter = 0, 0
     actions_per_episode = []
 
+    # Start/reset the environment
     resume_experiment_simulation(env)
 
     while not done:
@@ -93,28 +85,36 @@ def run_episode(experiment,total_steps,env, agent, master_model, agent_model, tr
         environment_embedding = master_model.inference(master_input).squeeze(0)
 
         # Combine car1 state with environment embedding for agent input
-        state_car1 = np.concatenate((state_car1, environment_embedding))
+        state_car1_with_embedding = np.concatenate((state_car1, environment_embedding))
 
+        # Determine action for the agent
+        agent_action = agent.get_action(
+            agent_model,
+            state_car1_with_embedding,
+            total_steps,
+            exploration_threshold=experiment.EXPLORATION_EXPLOTATION_THRESHOLD,
+        )
 
+        # Step in the environment
+        next_state, reward, done, info = env.step(agent_action)
 
-        # Determine action based on which network is being trained
+        # Train master network if it is the current training phase
         if training_master:
-            action = master_model.inference(master_input)
-        else:
-            action = agent.get_action(agent_model, state_car1, total_steps,exploration_threshold=experiment.EXPLORATION_EXPLOTATION_THRESHOLD)
+            master_model.train_step(master_input, environment_embedding.unsqueeze(0))
 
-        # Step in environment
-        _, reward, done, _ = env.step(action)
+        if not training_master:
+            agent_model.learn()
+
+        # Update rewards and actions
         episode_sum_of_rewards += reward
-        actions_per_episode.append(action)
+        actions_per_episode.append(agent_action)
 
+        # Check if the episode is done
         if done:
             pause_experiment_simulation(env)
             break
 
     return episode_sum_of_rewards, actions_per_episode, steps_counter
-
-
 def plot_results(experiment, all_rewards, all_actions):
     PlottingUtils.plot_losses(experiment.EXPERIMENT_PATH)
     PlottingUtils.plot_rewards(all_rewards)
