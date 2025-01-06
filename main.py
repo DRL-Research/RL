@@ -48,7 +48,6 @@ if __name__ == "__main__":
         MODEL_TYPE=ModelType.PPO,
         LOAD_PREVIOUS_WEIGHT=True,
         BYPASS_RANDOM_INITIALIZATION=False
-
     )
 
     experiments = [experiment2]

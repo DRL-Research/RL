@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-#from stable_baselines3.common.logger import configure
+from stable_baselines3.common.logger import configure
 from stable_baselines3.common.vec_env import DummyVecEnv
 from utils.model.model_handler import Model
 
@@ -62,27 +62,28 @@ def training_loop(experiment, env, model):
 def plot_results(experiment, all_rewards, all_actions):
     PlottingUtils.plot_losses(experiment.EXPERIMENT_PATH)
     PlottingUtils.plot_rewards(all_rewards)
-    PlottingUtils.show_plots()
     PlottingUtils.plot_actions(all_actions)
+    PlottingUtils.show_plots()
+
 
 
 def run_experiment(experiment_config):
 
     env = gym.make('RELintersection-v0',render_mode="rgb_array")
     model = Model(env, experiment_config).model
-    #logger = configure(experiment_config.EXPERIMENT_PATH, ["stdout", "csv", "tensorboard"])
-    #model.set_logger(logger)
+    logger = configure(experiment_config.EXPERIMENT_PATH, ["stdout", "csv", "tensorboard"])
+    model.set_logger(logger)
 
     model, collision_counter, all_rewards, all_actions = training_loop(experiment=experiment_config, env=env,
                                                                        model=model)
-    #model.save(experiment_config.SAVE_MODEL_DIRECTORY)
-    #logger.close()
+    model.save(experiment_config.SAVE_MODEL_DIRECTORY)
+    logger.close()
 
     print('Model saved')
     print("Total collisions:", collision_counter)
 
-    #if not experiment_config.ONLY_INFERENCE:
-    #    plot_results(experiment=experiment_config, all_rewards=all_rewards, all_actions=all_actions)
+    if not experiment_config.ONLY_INFERENCE:
+       plot_results(experiment=experiment_config, all_rewards=all_rewards, all_actions=all_actions)
 
 # override the base function in "GYM" environment. do not touch!
 def resume_experiment_simulation(env):
