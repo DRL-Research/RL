@@ -62,6 +62,8 @@ def run_episode(experiment,total_steps,env, master_model, agent_model,agent, tra
     :param training_master: Whether the master network is being trained.
     :return: Episode rewards, actions, and steps.
     '''
+    all_states=[]
+    all_rewards=[]
     done = False
     episode_sum_of_rewards, steps_counter = 0, 0
     actions_per_episode = []
@@ -99,24 +101,21 @@ def run_episode(experiment,total_steps,env, master_model, agent_model,agent, tra
             total_steps,
             exploration_threshold=experiment.EXPLORATION_EXPLOTATION_THRESHOLD,
         )
-
         # Step in the environment
         next_state, reward, done, info = env.step(agent_action)
-
-        # Train master network if it is the current training phase
-        if training_master:
-            master_model.train_step(master_input, environment_embedding.unsqueeze(0))
-
-        if not training_master:
-            agent_model.learn()
-
+        all_states.append(next_state)
+        all_rewards.append(reward)
         # Update rewards and actions
         episode_sum_of_rewards += reward
         actions_per_episode.append(agent_action)
-
         # Check if the episode is done
         if done:
+            all_rewards.append(reward)
             pause_experiment_simulation(env)
+            if training_master:
+                master_model.train_master(all_states,all_rewards)
+            if not training_master:
+                agent_model.learn()
             break
 
     return episode_sum_of_rewards, actions_per_episode, steps_counter

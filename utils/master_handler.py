@@ -20,32 +20,53 @@ class MasterModel:
         self.optimizer = torch.optim.Adam(self.network.parameters(), lr=learning_rate)
         self.criterion = nn.MSELoss()
 
-    def train_step(self, inputs, target_embeddings):
+    def train_master(self, states, rewards):
+        """
+        Train the Master network using policy gradient updates.
+        :param states: The states observed during the episode (list of numpy arrays or tensors).
+        :param rewards: The rewards collected during the episode (list of scalars).
+        """
         self.network.train()
         self.optimizer.zero_grad()
 
-        # Forward pass
-        outputs = self.network(inputs)
+        # Convert states to tensors and stack into a single tensor
+        states_tensor = torch.stack(
+            [torch.tensor(state, dtype=torch.float32) for state in states])  # Shape: (num_states, state_dim)
+        print(f"States tensor shape: {states_tensor.shape}")
 
-        # Calculate loss
-        loss = self.criterion(outputs, target_embeddings)
+        # Convert rewards to tensor
+        rewards_tensor = torch.tensor(rewards, dtype=torch.float32)  # Shape: (num_states,)
 
-        # Backward pass
+        # Calculate discounted cumulative rewards (G_t)
+        discounted_rewards = self.discount_rewards(rewards_tensor)
+
+        # Forward pass through the network
+        outputs = self.network(states_tensor)  # Shape: (num_states, embedding_dim)
+
+        # Calculate loss using policy gradient (negative log likelihood scaled by rewards)
+        log_probs = torch.log_softmax(outputs, dim=-1)  # Log probabilities
+        loss = -torch.sum(log_probs * discounted_rewards.unsqueeze(1))  # Policy gradient loss
+
+        # Backpropagation
         loss.backward()
-
-        # Print loss
-        print(f"Loss: {loss.item()}")
-
-        # Update weights
         self.optimizer.step()
 
-        # Debug weights
-        print("Weights after update:")
-        for name, param in self.network.named_parameters():
-            if param.requires_grad:
-                print(f"{name}: mean={param.data.mean().item()}, std={param.data.std().item()}")
-
+        print(f"Master Loss: {loss.item()}")
         return loss.item()
+
+    def discount_rewards(self, rewards, gamma=0.99):
+        """
+        Compute the discounted cumulative rewards for a given list of rewards.
+        :param rewards: A tensor of rewards collected during the episode.
+        :param gamma: Discount factor (default: 0.99).
+        :return: Discounted cumulative rewards.
+        """
+        discounted = []
+        cumulative = 0
+        for reward in reversed(rewards):
+            cumulative = reward + gamma * cumulative
+            discounted.insert(0, cumulative)
+        return torch.tensor(discounted, dtype=torch.float32)
 
     def inference(self, inputs):
         self.network.eval()
