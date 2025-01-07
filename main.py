@@ -3,7 +3,7 @@ import numpy as np
 from utils.experiment.experiment_config import Experiment
 from utils.experiment.experiment_constants import Role
 from utils.model.model_constants import ModelType
-from utils.model.model_handler import get_latest_model
+from utils.model.model_handler import get_latest_model, get_model_path_from_experiment_name
 from utils.training_loop import run_experiment
 
 if __name__ == "__main__":
@@ -19,8 +19,8 @@ if __name__ == "__main__":
         THROTTLE_FAST=1.0,
         FIXED_THROTTLE=np.random.uniform(0.6, 1.0, 1),
         LEARNING_RATE=0.01,
-        SELF_PLAY_MODE=True
-        # LOAD_MODEL_DIRECTORY=get_model_path_from_experiment_name("15_12_2024-20_08_51_Experiment1")
+        SELF_PLAY_MODE=True,
+        LOAD_MODEL_DIRECTORY=get_model_path_from_experiment_name("04_01_2025-17_30_19_Experiment1")
     )
 
     experiment4_inference = Experiment(

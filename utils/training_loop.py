@@ -1,7 +1,9 @@
 from stable_baselines3.common.logger import configure
 from stable_baselines3.common.vec_env import DummyVecEnv
 import numpy as np
-from experiment.experiment_constants import CarName
+
+from utils.experiment.experiment_config import Experiment
+from utils.experiment.experiment_constants import CarName
 from utils.model.model_handler import Model
 from utils.agent_handler import Agent
 from utils.airsim_manager import AirsimManager
@@ -162,7 +164,6 @@ def run_episode(env, agent, training_model, experiment, training_car, inference_
                 print('********* collision ***********')
             break
 
-
     return episode_sum_of_rewards, actions_per_episode_training, steps_counter
 
 
@@ -173,16 +174,15 @@ def plot_results(experiment, all_rewards, all_actions):
     PlottingUtils.plot_actions(all_actions)
 
 
-def run_experiment(experiment_config):
+def run_experiment(experiment_config: Experiment):
     # Initialize AirSim manager and environment
     airsim_manager = AirsimManager(experiment_config)
     env = DummyVecEnv([lambda: Agent(experiment_config, airsim_manager)])
     agent = Agent(experiment_config, airsim_manager)
 
     # Initialize two models: one for training and one for inference
-    #model_training = Model(env, experiment_config).model
-    model_training=Model(env, experiment_config).model
-    model_training.load('experiments/22_12_2024-10_42_16_Experiment3_infernce/trained_model.zip')
+    model_training = Model(env, experiment_config).model
+    model_training.load(experiment_config.LOAD_MODEL_DIRECTORY)
     model_inference = Model(env, experiment_config).model  # Separate model for inference
 
     # Configure logger

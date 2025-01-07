@@ -1,6 +1,8 @@
 .idea/
 __pycache__/
 venv/
+.venv1/
 env/
 experiments/
-utils/logger/token.json
+utils/logger/
+.neptune/
