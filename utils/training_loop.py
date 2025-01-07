@@ -7,7 +7,7 @@ from utils.agent_handler import Agent
 from utils.airsim_manager import AirsimManager
 from utils.plotting_utils import PlottingUtils
 
-#FGHFH
+
 def training_loop(experiment, env, agent, model_training, model_inference):
     """
     Training loop for the experiment.
@@ -16,7 +16,11 @@ def training_loop(experiment, env, agent, model_training, model_inference):
     :param agent: The agent controlling the cars.
     :param model_training: The model currently being trained.
     :param model_inference: The model currently being used for inference.
+
+    returns: model_training, collision_counter, all_rewards, all_actions
     """
+
+
     collision_counter, episode_counter, total_steps = 0, 0, 0
     all_rewards, all_actions = [], []
 
@@ -36,6 +40,7 @@ def training_loop(experiment, env, agent, model_training, model_inference):
                 total_steps += steps
                 all_rewards.append(episode_rewards)
                 all_actions.append(episode_actions)
+                # experiment.logger.log_actions_per_episode(episode_actions, ) # TODO: change episode actions to match 2 cars
                 model_training.learn(total_timesteps=steps, log_interval=1)
                 print(f"Car1 model learned on {steps} steps")
 
@@ -99,8 +104,10 @@ def run_episode(env, agent, training_model, experiment, training_car, inference_
     :param training_car: The car currently being trained.
     :param inference_car: The car performing inference only.
     :param inference_model: The model used for inference (if applicable).
-    :return: Episode rewards, actions, and steps.
+
+    :return: episode_sum_of_rewards, actions_per_episode_training, steps_counter
     '''
+
     action_inference = np.random.choice([experiment.THROTTLE_SLOW, experiment.THROTTLE_FAST])
     if training_car == CarName.CAR1:
         current_state_training = env.envs[0].airsim_manager.get_car1_state()
@@ -155,6 +162,7 @@ def run_episode(env, agent, training_model, experiment, training_car, inference_
                 print('********* collision ***********')
             break
 
+
     return episode_sum_of_rewards, actions_per_episode_training, steps_counter
 
 
@@ -189,6 +197,8 @@ def run_experiment(experiment_config):
         model_training=model_training,
         model_inference=model_inference
     )
+
+
 
     # Save the final trained model
     model_training.save(experiment_config.SAVE_MODEL_DIRECTORY)

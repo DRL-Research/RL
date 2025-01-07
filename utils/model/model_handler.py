@@ -13,13 +13,14 @@ class Model:
 
     def init_model(self):
         model_params, policy_kwargs = self.define_model_params(self.experiment_config)
+        seed = self.experiment_config.SEED
         match self.experiment_config.MODEL_TYPE:
             case ModelType.PPO:
-                return PPO(policy=Policy, env=self.env, verbose=1, policy_kwargs=policy_kwargs, **model_params)
+                return PPO(policy=Policy, env=self.env, verbose=1, policy_kwargs=policy_kwargs, seed=seed, **model_params)
             case ModelType.DQN:
-                return DQN(policy=Policy, env=self.env, verbose=1, **model_params)
+                return DQN(policy=Policy, env=self.env, verbose=1, seed=seed, **model_params)
             case ModelType.A2C:
-                return A2C(policy=Policy, env=self.env, verbose=1, **model_params)
+                return A2C(policy=Policy, env=self.env, verbose=1, seed=seed, **model_params)
             case _:
                 raise ValueError(f"{self.experiment_config.MODEL_TYPE} Unsupported model type")
 

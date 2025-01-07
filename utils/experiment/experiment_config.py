@@ -1,8 +1,10 @@
+import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List
 
 import numpy as np
+from utils.logger.neptune_logger import NeptuneLogger
 
 from utils.experiment.experiment_constants import Role, CarName
 from utils.model.model_constants import ModelType
@@ -28,6 +30,9 @@ class Experiment:
     TIME_BETWEEN_STEPS: float = 0.05
     LOSS_FUNCTION: str = "mse"
     EXPLORATION_EXPLOTATION_THRESHOLD: int = 50
+
+    # Seed for reproducibility
+    SEED: int = 42
 
     # Car 1 Settings
     CAR1_NAME: CarName = CarName.CAR1
@@ -70,8 +75,25 @@ class Experiment:
     # Path Configuration
     LOAD_MODEL_DIRECTORY: str = ""  # Directory for loading weights
 
+    # Logger Configuration
+    logger_tags = ["experiment", "training"]
 
 
     def __post_init__(self):
         self.EXPERIMENT_PATH = f"experiments/{self.EXPERIMENT_DATE_TIME}_{self.EXPERIMENT_ID}"
         self.SAVE_MODEL_DIRECTORY = f"{self.EXPERIMENT_PATH}/trained_model"
+
+        # Load API token from external JSON file
+        try:
+            with open("utils/logger/token.json", "r") as f:
+                config = json.load(f)
+                api_token = config["api_token"]
+        except (FileNotFoundError, KeyError) as e:
+            raise RuntimeError("Failed to load API token from config.json") from e
+
+        self.logger = NeptuneLogger(
+            project_name="AS-DRL/DRL-Research",
+            api_token=api_token,
+            run_name=self.EXPERIMENT_ID,
+            tags=self.logger_tags
+        )

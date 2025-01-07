@@ -4,6 +4,7 @@ import airsim
 import gym
 import numpy as np
 from gym import spaces
+import random
 
 from utils.experiment.experiment_config import Experiment
 
@@ -20,7 +21,20 @@ class Agent(gym.Env):
         self.action_space = spaces.Discrete(experiment.ACTION_SPACE_SIZE)
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(experiment.INPUT_SIZE,), dtype=np.float32)
         self.state = None
+        self.np_random = None
         self.reset()
+
+
+    def seed(self, seed=None):
+        """
+        Set the seed for reproducibility.
+        """
+        self.np_random, seed = gym.utils.seeding.np_random(seed)
+        random.seed(seed)
+        np.random.seed(seed)
+        print(f"Seed set to: {seed}")
+        return [seed]
+
 
     def reset(self) -> np.ndarray:
         self.airsim_manager.reset_cars_to_initial_positions()
