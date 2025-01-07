@@ -11,7 +11,7 @@ from utils.model.model_constants import ModelType
 @dataclass
 class Experiment:
     # General Experiment Settings
-    EPISODES_PER_CYCLE = 20
+    EPISODES_PER_CYCLE = 25
     CYCLES = 5
     EXPERIMENT_ID: str = ""
     ONLY_INFERENCE: bool = False

@@ -15,15 +15,17 @@ class Agent(gym.Env):
         self.airsim_manager = airsim_manager
         self.master_model = master_model  # Store the MasterModel
         self.action_space = spaces.Discrete(experiment.ACTION_SPACE_SIZE)
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(experiment.INPUT_SIZE,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(16,), dtype=np.float32)
         self.state = None
         self.reset()
 
-    def reset(self):
+    def reset(self) -> np.ndarray:
         self.airsim_manager.reset_cars_to_initial_positions()
-        combined_state = self.airsim_manager.get_combined_states()
-        master_embedding = self.master_model.inference(combined_state.unsqueeze(0)).squeeze(0).numpy()
-        self.state = np.concatenate((self.airsim_manager.get_car1_state(), master_embedding))
+        self.airsim_manager.reset_for_new_episode()
+        if self.experiment.ROLE == self.experiment.CAR1_NAME:
+            self.state = self.airsim_manager.get_car1_state()
+        else:
+            self.state = self.airsim_manager.get_car2_state()
         return self.state
 
 
@@ -51,6 +53,12 @@ class Agent(gym.Env):
         else:
             self.state = self.airsim_manager.get_car2_state()
 
+        state_car1 = self.airsim_manager.get_car1_state()
+        state_car2 = self.airsim_manager.get_car2_state()
+        combined_state = np.concatenate((state_car1, state_car2))
+        master_input = torch.tensor([combined_state], dtype=torch.float32)
+        environment_embedding = self.master_model.inference(master_input).squeeze(0).numpy()
+        self.state = np.concatenate((state_car1, environment_embedding))
         collision = self.airsim_manager.collision_occurred()
         reached_target = self.airsim_manager.has_reached_target(self.state[:2])
 

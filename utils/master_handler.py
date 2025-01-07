@@ -4,9 +4,9 @@ import torch.nn as nn
 class MasterNetwork(nn.Module):
     def __init__(self, input_size, embedding_size):
         super(MasterNetwork, self).__init__()
-        self.input_layer = nn.Linear(input_size, 128)
-        self.hidden_layer = nn.Linear(128, 64)
-        self.output_layer = nn.Linear(64, embedding_size)
+        self.input_layer = nn.Linear(input_size, 64)
+        self.hidden_layer = nn.Linear(64, 32)
+        self.output_layer = nn.Linear(32, embedding_size)
 
     def forward(self, x):
         x = torch.relu(self.input_layer(x))
