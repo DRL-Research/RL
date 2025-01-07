@@ -9,14 +9,14 @@ from utils.plotting_utils import PlottingUtils
 from master_handler import MasterModel
 import torch
 
-def training_loop(experiment, env, agent, master_model, agent_model):
+def training_loop(experiment, env, agent_model, master_model,agent):
     collision_counter, episode_counter, total_steps = 0, 0, 0
     all_rewards, all_actions = [], []
 
     for cycle in range(experiment.CYCLES):
         print(f"@ Cycle {cycle + 1}/{experiment.CYCLES} @")
 
-        if cycle % 2 == 0:
+        if cycle % 2 == 0 or cycle == 0:
             # Master Network Training
             print("Training Master Network (Agent Network is frozen)")
             master_model.unfreeze()
@@ -26,7 +26,7 @@ def training_loop(experiment, env, agent, master_model, agent_model):
                 episode_counter += 1
                 print(f"  @ Episode {episode_counter} (Master Training) @")
                 episode_rewards, episode_actions, steps = run_episode(experiment,total_steps,
-                    env, agent, master_model, agent_model, training_master=True
+                    env, master_model, agent_model,agent, training_master=True
                 )
                 total_steps += steps
                 all_rewards.append(episode_rewards)
@@ -37,13 +37,13 @@ def training_loop(experiment, env, agent, master_model, agent_model):
             print("Training Agent Network (Master Network is frozen)")
             master_model.freeze()
             agent_model.policy.set_training_mode(True)  # Unfreeze PPO by toggling training mode
-
             for episode in range(experiment.EPISODES_PER_CYCLE):
                 episode_counter += 1
                 print(f"  @ Episode {episode_counter} (Agent Training) @")
-                episode_rewards, episode_actions, steps = run_episode(
-                    env, agent, master_model, agent_model, training_master=False
-                )
+                episode_rewards, episode_actions, steps = run_episode(experiment, total_steps,
+                                                                      env, master_model, agent_model, agent,
+                                                                      training_master=True
+                                                                      )
                 total_steps += steps
                 all_rewards.append(episode_rewards)
                 all_actions.append(episode_actions)
@@ -52,7 +52,7 @@ def training_loop(experiment, env, agent, master_model, agent_model):
     return agent_model, collision_counter, all_rewards, all_actions
 
 
-def run_episode(experiment,total_steps,env, agent, master_model, agent_model, training_master):
+def run_episode(experiment,total_steps,env, master_model, agent_model,agent, training_master):
     '''
     Run one episode of the simulation.
     :param env: The environment instance.
@@ -77,16 +77,21 @@ def run_episode(experiment,total_steps,env, agent, master_model, agent_model, tr
         state_car2 = env.envs[0].airsim_manager.get_car2_state()
 
         # Concatenate states for master network input
+
         master_input = torch.tensor(
             [state_car1.tolist() + state_car2.tolist()], dtype=torch.float32
         )
 
-        # Get embedding from master network
-        environment_embedding = master_model.inference(master_input).squeeze(0)
-
+        # Get embedding from master network (squeeze make it 8 and not 1,8)
+        environment_embedding = master_model.get_proto_action(master_input)
+        # print('************************************************************')
+        # print('environment_embedding',environment_embedding)
+        # print('************************************************************')
         # Combine car1 state with environment embedding for agent input
         state_car1_with_embedding = np.concatenate((state_car1, environment_embedding))
-
+        # print('************************************************************')
+        # print('car1_state_after_embedding', state_car1_with_embedding)
+        # print('************************************************************')
         # Determine action for the agent
         agent_action = agent.get_action(
             agent_model,
@@ -115,6 +120,7 @@ def run_episode(experiment,total_steps,env, agent, master_model, agent_model, tr
             break
 
     return episode_sum_of_rewards, actions_per_episode, steps_counter
+
 def plot_results(experiment, all_rewards, all_actions):
     PlottingUtils.plot_losses(experiment.EXPERIMENT_PATH)
     PlottingUtils.plot_rewards(all_rewards)
@@ -126,11 +132,13 @@ def run_experiment(experiment_config):
     # Initialize MasterModel and Agent model
     master_model = MasterModel(input_size=16, embedding_size=8, learning_rate=1e-3)
 
-    # Initialize AirSim manager
+    # Initialize AirSim manager and env
+
     airsim_manager = AirsimManager(experiment_config)
+    agent = Agent(experiment_config, airsim_manager,master_model)
+    env = DummyVecEnv([lambda: Agent(experiment_config, airsim_manager,master_model)])
 
     # Initialize Agent model
-    env = DummyVecEnv([lambda: Agent(experiment_config, airsim_manager, master_model)])
     agent_model = Model(env, experiment_config).model
 
     # Configure logger
@@ -141,9 +149,9 @@ def run_experiment(experiment_config):
     agent_model, collision_counter, all_rewards, all_actions = training_loop(
         experiment=experiment_config,
         env=env,
-        agent=Agent(experiment_config, airsim_manager, master_model),
+        agent_model=agent_model,
         master_model=master_model,
-        agent_model=agent_model  # This line fixes the error
+        agent=agent
     )
 
     # Save the final trained models

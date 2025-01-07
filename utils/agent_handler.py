@@ -9,30 +9,30 @@ from utils.experiment.experiment_config import Experiment
 
 
 class Agent(gym.Env):
-    def __init__(self, experiment, airsim_manager, master_model):
+    def __init__(self, experiment, airsim_manager,master_model):
         super(Agent, self).__init__()
         self.experiment = experiment
         self.airsim_manager = airsim_manager
-        self.master_model = master_model  # Store the MasterModel
         self.action_space = spaces.Discrete(experiment.ACTION_SPACE_SIZE)
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(16,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(experiment.STATE_INPUT_SIZE,), dtype=np.float32)
         self.state = None
+        self.master_model = master_model
         self.reset()
 
     def reset(self) -> np.ndarray:
         self.airsim_manager.reset_cars_to_initial_positions()
         self.airsim_manager.reset_for_new_episode()
         if self.experiment.ROLE == self.experiment.CAR1_NAME:
-            self.state = self.airsim_manager.get_car1_state()
+            agent_state = self.airsim_manager.get_car1_state()
         else:
-            self.state = self.airsim_manager.get_car2_state()
+            agent_state = self.airsim_manager.get_car2_state()
+        self.state = np.concatenate((agent_state, self.airsim_manager.get_proto_state(self.master_model)))
         return self.state
 
 
     def step(self, action):
         if self.airsim_manager.is_simulation_paused():
             return self.state, 0, False, {}
-
         throttle = Experiment.THROTTLE_FAST if action == 0 else Experiment.THROTTLE_SLOW
         if self.experiment.ROLE == self.experiment.CAR1_NAME:
             self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR1_NAME)
@@ -45,23 +45,10 @@ class Agent(gym.Env):
         elif self.experiment.ROLE == 'Both':
             self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR1_NAME)
             self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR2_NAME)
-
+        self.state = np.concatenate((self.airsim_manager.get_car1_state(), self.airsim_manager.get_proto_state(self.master_model)))
         time.sleep(self.experiment.TIME_BETWEEN_STEPS)
-
-        if self.experiment.ROLE == self.experiment.CAR1_NAME:
-            self.state = self.airsim_manager.get_car1_state()
-        else:
-            self.state = self.airsim_manager.get_car2_state()
-
-        state_car1 = self.airsim_manager.get_car1_state()
-        state_car2 = self.airsim_manager.get_car2_state()
-        combined_state = np.concatenate((state_car1, state_car2))
-        master_input = torch.tensor([combined_state], dtype=torch.float32)
-        environment_embedding = self.master_model.inference(master_input).squeeze(0).numpy()
-        self.state = np.concatenate((state_car1, environment_embedding))
         collision = self.airsim_manager.collision_occurred()
         reached_target = self.airsim_manager.has_reached_target(self.state[:2])
-
         reward = self.experiment.STARVATION_REWARD
         if collision:
             reward = self.experiment.COLLISION_REWARD
@@ -80,6 +67,7 @@ class Agent(gym.Env):
             action = model.predict(current_state, deterministic=False)
             #print(f"Exploring action: {action}")
         return action
+
 
     # This function override base function in "GYM" environment. do not touch!
     def render(self, mode='human'):

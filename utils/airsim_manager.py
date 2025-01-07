@@ -206,3 +206,12 @@ class AirsimManager:
     def is_simulation_paused(self):
         return self.simulation_paused
 
+    def get_proto_state(self,master_model):
+        state_car1 = self.get_car1_state()
+        state_car2 = self.get_car2_state()
+        master_input = torch.tensor(
+            [state_car1.tolist() + state_car2.tolist()], dtype=torch.float32
+        )
+        # Get embedding from master network (squeeze make it 8 and not 1,8)
+        environment_embedding = master_model.get_proto_action(master_input)
+        return environment_embedding

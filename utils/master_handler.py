@@ -23,10 +23,28 @@ class MasterModel:
     def train_step(self, inputs, target_embeddings):
         self.network.train()
         self.optimizer.zero_grad()
+
+        # Forward pass
         outputs = self.network(inputs)
+
+        # Calculate loss
         loss = self.criterion(outputs, target_embeddings)
+
+        # Backward pass
         loss.backward()
+
+        # Print loss
+        print(f"Loss: {loss.item()}")
+
+        # Update weights
         self.optimizer.step()
+
+        # Debug weights
+        print("Weights after update:")
+        for name, param in self.network.named_parameters():
+            if param.requires_grad:
+                print(f"{name}: mean={param.data.mean().item()}, std={param.data.std().item()}")
+
         return loss.item()
 
     def inference(self, inputs):
@@ -34,6 +52,7 @@ class MasterModel:
         with torch.no_grad():
             outputs = self.network(inputs)
         return outputs
+
     def get_proto_action(self, inputs):
         self.network.eval()
         with torch.no_grad():
