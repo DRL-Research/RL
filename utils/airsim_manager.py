@@ -1,8 +1,9 @@
 import random
-import time
 
 import airsim
 import numpy as np
+
+from utils.experiment.experiment_constants import StartingLocation
 
 
 class AirsimManager:
@@ -28,10 +29,10 @@ class AirsimManager:
         self.airsim_client.setCarControls(car_controls_car_2, self.experiment.CAR2_NAME)
 
         # Get initial positions according to settings offset
-        self.car1_x_offset = self.airsim_client.simGetObjectPose(self.experiment.CAR1_NAME).position.x_val
-        self.car1_y_offset = self.airsim_client.simGetObjectPose(self.experiment.CAR1_NAME).position.y_val
-        self.car2_x_offset = self.airsim_client.simGetObjectPose(self.experiment.CAR2_NAME).position.x_val
-        self.car2_y_offset = self.airsim_client.simGetObjectPose(self.experiment.CAR2_NAME).position.y_val
+        self.car1_x_offset = 0  # Chane only if settings.json is changed.
+        self.car1_y_offset = 0  # Chane only if settings.json is changed.
+        self.car2_x_offset = 0  # Chane only if settings.json is changed.
+        self.car2_y_offset = 5  # Chane only if settings.json is changed.
 
         self.car1_initial_position_saved = None
         self.simulation_paused = False
@@ -39,51 +40,63 @@ class AirsimManager:
         self.reset_cars_to_initial_positions()
 
     def reset_cars_to_initial_positions(self):
+
         self.airsim_client.reset()
-        # Pick random directions for car1 and car2
-        car1_direction = random.choice([1, -1])
-        car2_direction = random.choice([1, -1])
-        # Apply random starting positions for Car1
-        if car1_direction == 1:
-            car1_start_location_x = self.experiment.CAR1_INITIAL_POSITION_OPTION_1[0] - self.car1_x_offset
-            car1_start_location_y = self.experiment.CAR1_INITIAL_POSITION_OPTION_1[1] - self.car1_y_offset
-            car1_start_yaw = self.experiment.CAR1_INITIAL_YAW_OPTION_1
-        else:
-            car1_start_location_x = self.experiment.CAR1_INITIAL_POSITION_OPTION_2[0] - self.car1_x_offset
-            car1_start_location_y = self.experiment.CAR1_INITIAL_POSITION_OPTION_2[1] - self.car1_y_offset
-            car1_start_yaw = self.experiment.CAR1_INITIAL_YAW_OPTION_2
 
-        # Apply random starting positions for Car2
-        if car2_direction == 1:
-            car2_start_location_x = self.experiment.CAR2_INITIAL_POSITION_OPTION_1[0] - self.car2_x_offset
-            car2_start_location_y = self.experiment.CAR2_INITIAL_POSITION_OPTION_1[1] - self.car2_y_offset
-            car2_start_yaw = self.experiment.CAR2_INITIAL_YAW_OPTION_1
-        else:
-            car2_start_location_x = self.experiment.CAR2_INITIAL_POSITION_OPTION_2[0] - self.car2_x_offset
-            car2_start_location_y = self.experiment.CAR2_INITIAL_POSITION_OPTION_2[1] - self.car2_y_offset
-            car2_start_yaw = self.experiment.CAR2_INITIAL_YAW_OPTION_2
+        # Helper function to calculate starting position and orientation
+        def get_initial_position_and_yaw(car_direction, position_option_1, position_option_2, yaw_option_1,
+                                         yaw_option_2, x_offset, y_offset):
+            if car_direction == StartingLocation.RIGHT:
+                start_location_x = position_option_1[0] - x_offset
+                start_location_y = position_option_1[1] - y_offset
+                start_yaw = yaw_option_1
+            else:
+                start_location_x = position_option_2[0] - x_offset
+                start_location_y = position_option_2[1] - y_offset
+                start_yaw = yaw_option_2
+            return start_location_x, start_location_y, start_yaw
 
-        # Set the new positions after reset
-        car1_start_yaw_rad = np.radians(car1_start_yaw)  # Convert yaw from degrees to radians
-        car2_start_yaw_rad = np.radians(car2_start_yaw)  # Convert yaw from degrees to radians
+        # Pick random directions for cars
+        if self.experiment.RANDOM_INIT:
+            car1_direction = random.choice([StartingLocation.LEFT, StartingLocation.RIGHT]) # TODO: change to UP and down
+            car2_direction = random.choice([StartingLocation.LEFT, StartingLocation.RIGHT])
 
-        # Set the reference_position for Car1 and Car2 (Do not change this code)
-        reference_position = airsim.Pose(airsim.Vector3r(0.0, 0, -1), airsim.Quaternionr(0, 0.0, 0.0, 1.0))
-        self.airsim_client.simSetVehiclePose(reference_position, True, self.experiment.CAR1_NAME)
-        self.airsim_client.simSetVehiclePose(reference_position, True, self.experiment.CAR2_NAME)
+        # Get starting positions and orientations for Car1 and Car2
+        car1_start_location_x, car1_start_location_y, car1_start_yaw = get_initial_position_and_yaw(
+            car1_direction,
+            self.experiment.CAR1_INITIAL_POSITION_OPTION_1,
+            self.experiment.CAR1_INITIAL_POSITION_OPTION_2,
+            self.experiment.CAR1_INITIAL_YAW_OPTION_1,
+            self.experiment.CAR1_INITIAL_YAW_OPTION_2,
+            self.car1_x_offset,
+            self.car1_y_offset
+        )
+        car2_start_location_x, car2_start_location_y, car2_start_yaw = get_initial_position_and_yaw(
+            car2_direction,
+            self.experiment.CAR2_INITIAL_POSITION_OPTION_1,
+            self.experiment.CAR2_INITIAL_POSITION_OPTION_2,
+            self.experiment.CAR2_INITIAL_YAW_OPTION_1,
+            self.experiment.CAR2_INITIAL_YAW_OPTION_2,
+            self.car2_x_offset,
+            self.car2_y_offset
+        )
 
-        initial_position_car1 = airsim.Vector3r(car1_start_location_x, car1_start_location_y, -1)
-        initial_orientation_car1 = airsim.to_quaternion(0, 0, car1_start_yaw_rad)
-        initial_pose_car1 = airsim.Pose(initial_position_car1, initial_orientation_car1)
+        # Helper function to create initial pose
+        def create_initial_pose(x, y, yaw_rad):
+            position = airsim.Vector3r(x, y, -1.0)
+            orientation = airsim.to_quaternion(0.0, 0.0, yaw_rad)
+            return airsim.Pose(position, orientation)
 
-        initial_position_car2 = airsim.Vector3r(car2_start_location_x, car2_start_location_y, -1)
-        initial_orientation_car2 = airsim.to_quaternion(0, 0, car2_start_yaw_rad)
-        initial_pose_car2 = airsim.Pose(initial_position_car2, initial_orientation_car2)
+        # Set the poses for Car1 and Car2
+        initial_pose_car1 = create_initial_pose(car1_start_location_x, car1_start_location_y, np.radians(car1_start_yaw))
+        initial_pose_car2 = create_initial_pose(car2_start_location_x, car2_start_location_y, np.radians(car2_start_yaw))
 
-        # Set the poses for both cars
+        print(f"Starting location of car1: {car1_start_location_x}, {car1_start_location_y}")
+        print(f"Starting location of car2: {car2_start_location_x}, {car2_start_location_y}")
+
         self.airsim_client.simSetVehiclePose(initial_pose_car1, True, self.experiment.CAR1_NAME)
         self.airsim_client.simSetVehiclePose(initial_pose_car2, True, self.experiment.CAR2_NAME)
-        time.sleep(1)
+
 
     def collision_occurred(self):
         collision_info = self.airsim_client.simGetCollisionInfo()
