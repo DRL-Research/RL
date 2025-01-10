@@ -4,6 +4,7 @@ from stable_baselines3 import PPO, DQN, A2C
 
 from utils.model.model_constants import ModelType, Policy
 
+from CustomPPO import CustomPPO
 
 class Model:
     def __init__(self, env, experiment_config):
@@ -17,6 +18,8 @@ class Model:
         match self.experiment_config.MODEL_TYPE:
             case ModelType.PPO:
                 return PPO(policy=Policy, env=self.env, verbose=1, policy_kwargs=policy_kwargs, seed=seed, **model_params)
+            case ModelType.CustomPPO:
+                return CustomPPO(policy=Policy, env=self.env, neptune_logger=self.experiment_config.logger, verbose=1, policy_kwargs=policy_kwargs, seed=seed, **model_params)
             case ModelType.DQN:
                 return DQN(policy=Policy, env=self.env, verbose=1, seed=seed, **model_params)
             case ModelType.A2C:
@@ -35,7 +38,7 @@ class Model:
         }
 
         match experiment.MODEL_TYPE:
-            case ModelType.PPO:
+            case ModelType.PPO | ModelType.CustomPPO:
                 policy_kwargs = {
                     'net_arch': [
                         experiment.PPO_NETWORK_ARCHITECTURE

@@ -1,14 +1,16 @@
 from stable_baselines3.common.logger import configure
 from stable_baselines3.common.vec_env import DummyVecEnv
 import numpy as np
-
 from utils.experiment.experiment_config import Experiment
 from utils.experiment.experiment_constants import CarName
 from utils.model.model_handler import Model
 from utils.agent_handler import Agent
 from utils.airsim_manager import AirsimManager
 from utils.plotting_utils import PlottingUtils
+from stable_baselines3 import PPO
 
+from CustomPPO import CustomPPO  # Import PPOLog
+from config import PPO_MLP_Policy
 
 def training_loop(experiment, env, agent, model_training, model_inference):
     """
@@ -21,7 +23,6 @@ def training_loop(experiment, env, agent, model_training, model_inference):
 
     returns: model_training, collision_counter, all_rewards, all_actions
     """
-
 
     collision_counter, episode_counter, total_steps = 0, 0, 0
     all_rewards, all_actions = [], []
@@ -180,11 +181,10 @@ def run_experiment(experiment_config: Experiment):
     env = DummyVecEnv([lambda: Agent(experiment_config, airsim_manager)])
     agent = Agent(experiment_config, airsim_manager)
 
-    # Initialize two models: one for training and one for inference
     model_training = Model(env, experiment_config).model
     model_training.load(experiment_config.LOAD_MODEL_DIRECTORY)
     model_inference = Model(env, experiment_config).model  # Separate model for inference
-
+    #
     # Configure logger
     logger = configure(experiment_config.EXPERIMENT_PATH, ["stdout", "csv", "tensorboard"])
     model_training.set_logger(logger)
@@ -197,9 +197,6 @@ def run_experiment(experiment_config: Experiment):
         model_training=model_training,
         model_inference=model_inference
     )
-
-
-
     # Save the final trained model
     model_training.save(experiment_config.SAVE_MODEL_DIRECTORY)
     logger.close()
