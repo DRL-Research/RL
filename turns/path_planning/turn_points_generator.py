@@ -1,15 +1,15 @@
 
 import os.path
 
-from project24.utils.car_detection_experiments_helper import *
-from project24.utils.path_planning import turn_helper, path_control
-from project24.initialization.setup_simulation_turns import *
-from project24.utils import spatial_utils
+from turns.utils.car_detection_experiments_helper import *
+from turns.utils.path_planning import turn_helper, path_control
+from turns.initialization.setup_simulation_turns import *
+from turns.utils import spatial_utils
 import time
 decimation = 30e9  # Used to save an output image every X iterations.
 
 
-def mapping_loop(client, moving_car_name='Car1', direction=None):
+def generate_points_for_turn(client, moving_car_name='Car1', direction=None):
     global decimation
     image_dest = os.path.join(os.getcwd(), '../images')
     data_dest = os.path.join(os.getcwd(), '../recordings')

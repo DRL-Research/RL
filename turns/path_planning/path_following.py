@@ -1,13 +1,13 @@
 import logging
 
-from project24.utils import spatial_utils, plots_utils_turns
+from turns.utils import spatial_utils, plots_utils_turns
 import airsim
 import time
-from project24.utils.path_planning import turn_helper, path_control
-from project24.utils.path_planning.pidf_controller import PidfControl
+from turns.utils.path_planning import turn_helper, path_control
+from turns.utils.path_planning.pidf_controller import PidfControl
 import struct
 import os
-from project24.initialization.config_turns import *
+from turns.initialization.config_turns import *
 
 
 def following_loop(client, spline=None, execution_time=None, curr_vel=None,

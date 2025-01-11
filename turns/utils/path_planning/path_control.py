@@ -3,8 +3,8 @@ import struct
 import time
 from multiprocessing import shared_memory
 import numpy as np
-from project24.utils.path_planning.discrete_plant_emulator import DiscretePlant
-from project24.utils.path_planning.pidf_controller import PidfControl
+from turns.utils.path_planning.discrete_plant_emulator import DiscretePlant
+from turns.utils.path_planning.pidf_controller import PidfControl
 
 
 class StanleyFollower:

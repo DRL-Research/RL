@@ -5,7 +5,7 @@ import time
 from multiprocessing import shared_memory
 import numpy as np
 from matplotlib import pyplot as plt
-from project24.utils.path_planning.pidf_controller import PidfControl
+from turns.utils.path_planning.pidf_controller import PidfControl
 
 
 class DiscretePlant:

@@ -1,15 +1,15 @@
-from project24.initialization.config_turns import *
+from turns.initialization.config_turns import *
 import airsim
-from project24.initialization.setup_simulation_turns import SetupManager
+from turns.initialization.setup_simulation_turns import SetupManager
 
 
 class AirsimManager:
 
-    def __init__(self, setup_manager: SetupManager):
+    def __init__(self, setup_manager_cars):
         self.airsim_client = airsim.CarClient()
         self.airsim_client.confirmConnection()  # Confirm the connection to the AirSim simulator
         self.car_name_to_offset = {}
-        self.cars = setup_manager.cars
+        self.cars = setup_manager_cars
         self.enable_api_cars_control()
 
         # Set cars throttle to 1:

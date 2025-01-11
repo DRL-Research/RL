@@ -1,10 +1,10 @@
 import logging
-from project24.utils import spatial_utils, plots_utils_turns
-from project24.initialization.config_turns import *
-from project24.path_planning import bezier, path_following
-from project24.utils.path_planning import spline_utils
+from turns.utils import spatial_utils, plots_utils_turns
+from turns.initialization.config_turns import *
+from turns.path_planning import path_following
+from turns.utils.path_planning import spline_utils
 
-from project24.initialization.config_turns import CREATE_SUB_PLOTS
+from turns.initialization.config_turns import CREATE_SUB_PLOTS
 
 
 def airsim_point_to_global_full_version(airsim_point, execution_time, curr_vel, transition_matrix):
