@@ -11,7 +11,7 @@ from utils.model.model_constants import ModelType
 @dataclass
 class Experiment:
     # General Experiment Settings
-    EPISODES_PER_CYCLE = 25
+    EPISODES_PER_CYCLE = 30
     CYCLES = 5
     EXPERIMENT_ID: str = ""
     ONLY_INFERENCE: bool = False
@@ -22,9 +22,9 @@ class Experiment:
     MODEL_TYPE: ModelType = None
     ROLE: Role = None  # Which car is using the DRL model. Car1, Car2, Both
     EPOCHS: int = 100
-    LEARNING_RATE: float = 3e-4
+    LEARNING_RATE: float = 0.001
     N_STEPS: int = 160
-    BATCH_SIZE: int = 160
+    BATCH_SIZE: int = 16
     TIME_BETWEEN_STEPS: float = 0.05
     LOSS_FUNCTION: str = "mse"
     EXPLORATION_EXPLOTATION_THRESHOLD: int = 50
@@ -51,10 +51,10 @@ class Experiment:
     RANDOM_INIT = True
 
     # Network Configuration
-    PPO_NETWORK_ARCHITECTURE = {'pi': [32, 16], 'vf': [32, 32]}
+    PPO_NETWORK_ARCHITECTURE = {'pi': [32, 16], 'vf': [32, 16]}
 
     # State Configuration
-    STATE_INPUT_SIZE = 16
+    STATE_INPUT_SIZE = 10
 
     # Action Configuration
     ACTION_SPACE_SIZE: int = 2
@@ -63,7 +63,7 @@ class Experiment:
     FIXED_THROTTLE: float = (THROTTLE_FAST + THROTTLE_SLOW) / 2
 
     # Reward Configuration
-    REACHED_TARGET_REWARD: int = 10
+    REACHED_TARGET_REWARD: int = 100
     COLLISION_REWARD: int = -20
     STARVATION_REWARD: float = -0.1
 

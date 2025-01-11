@@ -6,10 +6,12 @@ from utils.model.model_handler import Model
 from utils.agent_handler import Agent
 from utils.airsim_manager import AirsimManager
 from utils.plotting_utils import PlottingUtils
-from master_handler import MasterModel
+from master_handler import *
 import torch
+import pandas as pd
+import matplotlib.pyplot as plt
 
-def training_loop(experiment, env, agent_model, master_model,agent):
+def training_loop(p_agent_loss,p_master_loss,p_episode_counter,experiment, env, agent_model, master_model,agent,):
     collision_counter, episode_counter, total_steps = 0, 0, 0
     all_rewards, all_actions = [], []
 
@@ -20,17 +22,30 @@ def training_loop(experiment, env, agent_model, master_model,agent):
             # Master Network Training
             print("Training Master Network (Agent Network is frozen)")
             master_model.unfreeze()
-            agent_model.policy.set_training_mode(False)  # Freeze PPO by toggling training mode
-
+            agent_model.policy.set_training_mode(False)  # Freeze PPO by toggling training mode]
+            episode_data = []
             for episode in range(experiment.EPISODES_PER_CYCLE):
                 episode_counter += 1
+                p_episode_counter.append(episode_counter)
                 print(f"  @ Episode {episode_counter} (Master Training) @")
-                episode_rewards, episode_actions, steps = run_episode(experiment,total_steps,
+                episode_rewards, episode_actions, steps,p_agent_loss,p_master_loss,episode_states = run_episode(p_master_loss,p_agent_loss,experiment,total_steps,
                     env, master_model, agent_model,agent, training_master=True
                 )
                 total_steps += steps
                 all_rewards.append(episode_rewards)
                 all_actions.append(episode_actions)
+                episode_data.append({
+                    'states': episode_states,
+                    'rewards': episode_rewards
+                })
+                if len(episode_data) >= 3:
+                    # נעבד את הנתונים לפי אפיזודות
+                    master_episode_states = [ep['states'] for ep in episode_data]
+                    master_episode_rewards = [ep['rewards'] for ep in
+                                              episode_data]
+                    loss = master_model.train_master(master_episode_states, master_episode_rewards)
+                    p_master_loss.append(loss)
+                    episode_data = []
 
         else:
             # Agent Network Training
@@ -39,20 +54,21 @@ def training_loop(experiment, env, agent_model, master_model,agent):
             agent_model.policy.set_training_mode(True)  # Unfreeze PPO by toggling training mode
             for episode in range(experiment.EPISODES_PER_CYCLE):
                 episode_counter += 1
+                p_episode_counter.append(episode_counter)
                 print(f"  @ Episode {episode_counter} (Agent Training) @")
-                episode_rewards, episode_actions, steps = run_episode(experiment, total_steps,
-                                                                      env, master_model, agent_model, agent,
-                                                                      training_master=True
-                                                                      )
+                episode_rewards, episode_actions, steps, p_agent_loss, p_master_loss, episode_states = run_episode(
+                    p_master_loss, p_agent_loss, experiment, total_steps,
+                    env, master_model, agent_model, agent, training_master=False
+                    )
                 total_steps += steps
                 all_rewards.append(episode_rewards)
                 all_actions.append(episode_actions)
 
     print("Training completed.")
-    return agent_model, collision_counter, all_rewards, all_actions
+    return p_episode_counter, p_agent_loss, p_master_loss, agent_model, collision_counter, all_rewards, all_actions
 
 
-def run_episode(experiment,total_steps,env, master_model, agent_model,agent, training_master):
+def run_episode(p_master_loss,p_agent_loss,experiment,total_steps,env, master_model, agent_model,agent, training_master):
     '''
     Run one episode of the simulation.
     :param env: The environment instance.
@@ -67,10 +83,8 @@ def run_episode(experiment,total_steps,env, master_model, agent_model,agent, tra
     done = False
     episode_sum_of_rewards, steps_counter = 0, 0
     actions_per_episode = []
-
     # Start/reset the environment
     resume_experiment_simulation(env)
-
     while not done:
         steps_counter += 1
 
@@ -103,7 +117,7 @@ def run_episode(experiment,total_steps,env, master_model, agent_model,agent, tra
         )
         # Step in the environment
         next_state, reward, done, info = env.step(agent_action)
-        all_states.append(next_state)
+        all_states.append(master_input)
         all_rewards.append(reward)
         # Update rewards and actions
         episode_sum_of_rewards += reward
@@ -112,13 +126,16 @@ def run_episode(experiment,total_steps,env, master_model, agent_model,agent, tra
         if done:
             all_rewards.append(reward)
             pause_experiment_simulation(env)
-            if training_master:
-                master_model.train_master(all_states,all_rewards)
             if not training_master:
-                agent_model.learn()
+                print(steps_counter)
+                agent_model.learn(total_timesteps=steps_counter, log_interval=1)
+                if len(p_master_loss) != 0:
+                    p_master_loss.append(p_master_loss[-1])
+                else:
+                    p_master_loss.append(0)
             break
 
-    return episode_sum_of_rewards, actions_per_episode, steps_counter
+    return episode_sum_of_rewards, actions_per_episode, steps_counter,p_agent_loss,p_master_loss,all_states
 
 def plot_results(experiment, all_rewards, all_actions):
     PlottingUtils.plot_losses(experiment.EXPERIMENT_PATH)
@@ -128,8 +145,13 @@ def plot_results(experiment, all_rewards, all_actions):
 
 
 def run_experiment(experiment_config):
+    p_total_rewards=[]
+    p_agent_loss=[]
+    p_master_loss=[]
+    p_master_entropy=[]
+    p_episode_counter=[]
     # Initialize MasterModel and Agent model
-    master_model = MasterModel(input_size=16, embedding_size=8, learning_rate=1e-3)
+    master_model = MasterModel(input_size=16, embedding_size=2)
 
     # Initialize AirSim manager and env
 
@@ -139,32 +161,63 @@ def run_experiment(experiment_config):
 
     # Initialize Agent model
     agent_model = Model(env, experiment_config).model
+    # for name, param in agent_model.policy.named_parameters():
+    #     print(name, param.mean().item(), param.std().item())
 
     # Configure logger
     logger = configure(experiment_config.EXPERIMENT_PATH, ["stdout", "csv", "tensorboard"])
     agent_model.set_logger(logger)
 
-    # Run the training loop
-    agent_model, collision_counter, all_rewards, all_actions = training_loop(
+    #run training loop
+    p_episode_counter, p_agent_loss, p_master_loss, agent_model, collision_counter, all_rewards, all_actions = training_loop(
+        p_agent_loss, p_master_loss, p_episode_counter,
         experiment=experiment_config,
         env=env,
         agent_model=agent_model,
         master_model=master_model,
-        agent=agent
+        agent=agent,
     )
 
     # Save the final trained models
     master_model.save(f"{experiment_config.SAVE_MODEL_DIRECTORY}_master.pth")
     agent_model.save(experiment_config.SAVE_MODEL_DIRECTORY)
+    # master_model.save_metrics(f"{experiment_config.EXPERIMENT_PATH}/master_metrics.csv")
     logger.close()
 
     print("Models saved")
     print("Total collisions:", collision_counter)
+    print(p_master_loss)
 
     # Plot results
     if not experiment_config.ONLY_INFERENCE:
         plot_results(experiment=experiment_config, all_rewards=all_rewards, all_actions=all_actions)
 
+        plt.figure(figsize=(10, 6))
+        plt.plot(p_master_loss)
+        plt.title("Master Loss over Episodes")
+        plt.xlabel("Episode")
+        plt.ylabel("Master Loss")
+        plt.legend()
+        plt.grid()
+        plt.show()
+
+        # plt.figure(figsize=(10, 6))
+        # plt.plot(p_episode_counter, p_agent_loss)
+        # plt.title("Agent Loss over Episodes")
+        # plt.xlabel("Episode")
+        # plt.ylabel("Agent Loss")
+        # plt.legend()
+        # plt.grid()
+        # plt.show()
+
+        # plt.figure(figsize=(10, 6))
+        # plt.plot(p_episode_counter, p_total_rewards)
+        # plt.title("Rewards over Episodes")
+        # plt.xlabel("Episode")
+        # plt.ylabel("Rewards Loss")
+        # plt.legend()
+        # plt.grid()
+        # plt.show()
 
 # override the base function in "GYM" environment. do not touch!
 def resume_experiment_simulation(env):
@@ -173,3 +226,38 @@ def resume_experiment_simulation(env):
 # override the base function in "GYM" environment. do not touch!
 def pause_experiment_simulation(env):
     env.envs[0].airsim_manager.pause_simulation()
+
+## dont mad- only for development and debugging
+def plot_metrics(metrics_path):
+    # Load metrics
+    metrics = pd.read_csv(metrics_path)
+
+    # Plot Loss
+    plt.figure(figsize=(10, 6))
+    plt.plot(metrics["loss"], label="Loss")
+    plt.title("Loss over Episodes")
+    plt.xlabel("Episode")
+    plt.ylabel("Loss")
+    plt.legend()
+    plt.grid()
+    plt.show()
+
+    # Plot Entropy
+    plt.figure(figsize=(10, 6))
+    plt.plot(metrics["entropy"], label="Entropy", color="orange")
+    plt.title("Entropy over Episodes")
+    plt.xlabel("Episode")
+    plt.ylabel("Entropy")
+    plt.legend()
+    plt.grid()
+    plt.show()
+
+    # Plot Return
+    plt.figure(figsize=(10, 6))
+    plt.plot(metrics["return"], label="Return", color="green")
+    plt.title("Return over Episodes")
+    plt.xlabel("Episode")
+    plt.ylabel("Return")
+    plt.legend()
+    plt.grid()
+    plt.show()

@@ -14,13 +14,13 @@ if __name__ == "__main__":
         EPOCHS= Experiment.CYCLES* Experiment.EPISODES_PER_CYCLE,
         ROLE=Role.CAR1,
         MODEL_TYPE=ModelType.PPO,
-        TIME_BETWEEN_STEPS=0.75,
-        EXPLORATION_EXPLOTATION_THRESHOLD=25,
+        TIME_BETWEEN_STEPS=0.1,
+        EXPLORATION_EXPLOTATION_THRESHOLD=250,
         ONLY_INFERENCE=False,
-        THROTTLE_SLOW=0.6,
-        THROTTLE_FAST=1.0,
-        FIXED_THROTTLE=np.random.uniform(0.6, 1.0, 1),
-        LEARNING_RATE=0.01,
+        THROTTLE_SLOW=0.4,
+        THROTTLE_FAST=0.6,
+        FIXED_THROTTLE=np.random.uniform(0.4, 0.6, 1),
+        LEARNING_RATE=0.001,
         # LOAD_MODEL_DIRECTORY=get_model_path_from_experiment_name("15_12_2024-20_08_51_Experiment1")
     )
 
