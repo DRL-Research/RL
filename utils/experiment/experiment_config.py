@@ -11,7 +11,7 @@ from utils.model.model_constants import ModelType
 @dataclass
 class Experiment:
     # General Experiment Settings
-    EPISODES_PER_CYCLE = 30
+    EPISODES_PER_CYCLE = 40
     CYCLES = 5
     EXPERIMENT_ID: str = ""
     ONLY_INFERENCE: bool = False
@@ -54,7 +54,7 @@ class Experiment:
     PPO_NETWORK_ARCHITECTURE = {'pi': [32, 16], 'vf': [32, 16]}
 
     # State Configuration
-    STATE_INPUT_SIZE = 10
+    STATE_INPUT_SIZE = 12
 
     # Action Configuration
     ACTION_SPACE_SIZE: int = 2
@@ -63,7 +63,7 @@ class Experiment:
     FIXED_THROTTLE: float = (THROTTLE_FAST + THROTTLE_SLOW) / 2
 
     # Reward Configuration
-    REACHED_TARGET_REWARD: int = 100
+    REACHED_TARGET_REWARD: int = 10
     COLLISION_REWARD: int = -20
     STARVATION_REWARD: float = -0.1
 

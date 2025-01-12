@@ -18,7 +18,7 @@ def training_loop(p_agent_loss,p_master_loss,p_episode_counter,experiment, env, 
     for cycle in range(experiment.CYCLES):
         print(f"@ Cycle {cycle + 1}/{experiment.CYCLES} @")
 
-        if cycle % 2 == 0 or cycle == 0:
+        if cycle % 2 == 1:
             # Master Network Training
             print("Training Master Network (Agent Network is frozen)")
             master_model.unfreeze()
@@ -38,7 +38,7 @@ def training_loop(p_agent_loss,p_master_loss,p_episode_counter,experiment, env, 
                     'states': episode_states,
                     'rewards': episode_rewards
                 })
-                if len(episode_data) >= 3:
+                if len(episode_data) >= 4:
                     # נעבד את הנתונים לפי אפיזודות
                     master_episode_states = [ep['states'] for ep in episode_data]
                     master_episode_rewards = [ep['rewards'] for ep in
@@ -47,7 +47,7 @@ def training_loop(p_agent_loss,p_master_loss,p_episode_counter,experiment, env, 
                     p_master_loss.append(loss)
                     episode_data = []
 
-        else:
+        if cycle % 2 == 0 or cycle == 0:
             # Agent Network Training
             print("Training Agent Network (Master Network is frozen)")
             master_model.freeze()
@@ -151,7 +151,7 @@ def run_experiment(experiment_config):
     p_master_entropy=[]
     p_episode_counter=[]
     # Initialize MasterModel and Agent model
-    master_model = MasterModel(input_size=16, embedding_size=2)
+    master_model = MasterModel(input_size=16, embedding_size=4)
 
     # Initialize AirSim manager and env
 
@@ -177,21 +177,10 @@ def run_experiment(experiment_config):
         master_model=master_model,
         agent=agent,
     )
-
-    # Save the final trained models
-    master_model.save(f"{experiment_config.SAVE_MODEL_DIRECTORY}_master.pth")
-    agent_model.save(experiment_config.SAVE_MODEL_DIRECTORY)
-    # master_model.save_metrics(f"{experiment_config.EXPERIMENT_PATH}/master_metrics.csv")
-    logger.close()
-
-    print("Models saved")
-    print("Total collisions:", collision_counter)
     print(p_master_loss)
-
     # Plot results
     if not experiment_config.ONLY_INFERENCE:
         plot_results(experiment=experiment_config, all_rewards=all_rewards, all_actions=all_actions)
-
         plt.figure(figsize=(10, 6))
         plt.plot(p_master_loss)
         plt.title("Master Loss over Episodes")
@@ -200,6 +189,17 @@ def run_experiment(experiment_config):
         plt.legend()
         plt.grid()
         plt.show()
+
+    # Save the final trained models
+    agent_model.save(experiment_config.SAVE_MODEL_DIRECTORY)
+    # master_model.save_metrics(f"{experiment_config.EXPERIMENT_PATH}/master_metrics.csv")
+    logger.close()
+    master_model.save(f"{experiment_config.SAVE_MODEL_DIRECTORY}_master.pth")
+
+    print("Models saved")
+    print("Total collisions:", collision_counter)
+
+
 
         # plt.figure(figsize=(10, 6))
         # plt.plot(p_episode_counter, p_agent_loss)

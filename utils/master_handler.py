@@ -13,34 +13,18 @@ class MasterNetwork(nn.Module):
         self.input_size = input_size
         self.embedding_size = embedding_size
 
-        # רשת פשוטה יותר עם 3 שכבות
-        self.layer1 = nn.Linear(input_size, 64)
-        self.bn1 = nn.BatchNorm1d(64)
-
-        self.layer2 = nn.Linear(64, 32)
-        self.bn2 = nn.BatchNorm1d(32)
-
-        self.layer3 = nn.Linear(32, embedding_size)
-
-        self.dropout = nn.Dropout(0.1)  # דרופאאוט קטן יותר
+        # רשת פשוטה עם 2 שכבות בלבד
+        self.layer1 = nn.Linear(input_size, 32)
+        self.layer2 = nn.Linear(32, embedding_size)
 
     def forward(self, x):
-        # טיפול בצורת הקלט
         if len(x.shape) == 3:
             x = x.squeeze(1)
         elif len(x.shape) == 1:
             x = x.unsqueeze(0)
 
-        # וידוא גודל הקלט
-        if x.shape[-1] != self.input_size:
-            raise ValueError(f"Expected input features to be {self.input_size}, got {x.shape[-1]}")
-
-        x = F.relu(self.bn1(self.layer1(x)))
-        x = self.dropout(x)
-        x = F.relu(self.bn2(self.layer2(x)))
-        x = self.dropout(x)
-        x = torch.tanh(self.layer3(x))  # tanh לנרמול האמבדינג
-
+        x = F.relu(self.layer1(x))
+        x = torch.tanh(self.layer2(x))
         return x
 
 
@@ -49,86 +33,76 @@ class MasterModel:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.network = MasterNetwork(input_size, embedding_size).to(self.device)
 
-        # אדם רגיל במקום Adamax
         self.optimizer = torch.optim.Adam(
             self.network.parameters(),
-            lr=0.001,
-            weight_decay=1e-4  # L2 regularization
-        )
-
-        # שינוי הפרמטרים של הScheduler
-        self.scheduler = ReduceLROnPlateau(
-            self.optimizer,
-            mode='min',  # שינוי ל-min כי אנחנו רוצים להקטין את הלוס
-            factor=0.5,
-            patience=2,
-            verbose=True
+            lr=0.001
         )
 
         self.metrics = {"loss": [], "return": []}
 
     def compute_loss(self, embeddings, returns):
         """
-        לוס פשוט יותר שמנסה לקרב אמבדינגים של מצבים עם תגמולים דומים
+        לוס פשוט יותר: אמבדינגים של מצבים טובים צריכים להיות דומים
         """
-        # נרמול האמבדינגים
-        embeddings = F.normalize(embeddings, p=2, dim=1)
+        # נרמול התגמולים לטווח [-1,1]
+        normalized_returns = 2 * (returns - returns.min()) / (returns.max() - returns.min() + 1e-8) - 1
 
-        # נרמול התגמולים לטווח [0,1]
-        returns = (returns - returns.min()) / (returns.max() - returns.min() + 1e-8)
+        # חישוב דמיון בין אמבדינגים
+        sim_matrix = torch.mm(embeddings, embeddings.t())
 
-        # מטריצת מרחקים בין האמבדינגים
-        dist_matrix = torch.cdist(embeddings, embeddings)
+        # חישוב דמיון בין תגמולים
+        returns_sim = torch.mm(normalized_returns.unsqueeze(1), normalized_returns.unsqueeze(0))
 
-        # מטריצת הבדלי תגמולים
-        rewards_dist = torch.abs(returns.unsqueeze(0) - returns.unsqueeze(1))
-
-        # הלוס מנסה להתאים בין המרחקים
-        loss = F.mse_loss(dist_matrix, rewards_dist)
+        # הלוס מנסה לגרום לאמבדינגים דומים למצבים עם תגמולים דומים
+        loss = F.mse_loss(sim_matrix, returns_sim)
 
         return loss
 
     def train_master(self, episode_states, episode_rewards):
         self.network.train()
 
-        episode_embeddings = []
-        for states in episode_states:
-            # Debug information
-            # print("Type of states:", type(states))
-            # print("First state shape:", np.array(states[0]).shape if states else "Empty states")
+        total_loss = 0
+        episodes_processed = 0
 
-            # Convert list of states to tensor properly
-            try:
-                states_batch = np.array([np.array(s).flatten() for s in states])
-                states_tensor = torch.tensor(states_batch, dtype=torch.float32).to(self.device)
+        for i, states in enumerate(episode_states):
+            if not states:  # דלג על אפיזודות ריקות
+                continue
 
-                # Get embeddings
-                embeddings = self.network(states_tensor)
-                avg_embedding = embeddings.mean(dim=0)
-                episode_embeddings.append(avg_embedding)
+            # המרת רשימת הטנזורים לטנזור אחד
+            # כל state הוא כבר טנזור, אז נשתמש ב-torch.stack
+            states_tensor = torch.stack([s.to(self.device) for s in states])
 
-            except Exception as e:
-                print("Error processing states:")
-                print("States type:", type(states))
-                print("States content:", states)
-                raise e
+            # reshape אם צריך
+            if len(states_tensor.shape) == 3:
+                states_tensor = states_tensor.squeeze(1)
 
-        episode_embeddings = torch.stack(episode_embeddings)
-        rewards_tensor = torch.tensor(episode_rewards, dtype=torch.float32).to(self.device)
+            # קבלת האמבדינגים
+            embeddings = self.network(states_tensor)
 
-        # חישוב הלוס ועדכון המשקולות
-        self.optimizer.zero_grad()
-        loss = self.compute_loss(episode_embeddings, rewards_tensor)
-        loss.backward()
+            # המרת התגמול למספר
+            reward = float(episode_rewards[i][0])  # לקיחת הערך מהמערך
+            batch_rewards = torch.full((embeddings.shape[0],), reward).to(self.device)
 
-        torch.nn.utils.clip_grad_norm_(self.network.parameters(), max_norm=0.5)
-        self.optimizer.step()
-        self.scheduler.step(loss)
+            # חישוב הלוס
+            loss = self.compute_loss(embeddings, batch_rewards)
 
-        self.metrics["loss"].append(loss.item())
-        self.metrics["return"].append(sum(episode_rewards))
-        print('master loss',loss.item())
-        return loss.item()
+            # עדכון המשקולות
+            self.optimizer.zero_grad()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.network.parameters(), max_norm=1.0)
+            self.optimizer.step()
+
+            total_loss += loss.item()
+            episodes_processed += 1
+
+            #print(f"Episode {i} - Loss: {loss.item():.6f}, Reward: {reward:.6f}")
+
+        avg_loss = total_loss / max(episodes_processed, 1)
+        self.metrics["loss"].append(avg_loss)
+        self.metrics["return"].append(float(sum(reward[0] for reward in episode_rewards)))
+
+        print(f"Master Loss: {avg_loss:.6f}, Return: {sum(reward[0] for reward in episode_rewards):.6f}")
+        return avg_loss
 
     def get_proto_action(self, state):
         self.network.eval()
@@ -136,6 +110,7 @@ class MasterModel:
             if isinstance(state, np.ndarray):
                 state = torch.from_numpy(state).float()
             proto_action = self.network(state)
+            #print('proto aaction', proto_action)
             return proto_action.cpu().numpy().flatten()
 
     def freeze(self):
