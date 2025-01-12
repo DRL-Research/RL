@@ -65,7 +65,7 @@ class Agent(gym.Env):
             #print(f"Exploiting action: {action}")
         else:
             action = model.predict(current_state, deterministic=False)
-            #print(f"Exploring action: {action}")
+            print(f"Exploring action: {action}")
         return action
 
 

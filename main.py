@@ -11,16 +11,16 @@ if __name__ == "__main__":
 
     experiment5 = Experiment(
         EXPERIMENT_ID='Experiment5',
-        EPOCHS= Experiment.CYCLES* Experiment.EPISODES_PER_CYCLE,
+        EPOCHS= 100,
         ROLE=Role.CAR1,
         MODEL_TYPE=ModelType.PPO,
-        TIME_BETWEEN_STEPS=0.5,
+        TIME_BETWEEN_STEPS=0.75,
         EXPLORATION_EXPLOTATION_THRESHOLD=500,
         ONLY_INFERENCE=False,
         THROTTLE_SLOW=0.4,
         THROTTLE_FAST=0.6,
         FIXED_THROTTLE=np.random.uniform(0.4, 0.6, 1),
-        LEARNING_RATE=0.001,
+        LEARNING_RATE=0.3,
         # LOAD_MODEL_DIRECTORY=get_model_path_from_experiment_name("15_12_2024-20_08_51_Experiment1")
     )
 

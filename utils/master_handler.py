@@ -67,9 +67,6 @@ class MasterModel:
         for i, states in enumerate(episode_states):
             if not states:  # דלג על אפיזודות ריקות
                 continue
-
-            # המרת רשימת הטנזורים לטנזור אחד
-            # כל state הוא כבר טנזור, אז נשתמש ב-torch.stack
             states_tensor = torch.stack([s.to(self.device) for s in states])
 
             # reshape אם צריך

@@ -11,7 +11,7 @@ from utils.model.model_constants import ModelType
 @dataclass
 class Experiment:
     # General Experiment Settings
-    EPISODES_PER_CYCLE = 40
+    EPISODES_PER_CYCLE = 20
     CYCLES = 5
     EXPERIMENT_ID: str = ""
     ONLY_INFERENCE: bool = False
@@ -21,10 +21,10 @@ class Experiment:
     # Model and Training Configuration
     MODEL_TYPE: ModelType = None
     ROLE: Role = None  # Which car is using the DRL model. Car1, Car2, Both
-    EPOCHS: int = 100
+    EPOCHS: int = 1
     LEARNING_RATE: float = 0.001
     N_STEPS: int = 160
-    BATCH_SIZE: int = 16
+    BATCH_SIZE: int = 500
     TIME_BETWEEN_STEPS: float = 0.05
     LOSS_FUNCTION: str = "mse"
     EXPLORATION_EXPLOTATION_THRESHOLD: int = 50

@@ -39,7 +39,6 @@ def training_loop(p_agent_loss,p_master_loss,p_episode_counter,experiment, env, 
                     'rewards': episode_rewards
                 })
                 if len(episode_data) >= 4:
-                    # נעבד את הנתונים לפי אפיזודות
                     master_episode_states = [ep['states'] for ep in episode_data]
                     master_episode_rewards = [ep['rewards'] for ep in
                                               episode_data]
@@ -194,7 +193,7 @@ def run_experiment(experiment_config):
     agent_model.save(experiment_config.SAVE_MODEL_DIRECTORY)
     # master_model.save_metrics(f"{experiment_config.EXPERIMENT_PATH}/master_metrics.csv")
     logger.close()
-    master_model.save(f"{experiment_config.SAVE_MODEL_DIRECTORY}_master.pth")
+    #master_model.save(f"{experiment_config.SAVE_MODEL_DIRECTORY}_master.pth")
 
     print("Models saved")
     print("Total collisions:", collision_counter)
