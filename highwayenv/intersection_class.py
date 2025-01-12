@@ -33,13 +33,13 @@ class IntersectionEnv(AbstractEnv):
     def _reward(self, action: int) -> float:
         """Aggregated reward, for cooperative agents."""
         return sum(
-            self._agent_reward(action, vehicle) for vehicle in self.controlled_vehicles
+            self._agent_reward(vehicle) for vehicle in self.controlled_vehicles
         ) / len(self.controlled_vehicles)
 
     def _rewards(self, action: int) -> dict[str, float]:
         """Multi-objective rewards, for cooperative agents."""
         agents_rewards = [
-            self._agent_rewards(action, vehicle) for vehicle in self.controlled_vehicles
+            self._agent_rewards(vehicle) for vehicle in self.controlled_vehicles
         ]
         return {
             name: sum(agent_rewards[name] for agent_rewards in agents_rewards)
@@ -47,14 +47,14 @@ class IntersectionEnv(AbstractEnv):
             for name in agents_rewards[0].keys()
         }
 
-    def _agent_reward(self, action: int, vehicle: Vehicle) -> float:
+    def _agent_reward(self, vehicle: Vehicle) -> float:
         """Per-agent reward signal."""
-        rewards = self._agent_rewards(action, vehicle)
+        rewards = self._agent_rewards(vehicle)
         reward = sum(
             self.config.get(name, 0) * reward for name, reward in rewards.items()
         )
         reward = self.config["arrived_reward"] if rewards["arrived_reward"] else reward
-        reward *= rewards["on_road_reward"]
+        # reward *= rewards["on_road_reward"]
         if self.config["normalize_reward"]:
             reward = utils.lmap(
                 reward,
@@ -63,7 +63,7 @@ class IntersectionEnv(AbstractEnv):
             )
         return reward
 
-    def _agent_rewards(self, action: int, vehicle: Vehicle) -> dict[str, float]:
+    def _agent_rewards(self, vehicle: Vehicle) -> dict[str, float]:
         """Per-agent per-objective reward signal."""
         scaled_speed = utils.lmap(
             vehicle.speed, self.config["reward_speed_range"], [0, 1]
@@ -72,7 +72,7 @@ class IntersectionEnv(AbstractEnv):
             "collision_reward": vehicle.crashed,
             "high_speed_reward": np.clip(scaled_speed, 0, 1),
             "arrived_reward": self.has_arrived(vehicle),
-            "on_road_reward": vehicle.on_road,
+            # "on_road_reward": vehicle.on_road,
         }
 
     def _is_terminated(self) -> bool:
@@ -93,7 +93,7 @@ class IntersectionEnv(AbstractEnv):
     def _info(self, obs: np.ndarray, action: int) -> dict:
         info = super()._info(obs, action)
         info["agents_rewards"] = tuple(
-            self._agent_reward(action, vehicle) for vehicle in self.controlled_vehicles
+            self._agent_reward(vehicle) for vehicle in self.controlled_vehicles
         )
         info["agents_terminated"] = tuple(
             self._agent_is_terminal(vehicle) for vehicle in self.controlled_vehicles
