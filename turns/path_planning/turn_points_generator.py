@@ -10,6 +10,17 @@ decimation = 30e9  # Used to save an output image every X iterations.
 
 
 def generate_points_for_turn(client, moving_car_name='Car1', direction=None):
+    """
+    input:
+        client - the airsim client
+        moving_car_name - the name of the car
+        direction - the direction of the turn
+    output:
+        tracked_points_bezier - the points that were tracked
+        execution_time - the time it took to generate the points
+        curr_vel - the current velocity of the car
+        vehicle_to_map - the transformation matrix of the car to the map
+    """
     global decimation
     image_dest = os.path.join(os.getcwd(), '../images')
     data_dest = os.path.join(os.getcwd(), '../recordings')

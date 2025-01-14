@@ -27,8 +27,7 @@ def run_for_single_car(moving_car_name):
     spline = turn_helper.filter_tracked_points_and_generate_spline(tracked_points, moving_car_name)
     # Follow the spline using Stanley's method:
     print(f'Starting variable speed spline following procedure for {moving_car_name}.')
-    positions_lst = path_following.following_loop(airsim_client, spline, execution_time, curr_vel,
-                                                     transition_matrix, moving_car_name=moving_car_name)
+    positions_lst = path_following.following_loop(airsim_client, spline,moving_car_name=moving_car_name)
 
     print(f'Full process complete for {moving_car_name}! Stopping vehicle.')
     AirsimManager.stop_car(airsim_client, moving_car_name)

@@ -221,5 +221,5 @@ def filter_tracked_points_and_generate_spline(tracked_points,moving_car_name):
     spline_obj = spline_utils.PathSpline(x, y)
     spline_obj.generate_spline(amount=0.1, meters=True, smoothing=1, summation=len(x))
     if CREATE_SUB_PLOTS:
-        plots_utils.plot_the_spline(spline_obj.xi, -1 * spline_obj.yi, moving_car_name)
+        plots_utils_turns.plot_the_spline(spline_obj.xi, -1 * spline_obj.yi, moving_car_name)
     return spline_obj

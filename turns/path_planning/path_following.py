@@ -10,8 +10,16 @@ import os
 from turns.initialization.config_turns import *
 
 
-def following_loop(client, spline=None, execution_time=None, curr_vel=None,
-                   transition_matrix=None, moving_car_name="Car1"):
+def following_loop(client, spline=None,moving_car_name="Car1"):
+    """
+    Parameters:
+        spline - the spline to follow
+        moving_car_name - the name of the car
+
+    Output:
+        current_object_positions_lst - list of the positions while following the spline
+
+    """
     data_dest = os.path.join(os.getcwd(), '../recordings')
     os.makedirs(data_dest, exist_ok=True)
     save_data = False
