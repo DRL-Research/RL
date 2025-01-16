@@ -67,6 +67,7 @@ def plot_results(experiment, all_rewards, all_actions):
 
 
 
+
 def run_experiment(experiment_config, config):
 
     env = gym.make('RELintersection-v0',render_mode="rgb_array", config=config)
