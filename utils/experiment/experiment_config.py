@@ -26,6 +26,12 @@ class Experiment:
     LOSS_FUNCTION: str = "mse"
     EXPLORATION_EXPLOTATION_THRESHOLD: int = 50
 
+    # Action Configuration
+    ACTION_SPACE_SIZE: int = 2
+    THROTTLE_FAST: float = 0.7
+    THROTTLE_SLOW: float = 0.4
+    FIXED_THROTTLE: float = (THROTTLE_FAST + THROTTLE_SLOW) / 2
+
     # Car 1 Settings
     CAR1_NAME: CarName = CarName.CAR1
     CAR1_INITIAL_POSITION_OPTION_1: List[int] = field(default_factory=lambda: [30, 0])
@@ -37,10 +43,20 @@ class Experiment:
 
     # Car 2 Settings
     CAR2_NAME: CarName = CarName.CAR2
-    CAR2_INITIAL_POSITION_OPTION_1: List[int] = field(default_factory=lambda: [0, 30])
+    CAR2_INITIAL_POSITION_OPTION_1: List[int] = field(default_factory=lambda: [2, 30])
     CAR2_INITIAL_YAW_OPTION_1: int = 270
-    CAR2_INITIAL_POSITION_OPTION_2: List[int] = field(default_factory=lambda: [0, -30])
+    CAR2_INITIAL_POSITION_OPTION_2: List[int] = field(default_factory=lambda: [2, -30])
     CAR2_INITIAL_YAW_OPTION_2: int = 90
+    CAR2_THROTTLE: float = 0.4
+    FIXED_SPEED_CAR2: float = (THROTTLE_FAST + THROTTLE_SLOW) / 2
+
+    # Car 3 Settings
+    CAR3_NAME: CarName = CarName.CAR3
+    CAR3_INITIAL_POSITION_OPTION_1: List[int] = field(default_factory=lambda: [0, 30])
+    CAR3_INITIAL_YAW_OPTION_1: int = 270
+    CAR3_INITIAL_POSITION_OPTION_2: List[int] = field(default_factory=lambda: [0, -30])
+    CAR3_INITIAL_YAW_OPTION_2: int = 90
+    FIXED_SPEED_CAR3: float = (THROTTLE_FAST + THROTTLE_SLOW) / 2
 
     # Cars Setup Configuration
     RANDOM_INIT = True
@@ -49,13 +65,7 @@ class Experiment:
     PPO_NETWORK_ARCHITECTURE = {'pi': [32, 32], 'vf': [32, 32]}
 
     # State Configuration
-    INPUT_SIZE = 8
-
-    # Action Configuration
-    ACTION_SPACE_SIZE: int = 2
-    THROTTLE_FAST: float = 0.7
-    THROTTLE_SLOW: float = 0.4
-    FIXED_THROTTLE: float = (THROTTLE_FAST + THROTTLE_SLOW) / 2
+    INPUT_SIZE = 12
 
     # Reward Configuration
     REACHED_TARGET_REWARD: int = 10
