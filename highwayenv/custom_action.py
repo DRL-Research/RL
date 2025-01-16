@@ -67,7 +67,7 @@ class CustomDiscreteAction(ActionType):
         actions = []
         if self.controlled_vehicle.speed_index < self.controlled_vehicle.target_speeds.size - 1:
             actions.append(self.actions_indexes["FASTER"])
-        if self.controlled_vehicle.speed_index > 0:
+        if self.controlled_vehicle.speed > 0:
             actions.append(self.actions_indexes["SLOWER"])
         return actions
 
