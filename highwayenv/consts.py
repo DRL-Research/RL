@@ -10,6 +10,12 @@ Explanation of the feature in the configuration of experiment2:
 
 CONFIG_EXP2 = (
         {
+            "car1": {
+                "start_lane": ("o0", "ir0", 0),
+                "destination": "o2", "speed": 20,
+                "init_location": 40,
+                "color": (0, 204, 0)  # green
+            },
             "observation": {
                 "type": "Kinematics",
                 "vehicles_count": 2,

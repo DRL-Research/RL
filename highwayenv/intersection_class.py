@@ -254,16 +254,21 @@ class IntersectionEnv(AbstractEnv):
             ]
 
         self.controlled_vehicles = []
+        print( self.config["car1"])
+        # "car1": {"start_lane": ("o0", "ir0", 0), "destination": "o2", "speed": 20, "init_location": 40, "color": (0, 204, 0)},  # Custom vehicle 1
 
         # Controlled Vehicle: Speed can change
-        lane_1 = self.road.network.get_lane(("o0", "ir0", 0))  # South-to-North
+        # lane_1 = self.road.network.get_lane(("o0", "ir2", 0))  # South-to-North
+        lane_1 = self.road.network.get_lane(self.config["car1"]["start_lane"])  # South-to-North
         controlled_vehicle = ControlledVehicle(
             self.road,
             lane_1.position(40, 0),  # Start 40m from the start of the road
-            speed=10,  # Initial speed
+            speed=self.config["car1"]["speed"],  # Initial speed
             heading=lane_1.heading_at(40),
         )
-        controlled_vehicle.plan_route_to("o2")  # North exit
+        controlled_vehicle.color = self.config["car1"]["color"]  # Set color to green (RGB format)
+
+        controlled_vehicle.plan_route_to(self.config["car1"]["destination"])  # North exit
         self.road.vehicles.append(controlled_vehicle)
         self.controlled_vehicles.append(controlled_vehicle)
 
