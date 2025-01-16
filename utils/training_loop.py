@@ -31,7 +31,7 @@ def training_loop(experiment, env, model):
                 steps_counter += 1
                 total_steps += 1
                 ### need to fill action line here
-                action, _state=model.predict(current_state, deterministic=False)
+                action, _state = model.predict(current_state, deterministic=False)
                 env.render()
                 print(f"Action: {action}")
                 current_state, reward, done, truncated, info = env.step(action)
@@ -41,7 +41,7 @@ def training_loop(experiment, env, model):
                 actions_per_episode.append(action)
                 episode_sum_of_rewards += reward
                 if done:
-                    if reward == -20:
+                    if info["crashed"]:
                         collision_counter += 1
                         print('Collision!')
                     else:

@@ -72,6 +72,7 @@ class IntersectionEnv(AbstractEnv):
             "collision_reward": vehicle.crashed,
             "high_speed_reward": np.clip(scaled_speed, 0, 1),
             "arrived_reward": self.has_arrived(vehicle),
+            "starvation_reward": True
             # "on_road_reward": vehicle.on_road,
         }
 
@@ -106,14 +107,6 @@ class IntersectionEnv(AbstractEnv):
 
     def step(self, action: int) -> tuple[np.ndarray, float, bool, bool, dict]:
         obs, reward, terminated, truncated, info = super().step(action)
-        print("current state:", obs)
-        # print(f"(x,y)) car 1: {obs[0][1]},{obs[0][2]}")
-        # print(f"(x,y)) car 2: {obs[1][1]},{obs[1][2]}")
-        # print("vx car 1:", obs[0][3])
-        # print("vy car 1:", obs[0][4])
-        # print("vx car 2:", obs[1][3])
-        # print("vy car 2:", obs[1][4])
-
         self._clear_vehicles()
         # self._spawn_vehicle(spawn_probability=self.config["spawn_probability"])
         return obs, reward, terminated, truncated, info
