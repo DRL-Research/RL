@@ -27,10 +27,11 @@ def training_loop(experiment, env, model):
             episode_counter += 1
             actions_per_episode = []
             while not done:
+                print("-------------------------------------------------------")
                 steps_counter += 1
                 total_steps += 1
                 ### need to fill action line here
-                action,_state=model.predict(current_state,deterministic=False)
+                action, _state=model.predict(current_state, deterministic=False)
                 env.render()
                 print(f"Action: {action}")
                 current_state, reward, done, truncated, info = env.step(action)
@@ -66,9 +67,7 @@ def plot_results(experiment, all_rewards, all_actions):
     PlottingUtils.show_plots()
 
 
-
 def run_experiment(experiment_config, config):
-
     env = gym.make('RELintersection-v0',render_mode="rgb_array", config=config)
     model = Model(env, experiment_config).model
     logger = configure(experiment_config.EXPERIMENT_PATH, ["stdout", "csv", "tensorboard"])
@@ -83,11 +82,13 @@ def run_experiment(experiment_config, config):
     print("Total collisions:", collision_counter)
 
     if not experiment_config.ONLY_INFERENCE:
-       plot_results(experiment=experiment_config, all_rewards=all_rewards, all_actions=all_actions)
+        plot_results(experiment=experiment_config, all_rewards=all_rewards, all_actions=all_actions)
+
 
 # override the base function in "GYM" environment. do not touch!
 def resume_experiment_simulation(env):
     env.envs[0].airsim_manager.resume_simulation()
+
 
 # override the base function in "GYM" environment. do not touch!
 def pause_experiment_simulation(env):
