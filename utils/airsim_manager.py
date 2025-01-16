@@ -48,7 +48,7 @@ class AirsimManager:
         self.car1_initial_position_saved = None
         self.simulation_paused = False
 
-        self.reset_cars_to_initial_positions()
+        self.reset_cars_to_initial_positions_fixed()
 
     def reset_cars_to_initial_positions(self):
 
@@ -245,3 +245,33 @@ class AirsimManager:
     def is_simulation_paused(self):
         return self.simulation_paused
 
+    def reset_cars_to_initial_positions_fixed(self):
+        self.airsim_client.reset()
+        initial_pose_car1, initial_pose_car2, initial_pose_car3 = self.get_fixed_position(self.experiment)
+        self.airsim_client.simSetVehiclePose(initial_pose_car1, True, self.experiment.CAR1_NAME)
+        self.airsim_client.simSetVehiclePose(initial_pose_car2, True, self.experiment.CAR2_NAME)
+
+    def get_fixed_position(self, experiment):
+        pos1 = self.get_pos(experiment.CAR1_POSITION)
+        pos2 = self.get_pos(experiment.CAR2_POSITION)
+        pos3 = self.get_pos(experiment.CAR3_POSITION)
+
+        def create_initial_pose(x, y, yaw_rad):
+            position = airsim.Vector3r(x, y, -1.0)
+            orientation = airsim.to_quaternion(0.0, 0.0, yaw_rad)
+            return airsim.Pose(position, orientation)
+
+        return create_initial_pose(pos1[0], pos1[1], pos1[2]), create_initial_pose(pos2[0], pos2[1] - 2,
+                                                                                   pos2[2]), create_initial_pose(
+            pos3[0], pos3[1], pos3[2])
+
+    def get_pos(self, location):
+        match location:
+            case "LTR":
+                return [0, 30, 90]
+            case "RTL":
+                return [0, -30, 270]
+            case "UTD":
+                return [30, 0, 0]
+            case "DTU":
+                return [-30, 0, 180]

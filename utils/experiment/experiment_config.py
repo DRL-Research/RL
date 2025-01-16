@@ -40,6 +40,7 @@ class Experiment:
     CAR1_INITIAL_YAW_OPTION_2: int = 0
     CAR1_DESIRED_POSITION_OPTION_1 = np.array([-10, 0])
     CAR1_DESIRED_POSITION_OPTION_2 = np.array([10, 0])
+    CAR1_POSITION: str = 'DTU'
 
     # Car 2 Settings
     CAR2_NAME: CarName = CarName.CAR2
@@ -49,6 +50,7 @@ class Experiment:
     CAR2_INITIAL_YAW_OPTION_2: int = 90
     CAR2_THROTTLE: float = 0.4
     FIXED_SPEED_CAR2: float = (THROTTLE_FAST + THROTTLE_SLOW) / 2
+    CAR2_POSITION: str = 'LTR'
 
     # Car 3 Settings
     CAR3_NAME: CarName = CarName.CAR3
@@ -57,6 +59,7 @@ class Experiment:
     CAR3_INITIAL_POSITION_OPTION_2: List[int] = field(default_factory=lambda: [0, -30])
     CAR3_INITIAL_YAW_OPTION_2: int = 90
     FIXED_SPEED_CAR3: float = (THROTTLE_FAST + THROTTLE_SLOW) / 2
+    CAR3_POSITION: str = 'RTL'
 
     # Cars Setup Configuration
     RANDOM_INIT = True
