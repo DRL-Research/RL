@@ -55,6 +55,25 @@ Explanation of the feature in the configuration of experiment2:
 
 CONFIG_EXP2 = (
     {
+        "car1": {
+            "start_lane": ("o0", "ir0", 0),
+            "destination": "o2",
+            "speed": Speed.FAST,
+            "init_location": {
+                "longitudinal": 40,
+                "lateral": 0
+            },
+            "color": (0, 204, 0)  # green
+        },
+        "car2": {
+            "start_lane": ("o1", "ir1", 0),
+            "destination": "o3",
+            "speed": Speed.FAST,
+            "init_location": {
+                "longitudinal": 40,
+                "lateral": 0
+            },
+        },
         "observation": {
             "type": "Kinematics",
             "vehicles_count": 2,
@@ -91,5 +110,3 @@ CONFIG_EXP2 = (
         # "destination": "o2",
         # "controlled_vehicles": 1,
     })
-
-
