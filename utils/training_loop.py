@@ -98,15 +98,28 @@ def run_experiment(experiment_config):
     env = DummyVecEnv([lambda: Agent(experiment_config, airsim_manager)])
     agent = Agent(experiment_config, airsim_manager)
     model = Model(env, experiment_config).model
+
     logger = configure(experiment_config.EXPERIMENT_PATH, ["stdout", "csv", "tensorboard"])
 
     model.set_logger(logger)
 
     experiment_config.logger.log_hyperparameters(experiment_config)
 
-    model, collision_counter, all_rewards, all_actions = training_loop(experiment=experiment_config, env=env,
-                                                                       agent=agent,
-                                                                       model=model)
+    # # Initialize Car 3 in the opposite position of Car 2
+    # if experiment_config.CAR2_INITIAL_POSITION_OPTION_1 == [0, 30]:
+    #     experiment_config.car3_initial_position = experiment_config.CAR3_INITIAL_POSITION_OPTION_2
+    #     experiment_config.car3_initial_yaw = experiment_config.CAR3_INITIAL_YAW_OPTION_2
+    # else:
+    #     experiment_config.car3_initial_position = experiment_config.CAR3_INITIAL_POSITION_OPTION_1
+    #     experiment_config.car3_initial_yaw = experiment_config.CAR3_INITIAL_YAW_OPTION_1
+
+
+    model, collision_counter, all_rewards, all_actions = training_loop(
+        experiment=experiment_config,
+        env=env,
+        agent=agent,
+        model=model
+    )
 
 
     model.save(experiment_config.SAVE_MODEL_DIRECTORY)

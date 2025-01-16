@@ -37,7 +37,7 @@ class Agent(gym.Env):
 
 
     def reset(self) -> np.ndarray:
-        self.airsim_manager.reset_cars_to_initial_positions()
+        self.airsim_manager.reset_cars_to_initial_positions_fixed()
         self.airsim_manager.reset_for_new_episode()
         if self.experiment.ROLE == self.experiment.CAR1_NAME:
             self.state = self.airsim_manager.get_car1_state()
@@ -49,25 +49,45 @@ class Agent(gym.Env):
         if self.airsim_manager.is_simulation_paused():
             return self.state, 0, False, {}
 
-        throttle = Experiment.THROTTLE_FAST if action == 0 else Experiment.THROTTLE_SLOW
+        throttle = self.experiment.THROTTLE_FAST if action == 0 else self.experiment.THROTTLE_SLOW
         if self.experiment.ROLE == self.experiment.CAR1_NAME:
             self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR1_NAME)
-            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=Experiment.FIXED_THROTTLE),
+            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=self.experiment.FIXED_SPEED_CAR2),
                                                  self.experiment.CAR2_NAME)
+            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=self.experiment.FIXED_SPEED_CAR3),
+                                                 self.experiment.CAR3_NAME)
+
         elif self.experiment.ROLE == self.experiment.CAR2_NAME:
+
             self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR2_NAME)
-            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=Experiment.FIXED_THROTTLE),
+
+            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=self.experiment.FIXED_SPEED_CAR2),
                                                  self.experiment.CAR1_NAME)
-        elif self.experiment.ROLE == 'Both':
-            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR1_NAME)
-            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR2_NAME)
+            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=self.experiment.FIXED_SPEED_CAR3),
+                                                 self.experiment.CAR3_NAME)
+
+        elif self.experiment.ROLE == self.experiment.CAR3_NAME:
+            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR3_NAME)
+
+            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=self.experiment.FIXED_SPEED_CAR3),
+                                                 self.experiment.CAR1_NAME)
+
+            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=self.experiment.FIXED_SPEED_CAR2),
+                                                 self.experiment.CAR2_NAME)
+
+
+        # elif self.experiment.ROLE == 'Both':
+        #     self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR1_NAME)
+        #     self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR2_NAME)
 
         time.sleep(self.experiment.TIME_BETWEEN_STEPS)
 
         if self.experiment.ROLE == self.experiment.CAR1_NAME:
             self.state = self.airsim_manager.get_car1_state()
-        else:
+        elif self.experiment.ROLE == self.experiment.CAR2_NAME:
             self.state = self.airsim_manager.get_car2_state()
+        else:
+            self.state = self.airsim_manager.get_car3_state()
 
         collision = self.airsim_manager.collision_occurred()
         reached_target = self.airsim_manager.has_reached_target(self.state[:2])

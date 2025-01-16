@@ -5,7 +5,7 @@ from dataclasses import dataclass
 class CarName:
     CAR1 = "Car1"
     CAR2 = "Car2"
-
+    CAR3 = "Car3"
 
 @dataclass
 class Role:

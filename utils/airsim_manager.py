@@ -7,7 +7,6 @@ from utils.experiment.experiment_constants import StartingLocation
 
 
 class AirsimManager:
-
     """
     AirsimManager is responsible for handling cars (API between Simulation and code)
     """
@@ -20,24 +19,35 @@ class AirsimManager:
         self.airsim_client.enableApiControl(True, self.experiment.CAR1_NAME)  # Enable API control for Car1
         self.airsim_client.enableApiControl(True, self.experiment.CAR2_NAME)  # Enable API control for Car2
 
+        self.airsim_client.enableApiControl(True, self.experiment.CAR3_NAME)  # Enable API control for Car3
+
         # Set cars initial throttle:
         car_controls_car_1 = airsim.CarControls()
         car_controls_car_1.throttle = 1
         self.airsim_client.setCarControls(car_controls_car_1, self.experiment.CAR1_NAME)
+
         car_controls_car_2 = airsim.CarControls()
-        car_controls_car_2.throttle = 1
+        # car_controls_car_2.throttle = 1
         self.airsim_client.setCarControls(car_controls_car_2, self.experiment.CAR2_NAME)
+
+        car_controls_car_3 = airsim.CarControls()
+        # car_controls_car_3.throttle = 1
+        self.airsim_client.setCarControls(car_controls_car_3, self.experiment.CAR3_NAME)
 
         # Get initial positions according to settings offset
         self.car1_x_offset = 0  # Chane only if settings.json is changed.
         self.car1_y_offset = 0  # Chane only if settings.json is changed.
+
         self.car2_x_offset = 0  # Chane only if settings.json is changed.
         self.car2_y_offset = 5  # Chane only if settings.json is changed.
+
+        self.car3_x_offset = 0  # Chane only if settings.json is changed.
+        self.car3_y_offset = 0  # Chane only if settings.json is changed.
 
         self.car1_initial_position_saved = None
         self.simulation_paused = False
 
-        self.reset_cars_to_initial_positions()
+        self.reset_cars_to_initial_positions_fixed()
 
     def reset_cars_to_initial_positions(self):
 
@@ -58,8 +68,10 @@ class AirsimManager:
 
         # Pick random directions for cars
         if self.experiment.RANDOM_INIT:
-            car1_direction = random.choice([StartingLocation.LEFT, StartingLocation.RIGHT]) # TODO: change to UP and down
+            car1_direction = random.choice(
+                [StartingLocation.LEFT, StartingLocation.RIGHT])  # TODO: change to UP and down
             car2_direction = random.choice([StartingLocation.LEFT, StartingLocation.RIGHT])
+            car3_direction = random.choice([StartingLocation.LEFT, StartingLocation.RIGHT])
 
         # Get starting positions and orientations for Car1 and Car2
         car1_start_location_x, car1_start_location_y, car1_start_yaw = get_initial_position_and_yaw(
@@ -80,6 +92,15 @@ class AirsimManager:
             self.car2_x_offset,
             self.car2_y_offset
         )
+        car3_start_location_x, car3_start_location_y, car3_start_yaw = get_initial_position_and_yaw(
+            car3_direction,
+            self.experiment.CAR3_INITIAL_POSITION_OPTION_1,
+            self.experiment.CAR3_INITIAL_POSITION_OPTION_2,
+            self.experiment.CAR3_INITIAL_YAW_OPTION_1,
+            self.experiment.CAR3_INITIAL_YAW_OPTION_2,
+            self.car3_x_offset,
+            self.car3_y_offset
+        )
 
         # Helper function to create initial pose
         def create_initial_pose(x, y, yaw_rad):
@@ -88,15 +109,20 @@ class AirsimManager:
             return airsim.Pose(position, orientation)
 
         # Set the poses for Car1 and Car2
-        initial_pose_car1 = create_initial_pose(car1_start_location_x, car1_start_location_y, np.radians(car1_start_yaw))
-        initial_pose_car2 = create_initial_pose(car2_start_location_x, car2_start_location_y, np.radians(car2_start_yaw))
+        initial_pose_car1 = create_initial_pose(car1_start_location_x, car1_start_location_y,
+                                                np.radians(car1_start_yaw))
+        initial_pose_car2 = create_initial_pose(car2_start_location_x, car2_start_location_y,
+                                                np.radians(car2_start_yaw))
+        initial_pose_car3 = create_initial_pose(car3_start_location_x, car3_start_location_y,
+                                                np.radians(car3_start_yaw))
 
         print(f"Starting location of car1: {car1_start_location_x}, {car1_start_location_y}")
         print(f"Starting location of car2: {car2_start_location_x}, {car2_start_location_y}")
+        print(f"Starting location of car3: {car3_start_location_x}, {car3_start_location_y}")
 
         self.airsim_client.simSetVehiclePose(initial_pose_car1, True, self.experiment.CAR1_NAME)
         self.airsim_client.simSetVehiclePose(initial_pose_car2, True, self.experiment.CAR2_NAME)
-
+        self.airsim_client.simSetVehiclePose(initial_pose_car3, True, self.experiment.CAR3_NAME)
 
     def collision_occurred(self):
         collision_info = self.airsim_client.simGetCollisionInfo()
@@ -132,10 +158,8 @@ class AirsimManager:
     def get_car1_state(self, logger=None):
         car1_position_and_speed = self.get_car_position_and_speed(self.experiment.CAR1_NAME)
         car2_position_and_speed = self.get_car_position_and_speed(self.experiment.CAR2_NAME)
-        ##################embedding the position and speed#########################
-        car1_position_and_speed = self.embed_position_and_speed(car1_position_and_speed)
-        car2_position_and_speed = self.embed_position_and_speed(car2_position_and_speed)
-        ##################embedding the position and speed#########################
+        car3_position_and_speed = self.get_car_position_and_speed(self.experiment.CAR3_NAME)
+
         car1_state = np.array([
             car1_position_and_speed["x"],
             car1_position_and_speed["y"],
@@ -144,7 +168,11 @@ class AirsimManager:
             car2_position_and_speed["x"],
             car2_position_and_speed["y"],
             car2_position_and_speed["Vx"],
-            car2_position_and_speed["Vy"]
+            car2_position_and_speed["Vy"],
+            car3_position_and_speed["x"],
+            car3_position_and_speed["y"],
+            car3_position_and_speed["Vx"],
+            car3_position_and_speed["Vy"],
         ])
 
         if logger is not None and self.experiment.LOG_CAR_STATES:
@@ -154,11 +182,38 @@ class AirsimManager:
     def get_car2_state(self, logger=None):
         car2_position_and_speed = self.get_car_position_and_speed(self.experiment.CAR2_NAME)
         car1_position_and_speed = self.get_car_position_and_speed(self.experiment.CAR1_NAME)
-        ##################embedding the position and speed#########################
-        car1_position_and_speed = self.embed_position_and_speed(car1_position_and_speed)
-        car2_position_and_speed = self.embed_position_and_speed(car2_position_and_speed)
-        ##################embedding the position and speed#########################
+        car3_position_and_speed = self.get_car_position_and_speed(self.experiment.CAR3_NAME)
+
         car2_state = np.array([
+            car2_position_and_speed["x"],
+            car2_position_and_speed["y"],
+            car2_position_and_speed["Vx"],
+            car2_position_and_speed["Vy"],
+            car1_position_and_speed["x"],
+            car1_position_and_speed["y"],
+            car1_position_and_speed["Vx"],
+            car1_position_and_speed["Vy"],
+            car3_position_and_speed["x"],
+            car3_position_and_speed["y"],
+            car3_position_and_speed["Vx"],
+            car3_position_and_speed["Vy"]
+        ])
+
+        if logger is not None and self.experiment.LOG_CAR_STATES:
+            logger.log_state(car2_state, self.experiment.CAR2_NAME)
+
+        return car2_state
+
+    def get_car3_state(self, logger=None):
+        car3_position_and_speed = self.get_car_position_and_speed(self.experiment.CAR3_NAME)
+        car2_position_and_speed = self.get_car_position_and_speed(self.experiment.CAR2_NAME)
+        car1_position_and_speed = self.get_car_position_and_speed(self.experiment.CAR1_NAME)
+
+        car3_state = np.array([
+            car3_position_and_speed["x"],
+            car3_position_and_speed["y"],
+            car3_position_and_speed["Vx"],
+            car3_position_and_speed["Vy"],
             car2_position_and_speed["x"],
             car2_position_and_speed["y"],
             car2_position_and_speed["Vx"],
@@ -170,9 +225,9 @@ class AirsimManager:
         ])
 
         if logger is not None and self.experiment.LOG_CAR_STATES:
-            logger.log_state(car2_state, self.experiment.CAR2_NAME)
+            logger.log_state(car3_state, self.experiment.CAR3_NAME)
 
-        return car2_state
+        return car3_state
 
     def get_car1_initial_position(self):
         if self.car1_initial_position_saved is None:
@@ -203,3 +258,34 @@ class AirsimManager:
     def is_simulation_paused(self):
         return self.simulation_paused
 
+    def reset_cars_to_initial_positions_fixed(self):
+        self.airsim_client.reset()
+        initial_pose_car1, initial_pose_car2, initial_pose_car3 = self.get_fixed_position(self.experiment)
+        self.airsim_client.simSetVehiclePose(initial_pose_car1, True, self.experiment.CAR1_NAME)
+        self.airsim_client.simSetVehiclePose(initial_pose_car2, True, self.experiment.CAR2_NAME)
+        self.airsim_client.simSetVehiclePose(initial_pose_car3, True, self.experiment.CAR3_NAME)
+
+    def get_fixed_position(self, experiment):
+        pos1 = self.get_pos(experiment.CAR1_POSITION)
+        pos2 = self.get_pos(experiment.CAR2_POSITION)
+        pos3 = self.get_pos(experiment.CAR3_POSITION)
+
+        def create_initial_pose(x, y, yaw_rad):
+            position = airsim.Vector3r(x, y, -1.0)
+            orientation = airsim.to_quaternion(0.0, 0.0, yaw_rad)
+            return airsim.Pose(position, orientation)
+
+        return create_initial_pose(pos1[0], pos1[1], pos1[2]), create_initial_pose(pos2[0], pos2[1] - 2,
+                                                                                   pos2[2]), create_initial_pose(
+            pos3[0], pos3[1], pos3[2])
+
+    def get_pos(self, location):
+        match location:
+            case "LTR":
+                return [0, 30, 90]
+            case "RTL":
+                return [0, -30, 270]
+            case "UTD":
+                return [30, 0, 180]
+            case "DTU":
+                return [-30, 0, 0]
