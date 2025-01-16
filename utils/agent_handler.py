@@ -23,7 +23,7 @@ class Agent(gym.Env):
         self.reset()
 
     def reset(self) -> np.ndarray:
-        self.airsim_manager.reset_cars_to_initial_positions()
+        self.airsim_manager.reset_cars_to_initial_positions_fixed()
         self.airsim_manager.reset_for_new_episode()
         if self.experiment.ROLE == self.experiment.CAR1_NAME:
             self.state = self.airsim_manager.get_car1_state()

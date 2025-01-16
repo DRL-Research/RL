@@ -40,7 +40,7 @@ class Experiment:
     CAR1_INITIAL_YAW_OPTION_2: int = 0
     CAR1_DESIRED_POSITION_OPTION_1 = np.array([-10, 0])
     CAR1_DESIRED_POSITION_OPTION_2 = np.array([10, 0])
-    CAR1_POSITION: str = 'DTU'
+    CAR1_POSITION: str = 'UTD'
 
     # Car 2 Settings
     CAR2_NAME: CarName = CarName.CAR2

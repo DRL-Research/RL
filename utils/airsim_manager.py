@@ -7,7 +7,6 @@ from utils.experiment.experiment_constants import StartingLocation
 
 
 class AirsimManager:
-
     """
     AirsimManager is responsible for handling cars (API between Simulation and code)
     """
@@ -69,8 +68,8 @@ class AirsimManager:
 
         # Pick random directions for cars
         if self.experiment.RANDOM_INIT:
-
-            car1_direction = random.choice([StartingLocation.LEFT, StartingLocation.RIGHT]) # TODO: change to UP and down
+            car1_direction = random.choice(
+                [StartingLocation.LEFT, StartingLocation.RIGHT])  # TODO: change to UP and down
             car2_direction = random.choice([StartingLocation.LEFT, StartingLocation.RIGHT])
             car3_direction = random.choice([StartingLocation.LEFT, StartingLocation.RIGHT])
 
@@ -102,6 +101,7 @@ class AirsimManager:
             self.car3_x_offset,
             self.car3_y_offset
         )
+
         # Helper function to create initial pose
         def create_initial_pose(x, y, yaw_rad):
             position = airsim.Vector3r(x, y, -1.0)
@@ -109,9 +109,12 @@ class AirsimManager:
             return airsim.Pose(position, orientation)
 
         # Set the poses for Car1 and Car2
-        initial_pose_car1 = create_initial_pose(car1_start_location_x, car1_start_location_y, np.radians(car1_start_yaw))
-        initial_pose_car2 = create_initial_pose(car2_start_location_x, car2_start_location_y, np.radians(car2_start_yaw))
-        initial_pose_car3 = create_initial_pose(car3_start_location_x, car3_start_location_y, np.radians(car3_start_yaw))
+        initial_pose_car1 = create_initial_pose(car1_start_location_x, car1_start_location_y,
+                                                np.radians(car1_start_yaw))
+        initial_pose_car2 = create_initial_pose(car2_start_location_x, car2_start_location_y,
+                                                np.radians(car2_start_yaw))
+        initial_pose_car3 = create_initial_pose(car3_start_location_x, car3_start_location_y,
+                                                np.radians(car3_start_yaw))
 
         print(f"Starting location of car1: {car1_start_location_x}, {car1_start_location_y}")
         print(f"Starting location of car2: {car2_start_location_x}, {car2_start_location_y}")
@@ -120,7 +123,6 @@ class AirsimManager:
         self.airsim_client.simSetVehiclePose(initial_pose_car1, True, self.experiment.CAR1_NAME)
         self.airsim_client.simSetVehiclePose(initial_pose_car2, True, self.experiment.CAR2_NAME)
         self.airsim_client.simSetVehiclePose(initial_pose_car3, True, self.experiment.CAR3_NAME)
-
 
     def collision_occurred(self):
         collision_info = self.airsim_client.simGetCollisionInfo()
@@ -250,6 +252,7 @@ class AirsimManager:
         initial_pose_car1, initial_pose_car2, initial_pose_car3 = self.get_fixed_position(self.experiment)
         self.airsim_client.simSetVehiclePose(initial_pose_car1, True, self.experiment.CAR1_NAME)
         self.airsim_client.simSetVehiclePose(initial_pose_car2, True, self.experiment.CAR2_NAME)
+        self.airsim_client.simSetVehiclePose(initial_pose_car3, True, self.experiment.CAR3_NAME)
 
     def get_fixed_position(self, experiment):
         pos1 = self.get_pos(experiment.CAR1_POSITION)
@@ -272,6 +275,6 @@ class AirsimManager:
             case "RTL":
                 return [0, -30, 270]
             case "UTD":
-                return [30, 0, 0]
+                return [30, 0, 180]
             case "DTU":
-                return [-30, 0, 180]
+                return [-30, 0, 0]
