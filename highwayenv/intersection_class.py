@@ -254,31 +254,30 @@ class IntersectionEnv(AbstractEnv):
             ]
 
         self.controlled_vehicles = []
-        print( self.config["car1"])
-        # "car1": {"start_lane": ("o0", "ir0", 0), "destination": "o2", "speed": 20, "init_location": 40, "color": (0, 204, 0)},  # Custom vehicle 1
+        car1_conf =self.config["car1"]
+        car2_conf = self.config["car2"]
 
         # Controlled Vehicle: Speed can change
-        # lane_1 = self.road.network.get_lane(("o0", "ir2", 0))  # South-to-North
-        lane_1 = self.road.network.get_lane(self.config["car1"]["start_lane"])  # South-to-North
+        lane_1 = self.road.network.get_lane(car1_conf["start_lane"])  # South-to-North
         controlled_vehicle = ControlledVehicle(
             self.road,
-            lane_1.position(40, 0),  # Start 40m from the start of the road
-            speed=self.config["car1"]["speed"],  # Initial speed
-            heading=lane_1.heading_at(40),
+            lane_1.position(car1_conf["init_location"]["longitudinal"], car1_conf["init_location"]["lateral"]),  # Start 40m from the start of the road
+            speed=car1_conf["speed"],  # Initial speed
+            heading=lane_1.heading_at(car1_conf["init_location"]["longitudinal"]),
         )
-        controlled_vehicle.color = self.config["car1"]["color"]  # Set color to green (RGB format)
+        controlled_vehicle.color = car1_conf["color"]  # Set color to green (RGB format)
 
-        controlled_vehicle.plan_route_to(self.config["car1"]["destination"])  # North exit
+        controlled_vehicle.plan_route_to(car1_conf["destination"])  # North exit
         self.road.vehicles.append(controlled_vehicle)
         self.controlled_vehicles.append(controlled_vehicle)
 
         # Regular Vehicle: Constant speed
-        lane_2 = self.road.network.get_lane(("o1", "ir1", 0))  # East-to-West
+        lane_2 = self.road.network.get_lane(car2_conf["start_lane"])  # East-to-West
         regular_vehicle = Vehicle(
             self.road,
-            lane_2.position(40, 0),  # Start 30m from the intersection
-            speed=10,  # Constant speed
-            heading=lane_2.heading_at(40),
+            lane_2.position(car2_conf["init_location"]["longitudinal"], car2_conf["init_location"]["lateral"]),  # Start 30m from the intersection
+            speed=car2_conf["speed"],  # Constant speed
+            heading=lane_2.heading_at(car2_conf["init_location"]["longitudinal"]),
         )
         self.road.vehicles.append(regular_vehicle)
 

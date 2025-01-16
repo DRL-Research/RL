@@ -29,9 +29,22 @@ CONFIG_EXP2 = (
         {
             "car1": {
                 "start_lane": ("o0", "ir0", 0),
-                "destination": "o2", "speed": 20,
-                "init_location": 40,
+                "destination": "o2",
+                "speed": Speed.FAST.value,
+                "init_location": {
+                    "longitudinal": 40,
+                    "lateral": 0
+                },
                 "color": (0, 204, 0)  # green
+            },
+            "car2": {
+                "start_lane": ("o1", "ir1", 0),
+                "destination": "o3",
+                "speed": Speed.FAST.value,
+                "init_location": {
+                    "longitudinal": 40,
+                    "lateral": 0
+                },
             },
         "observation": {
             "type": "Kinematics",
