@@ -13,7 +13,6 @@ class MasterNetwork(nn.Module):
         self.input_size = input_size
         self.embedding_size = embedding_size
 
-        # רשת פשוטה עם 2 שכבות בלבד
         self.layer1 = nn.Linear(input_size, 32)
         self.layer2 = nn.Linear(32, embedding_size)
 
@@ -41,19 +40,16 @@ class MasterModel:
         self.metrics = {"loss": [], "return": []}
 
     def compute_loss(self, embeddings, returns):
-        """
-        לוס פשוט יותר: אמבדינגים של מצבים טובים צריכים להיות דומים
-        """
-        # נרמול התגמולים לטווח [-1,1]
+
         normalized_returns = 2 * (returns - returns.min()) / (returns.max() - returns.min() + 1e-8) - 1
 
-        # חישוב דמיון בין אמבדינגים
+
         sim_matrix = torch.mm(embeddings, embeddings.t())
 
-        # חישוב דמיון בין תגמולים
-        returns_sim = torch.mm(normalized_returns.unsqueeze(1), normalized_returns.unsqueeze(0))
 
-        # הלוס מנסה לגרום לאמבדינגים דומים למצבים עם תגמולים דומים
+        returns_sim = torch.mm(normalized_returns.unsqueeze(1), normalized_returns.unsqueeze(0))
+        print(sim_matrix,returns)
+
         loss = F.mse_loss(sim_matrix, returns_sim)
 
         return loss
@@ -65,25 +61,20 @@ class MasterModel:
         episodes_processed = 0
 
         for i, states in enumerate(episode_states):
-            if not states:  # דלג על אפיזודות ריקות
+            if not states:
                 continue
             states_tensor = torch.stack([s.to(self.device) for s in states])
 
-            # reshape אם צריך
             if len(states_tensor.shape) == 3:
                 states_tensor = states_tensor.squeeze(1)
 
-            # קבלת האמבדינגים
             embeddings = self.network(states_tensor)
-
-            # המרת התגמול למספר
-            reward = float(episode_rewards[i][0])  # לקיחת הערך מהמערך
+            #print('emb',embeddings)
+            reward = float(episode_rewards[i][0])
             batch_rewards = torch.full((embeddings.shape[0],), reward).to(self.device)
 
-            # חישוב הלוס
             loss = self.compute_loss(embeddings, batch_rewards)
 
-            # עדכון המשקולות
             self.optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(self.network.parameters(), max_norm=1.0)
@@ -107,7 +98,7 @@ class MasterModel:
             if isinstance(state, np.ndarray):
                 state = torch.from_numpy(state).float()
             proto_action = self.network(state)
-            #print('proto aaction', proto_action)
+            print('proto aaction', proto_action)
             return proto_action.cpu().numpy().flatten()
 
     def freeze(self):

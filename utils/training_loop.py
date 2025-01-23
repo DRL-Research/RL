@@ -18,7 +18,7 @@ def training_loop(p_agent_loss,p_master_loss,p_episode_counter,experiment, env, 
     for cycle in range(experiment.CYCLES):
         print(f"@ Cycle {cycle + 1}/{experiment.CYCLES} @")
 
-        if cycle % 2 == 1:
+        if cycle ==0:
             # Master Network Training
             print("Training Master Network (Agent Network is frozen)")
             master_model.unfreeze()
@@ -46,7 +46,7 @@ def training_loop(p_agent_loss,p_master_loss,p_episode_counter,experiment, env, 
                     p_master_loss.append(loss)
                     episode_data = []
 
-        if cycle % 2 == 0 or cycle == 0:
+        else:
             # Agent Network Training
             print("Training Agent Network (Master Network is frozen)")
             master_model.freeze()
@@ -59,6 +59,8 @@ def training_loop(p_agent_loss,p_master_loss,p_episode_counter,experiment, env, 
                     p_master_loss, p_agent_loss, experiment, total_steps,
                     env, master_model, agent_model, agent, training_master=False
                     )
+                if episode % 5 == 0:
+                    agent_model.learn(total_timesteps=total_steps, log_interval=1)
                 total_steps += steps
                 all_rewards.append(episode_rewards)
                 all_actions.append(episode_actions)
@@ -127,7 +129,6 @@ def run_episode(p_master_loss,p_agent_loss,experiment,total_steps,env, master_mo
             pause_experiment_simulation(env)
             if not training_master:
                 print(steps_counter)
-                agent_model.learn(total_timesteps=steps_counter, log_interval=1)
                 if len(p_master_loss) != 0:
                     p_master_loss.append(p_master_loss[-1])
                 else:
@@ -150,7 +151,7 @@ def run_experiment(experiment_config):
     p_master_entropy=[]
     p_episode_counter=[]
     # Initialize MasterModel and Agent model
-    master_model = MasterModel(input_size=16, embedding_size=4)
+    master_model = MasterModel(input_size=8, embedding_size=4)
 
     # Initialize AirSim manager and env
 

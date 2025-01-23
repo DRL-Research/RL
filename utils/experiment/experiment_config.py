@@ -11,8 +11,8 @@ from utils.model.model_constants import ModelType
 @dataclass
 class Experiment:
     # General Experiment Settings
-    EPISODES_PER_CYCLE = 20
-    CYCLES = 5
+    EPISODES_PER_CYCLE = 30
+    CYCLES =5
     EXPERIMENT_ID: str = ""
     ONLY_INFERENCE: bool = False
     EXPERIMENT_DATE_TIME: str = datetime.now().strftime("%d_%m_%Y-%H_%M_%S")
@@ -48,13 +48,13 @@ class Experiment:
     CAR2_DESIRED_POSITION_OPTION_2 = np.array([0, 10])
 
     # Cars Setup Configuration
-    RANDOM_INIT = True
+    RANDOM_INIT = False
 
     # Network Configuration
-    PPO_NETWORK_ARCHITECTURE = {'pi': [32, 16], 'vf': [32, 16]}
+    PPO_NETWORK_ARCHITECTURE = {'pi': [32, 16], 'vf': [32, 32]}
 
     # State Configuration
-    STATE_INPUT_SIZE = 12
+    STATE_INPUT_SIZE = 8
 
     # Action Configuration
     ACTION_SPACE_SIZE: int = 2

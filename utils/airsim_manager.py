@@ -60,6 +60,9 @@ class AirsimManager:
         if self.experiment.RANDOM_INIT:
             car1_direction = random.choice([StartingLocation.LEFT, StartingLocation.RIGHT])
             car2_direction = random.choice([StartingLocation.LEFT, StartingLocation.RIGHT])
+        else:
+            car1_direction = StartingLocation.RIGHT
+            car2_direction = random.choice([StartingLocation.LEFT, StartingLocation.RIGHT])
 
         # Get starting positions and orientations for Car1 and Car2
         car1_start_location_x, car1_start_location_y, car1_start_yaw = get_initial_position_and_yaw(
@@ -128,10 +131,6 @@ class AirsimManager:
             car1_position_and_speed["y"],
             car1_position_and_speed["Vx"],
             car1_position_and_speed["Vy"],
-            car2_position_and_speed["x"],
-            car2_position_and_speed["y"],
-            car2_position_and_speed["Vx"],
-            car2_position_and_speed["Vy"]
         ])
         #
         # if logger is not None and self.experiment.LOG_CAR_STATES:
@@ -146,10 +145,6 @@ class AirsimManager:
             car2_position_and_speed["y"],
             car2_position_and_speed["Vx"],
             car2_position_and_speed["Vy"],
-            car1_position_and_speed["x"],
-            car1_position_and_speed["y"],
-            car1_position_and_speed["Vx"],
-            car1_position_and_speed["Vy"]
         ])
         #print(car2_position_and_speed["x"],car2_position_and_speed["y"])
 
