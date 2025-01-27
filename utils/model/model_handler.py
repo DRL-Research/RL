@@ -1,7 +1,7 @@
 import os
-
 from stable_baselines3 import PPO, DQN, A2C
 
+from utils.model.CustomPPO import CustomPPO
 from utils.model.model_constants import ModelType, Policy
 
 
@@ -15,8 +15,8 @@ class Model:
         model_params = self.define_model_params(self.experiment_config)
         match self.experiment_config.MODEL_TYPE:
             case ModelType.PPO:
-                print(PPO(policy=Policy, env=self.env, verbose=1, **model_params).learning_rate)
                 return PPO(policy=Policy, env=self.env, verbose=1, **model_params)
+                # return CustomPPO(policy=Policy, env=self.env, verbose=1, **model_params)
             case ModelType.DQN:
                 return DQN(policy=Policy, env=self.env, verbose=1, **model_params)
             case ModelType.A2C:
@@ -41,11 +41,11 @@ class Model:
 
     @staticmethod
     def get_latest_model(directory):
-        '''
+        """
         Get last model from all directory. file must end with .zip
         :param directory:
         :return: last model
-        '''
+        """
         files = []
         for root, dirs, filenames in os.walk(directory):
             for filename in filenames:
@@ -58,13 +58,14 @@ class Model:
         latest_file = max(files, key=os.path.getctime)
         print('Latest model:', latest_file)
         return latest_file
+
     def get_model_from_specific_directory(self, directory):
-        '''
+        """
         return the last model from specific directory
 
         :param directory:
         :return: last model
-        '''
+        """
         relevant_directory = os.chdir(directory)
         for file in os.listdir(relevant_directory):
             if file.endswith(".zip"):

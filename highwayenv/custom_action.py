@@ -30,8 +30,6 @@ class CustomDiscreteAction(ActionType):
         Create a discrete action space of meta-actions.
 
         :param env: the environment
-        :param longitudinal: include longitudinal actions
-        :param lateral: include lateral actions
         :param target_speeds: the list of speeds the vehicle is able to track
         """
         super().__init__(env)
@@ -67,9 +65,10 @@ class CustomDiscreteAction(ActionType):
         actions = []
         if self.controlled_vehicle.speed_index < self.controlled_vehicle.target_speeds.size - 1:
             actions.append(self.actions_indexes["FASTER"])
-        if self.controlled_vehicle.speed > 0:
+        if self.controlled_vehicle.speed_index > 0:
             actions.append(self.actions_indexes["SLOWER"])
         return actions
+
 
 def action_factory(env: AbstractEnv, config: dict) -> ActionType:
     if config["type"] == "ContinuousAction":

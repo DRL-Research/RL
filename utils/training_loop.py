@@ -8,6 +8,7 @@ from utils.plotting_utils import PlottingUtils
 from gym.envs.registration import register
 import gymnasium as gym
 
+
 def training_loop(experiment, env, model):
     if experiment.ONLY_INFERENCE:
         print('Only Inference')
@@ -61,9 +62,9 @@ def training_loop(experiment, env, model):
 
 
 def plot_results(experiment, all_rewards, all_actions):
-    PlottingUtils.plot_losses(experiment.EXPERIMENT_PATH)
-    PlottingUtils.plot_rewards(all_rewards)
-    PlottingUtils.plot_actions(all_actions)
+    PlottingUtils.plot_losses(experiment.EXPERIMENT_PATH, experiment.EXPERIMENT_ID)
+    PlottingUtils.plot_rewards(all_rewards, experiment.EXPERIMENT_ID)
+    PlottingUtils.plot_actions(all_actions, experiment.EXPERIMENT_ID)
     PlottingUtils.show_plots()
 
 

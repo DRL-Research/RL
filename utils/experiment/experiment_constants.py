@@ -60,6 +60,14 @@ def create_full_experiment_config(experiment_configs):
     Returns:
         dict: A dictionary representing the complete experiment configuration,
               enriched with the values from experiment_configs.
+
+    Explanation of the feature in the configuration of experiment2:
+    presence - Disambiguate agents at 0 offset from non-existent agents.
+    x - World offset of ego vehicle or offset to ego vehicle on the x axis.
+    y - World offset of ego vehicle or offset to ego vehicle on the y axis.
+    vx - Velocity on the x axis of vehicle.
+    vy - Velocity on the y axis of vehicle.
+    cos_h, sin_h - Trigonometric heading of vehicle.
     """
     default_config = {
         "observation": {
@@ -78,11 +86,11 @@ def create_full_experiment_config(experiment_configs):
         },
         "action": {
             "type": "CustomDiscreteAction",
-            "target_speeds": [5, 10],  # speed are in [m/s]
+            "target_speeds": [5, 10],  # speed is in [m/s]
         },
+        # our current reward structure is: collision: -20, arriving: +10, every step (starvation): -0.1
         "high_speed_reward": 2,  # reward for obtaining high speed
         "collision_reward": -20,
-        # our current reward structure is: collision: -20, arriving: +10, every step (starvation): -0.1
         "arrived_reward": 10,  # reward for arriving at the destination
         "reward_speed_range": [7.0, 9.0],  # range of speed for which you get rewarded the high_speed_reward
         "normalize_reward": False,
@@ -95,29 +103,15 @@ def create_full_experiment_config(experiment_configs):
         "screen_height": 600,
         "centering_position": [0.5, 0.6],  # Do not change, this centers the simulation
         "scaling": 5.5 * 1.3,
-        # "destination": "o2",
-        # "controlled_vehicles": 1,
     }
     default_config.update(experiment_configs)  # Update with values from updates
     return default_config
 
 
-"""
-Explanation of the feature in the configuration of experiment2:
-    presence - Disambiguate agents at 0 offset from non-existent agents.
-    x - World offset of ego vehicle or offset to ego vehicle on the x axis.
-    y - World offset of ego vehicle or offset to ego vehicle on the y axis.
-    vx - Velocity on the x axis of vehicle.
-    vy - Velocity on the y axis of vehicle.
-    cos_h, sin_h - Trigonometric heading of vehicle.
-"""
-
-
-
 CONFIG_EXP2 = {
     "car1": {
-        "start_lane": ("o0", "ir0", 0),
-        "destination": "o2",
+        "start_lane": Lanes.SOUTH_TO_NORTH,
+        "destination": Direction.OUTER_NORTH,
         "speed": Speed.FAST,
         "init_location": {
             "longitudinal": 40,
@@ -126,8 +120,8 @@ CONFIG_EXP2 = {
         "color": (0, 204, 0)  # green
     },
     "car2": {
-        "start_lane": ("o1", "ir1", 0),
-        "destination": "o3",
+        "start_lane": Lanes.EAST_TO_WEST,
+        "destination": Direction.OUTER_EAST,
         "speed": Speed.FAST,
         "init_location": {
             "longitudinal": 40,
@@ -139,8 +133,8 @@ CONFIG_EXP2 = {
 
 CONFIG_EXP1 = {
         "car1": {
-            "start_lane": ("o0", "ir0", 0),  # Car1 starts in the outer lane
-            "destination": "o2",  # Destination is "o2" (outer north)
+            "start_lane": Lanes.SOUTH_TO_NORTH,
+            "destination": Direction.OUTER_NORTH,
             "speed": Speed.SLOW,  # Initial speed is FAST
             "init_location": {
                 "longitudinal": 40,
@@ -149,8 +143,8 @@ CONFIG_EXP1 = {
             "color": (0, 204, 0)  # Green car
         },
         "car2": {
-            "start_lane": ("o1", "ir1", 0),  # Car2 starts in another lane
-            "destination": None,  # Random movement (left/right)
+            "start_lane": Lanes.EAST_TO_WEST,
+            "destination": Direction.OUTER_EAST,
             "speed": Speed.SLOW,  # **Low speed for first case**
             "init_location": {
                 "longitudinal": 40,
@@ -160,12 +154,11 @@ CONFIG_EXP1 = {
     }
 
 
-
-exp3_speed =  random.choice([Speed.SLOW, Speed.FAST])
+exp3_speed = random.choice([Speed.SLOW, Speed.FAST])
 CONFIG_EXP3 = {
     "car1": {
-        "start_lane": ("o0", "ir0", 0),  # Car1 starts in the outer lane
-        "destination": "o2",  # Destination is "o2" (outer north)
+        "start_lane": Lanes.SOUTH_TO_NORTH,
+        "destination": Direction.OUTER_NORTH,
         "speed": exp3_speed,  # Same speed for both cars
         "init_location": {
             "longitudinal": 40,
@@ -174,8 +167,8 @@ CONFIG_EXP3 = {
         "color": (0, 204, 0)  # Green car
     },
     "car2": {
-        "start_lane": ("o1", "ir1", 0),  # Car2 starts in another lane
-        "destination": None,  # Random movement
+        "start_lane": Lanes.EAST_TO_WEST,
+        "destination": Direction.OUTER_EAST,
         "speed": exp3_speed,  # Same speed for both cars
         "init_location": {
             "longitudinal": 40,
@@ -183,7 +176,6 @@ CONFIG_EXP3 = {
         },
     }
 }
-
 
 full_config_exp1 = create_full_experiment_config(CONFIG_EXP1)
 full_config_exp2 = create_full_experiment_config(CONFIG_EXP2)

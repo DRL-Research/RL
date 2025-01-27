@@ -247,7 +247,7 @@ class IntersectionEnv(AbstractEnv):
             ]
 
         self.controlled_vehicles = []
-        car1_conf =self.config["car1"]
+        car1_conf = self.config["car1"]
         car2_conf = self.config["car2"]
 
         # Controlled Vehicle: Speed can change
