@@ -1,128 +1,225 @@
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
+import time
 import numpy as np
-from torch.optim.lr_scheduler import ReduceLROnPlateau
-import pandas as pd
-#comit
+import gym
+from gym import spaces
 
-class MasterNetwork(nn.Module):
-    def __init__(self, input_size, embedding_size):
-        super(MasterNetwork, self).__init__()
+from stable_baselines3 import PPO
+from stable_baselines3.common.vec_env import DummyVecEnv
 
-        self.input_size = input_size
-        self.embedding_size = embedding_size
 
-        self.layer1 = nn.Linear(input_size, 32)
-        self.layer2 = nn.Linear(32, embedding_size)
+# IMPORTANT: Ensure that you have an Experiment class from which you read the reward values,
+# and that you have an AirsimManager from which you obtain the states of car1 and car2.
+# Example:
+#   Experiment.COLLISION_REWARD = -20
+#   Experiment.REACHED_TARGET_REWARD = 10
+#   Experiment.STARVATION_REWARD = 0.1
+#   Experiment.TIME_BETWEEN_STEPS = 0.1
+#   ...
+# Exactly as it exists in your code:
+# from utils.experiment.experiment_config import Experiment
 
-    def forward(self, x):
-        if len(x.shape) == 3:
-            x = x.squeeze(1)
-        elif len(x.shape) == 1:
-            x = x.unsqueeze(0)
 
-        x = F.relu(self.layer1(x))
-        x = torch.tanh(self.layer2(x))
-        return x
+class MasterEnv(gym.Env):
+    """
+    Environment for the 'Master Network':
+      - observation: state of car1 (4 dimensions) + state of car2 (4 dimensions) = vector of length 8
+      - action: continuous vector of length 4 (proto-action)
+      - reward: computed based on whether a collision occurred, the target was reached, or simply a step.
+      - done: episode ends on collision or success (target reached).
+    """
+
+    def __init__(self, experiment, airsim_manager):
+        super(MasterEnv, self).__init__()
+        self.experiment = experiment
+        self.airsim_manager = airsim_manager
+
+        # observation space
+        self.observation_space = spaces.Box(
+            low=-np.inf, high=np.inf,
+            shape=(8,), dtype=np.float32
+        )
+
+        # proto-action space
+        self.action_space = spaces.Box(
+            low=-1.0, high=1.0,
+            shape=(4,), dtype=np.float32
+        )
+
+        self.state = None
+        self.current_step = 0
+        self.max_episode_steps = 200  # Episode length limit
+        self.done = False
+
+    def reset(self):
+        """
+        Reset to initial state
+        """
+        self.done = False
+        self.current_step = 0
+
+        self.airsim_manager.reset_cars_to_initial_positions()
+        self.airsim_manager.reset_for_new_episode()
+
+        car1_state = self.airsim_manager.get_car1_state()  # shape (4,)
+        car2_state = self.airsim_manager.get_car2_state()  # shape (4,)
+
+        # Merge states
+        self.state = np.concatenate([car1_state, car2_state]).astype(np.float32)
+        return self.state
+
+    def step(self, action):
+        """
+
+        """
+        self.current_step += 1
+
+        # Example: if you want the airsim_manager to "know" the embedding produced by the master,
+        # you could call a function like set_master_proto_action(action):
+        # self.airsim_manager.set_master_proto_action(action)
+
+        # Take a step in the simulator (or wait):
+        time.sleep(self.experiment.TIME_BETWEEN_STEPS)
+
+        # Check terminal conditions
+        collision = self.airsim_manager.collision_occurred()
+        reached_target = self.airsim_manager.has_reached_target(self.state[:2])  # XY of car1
+
+        # Compute reward
+        reward = self.experiment.STARVATION_REWARD  # e.g., 0.1 by default
+        if collision:
+            reward = self.experiment.COLLISION_REWARD  # -20
+            self.done = True
+        elif reached_target:
+            reward = self.experiment.REACHED_TARGET_REWARD  # +10
+            self.done = True
+
+        # If we have exceeded the maximum steps per episode, finish the episode
+        if self.current_step >= self.max_episode_steps:
+            self.done = True
+
+        # Retrieve updated state for car1 and car2
+        car1_state = self.airsim_manager.get_car1_state()
+        car2_state = self.airsim_manager.get_car2_state()
+        self.state = np.concatenate([car1_state, car2_state]).astype(np.float32)
+
+        return self.state, reward, self.done, {}
+
+    def render(self, mode='human'):
+        # Not required to implement.
+        pass
+
+    def close(self):
+        # Close the environment if needed.
+        pass
 
 
 class MasterModel:
-    def __init__(self, input_size, embedding_size):
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.network = MasterNetwork(input_size, embedding_size).to(self.device)
+    """
+    Wrapper class for the 'Master Network' based on stable-baselines3.
+    Instead of writing torch manually, we use PPO with MlpPolicy which produces a continuous action of size 4.
+    """
 
-        self.optimizer = torch.optim.Adam(
-            self.network.parameters(),
-            lr=0.001
+    def __init__(self,
+                 experiment,
+                 airsim_manager,
+                 embedding_size=4,
+                 policy_kwargs=None,
+                 learning_rate=1e-3,
+                 n_steps=30,
+                 batch_size=64,
+                 total_timesteps=10000):
+        """
+        :param experiment: Experiment configuration object with rewards, etc.
+        :param airsim_manager: Class handling Airsim (as in your code).
+        :param embedding_size: Size of the embedding (action length).
+        :param policy_kwargs: Neural network architecture (net_arch) and more. If None, a default will be set.
+        :param learning_rate: Learning rate for PPO.
+        :param n_steps: Number of steps to collect before updating the PPO rollout.
+        :param batch_size: Mini batch size for PPO updates.
+        :param total_timesteps: Number of timesteps to train the master (default).
+        """
+        self.experiment = experiment
+        self.airsim_manager = airsim_manager
+        self.embedding_size = embedding_size
+        self.total_timesteps = total_timesteps
+        self.is_frozen = False
+
+        # Construct the 'MasterEnv' environment for generating a 4D embedding
+        self.master_env = MasterEnv(experiment=self.experiment, airsim_manager=self.airsim_manager)
+        self.master_vec_env = DummyVecEnv([lambda: self.master_env])
+
+        # If no parameters are provided, set a simple hidden network architecture
+        if policy_kwargs is None:
+            policy_kwargs = dict(net_arch=[64, 64])
+
+        # Create the PPO model - continuous action of size 4
+        self.model = PPO(
+            policy="MlpPolicy",
+            env=self.master_vec_env,
+            learning_rate=learning_rate,
+            n_steps=n_steps,
+            batch_size=batch_size,
+            policy_kwargs=policy_kwargs,
+            verbose=1
         )
 
-        self.metrics = {"loss": [], "return": []}
+    def train_master(self, total_timesteps=None):
+        """
+        Runs PPO training on the MasterEnv environment.
+        By default, uses self.total_timesteps, or accepts an argument.
+        """
+        if self.is_frozen:
+            print("[MasterModel] WARNING: Model is frozen. Unfreeze before training.")
+            return
 
-    def compute_loss(self, embeddings, returns):
+        if total_timesteps is None:
+            total_timesteps = self.total_timesteps
+        print(f"[MasterModel] Training for {total_timesteps} timesteps...")
+        self.airsim_manager.pause_simulation()
+        self.model.learn(total_timesteps=total_timesteps)
+        self.airsim_manager.resume_simulation()
+        print(f"[MasterModel] Training completed.")
 
-        normalized_returns = 2 * (returns - returns.min()) / (returns.max() - returns.min() + 1e-8) - 1
+    def get_proto_action(self, observation, deterministic=False):
+        """
+        Uses the trained model to produce a 4-dimensional embedding (proto-action).
+        :param observation: np.array of size 8 (state of car1 + car2).
+        :return: np.array of size 4.
+        """
+        # Ensure the input shape is compatible (1, batch)
+        if observation.ndim == 1:
+            observation = observation[np.newaxis, :]
 
-
-        sim_matrix = torch.mm(embeddings, embeddings.t())
-
-
-        returns_sim = torch.mm(normalized_returns.unsqueeze(1), normalized_returns.unsqueeze(0))
-        print(sim_matrix,returns)
-
-        loss = F.mse_loss(sim_matrix, returns_sim)
-
-        return loss
-
-    def train_master(self, episode_states, episode_rewards):
-        self.network.train()
-
-        total_loss = 0
-        episodes_processed = 0
-
-        for i, states in enumerate(episode_states):
-            if not states:
-                continue
-            states_tensor = torch.stack([s.to(self.device) for s in states])
-
-            if len(states_tensor.shape) == 3:
-                states_tensor = states_tensor.squeeze(1)
-
-            embeddings = self.network(states_tensor)
-            #print('emb',embeddings)
-            reward = float(episode_rewards[i][0])
-            batch_rewards = torch.full((embeddings.shape[0],), reward).to(self.device)
-
-            loss = self.compute_loss(embeddings, batch_rewards)
-
-            self.optimizer.zero_grad()
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.network.parameters(), max_norm=1.0)
-            self.optimizer.step()
-
-            total_loss += loss.item()
-            episodes_processed += 1
-
-            #print(f"Episode {i} - Loss: {loss.item():.6f}, Reward: {reward:.6f}")
-
-        avg_loss = total_loss / max(episodes_processed, 1)
-        self.metrics["loss"].append(avg_loss)
-        self.metrics["return"].append(float(sum(reward[0] for reward in episode_rewards)))
-
-        print(f"Master Loss: {avg_loss:.6f}, Return: {sum(reward[0] for reward in episode_rewards):.6f}")
-        return avg_loss
-
-    def get_proto_action(self, state):
-        self.network.eval()
-        with torch.no_grad():
-            if isinstance(state, np.ndarray):
-                state = torch.from_numpy(state).float()
-            proto_action = self.network(state)
-            print('proto aaction', proto_action)
-            return proto_action.cpu().numpy().flatten()
+        action, _ = self.model.predict(observation, deterministic=deterministic)
+        print(f"[MasterModel] Predicted action: {action}")
+        # Returns a vector of size (4,)
+        return action[0]
 
     def freeze(self):
-        for param in self.network.parameters():
-            param.requires_grad = False
-        self.network.eval()
+        """
+        Freeze the parameters so that they are not updated in further training.
+        Uses an internal flag and avoids calling learn if the model is 'Frozen'.
+        """
+        self.is_frozen = True
+        self.model.policy.set_training_mode(False)
 
     def unfreeze(self):
-        for param in self.network.parameters():
-            param.requires_grad = True
-        self.network.train()
+        """
+        Unfreeze the parameters – allows updates.
+        """
+        self.is_frozen = False
+        self.model.policy.set_training_mode(True)
 
-    def save(self, path):
-        torch.save({
-            'network_state_dict': self.network.state_dict(),
-            'optimizer_state_dict': self.optimizer.state_dict(),
-            'scheduler_state_dict': self.scheduler.state_dict(),
-            'metrics': self.metrics
-        }, path)
+    def save(self, filepath):
+        self.model.save(filepath)
+        print(f"[MasterModel] Saved model to {filepath}")
 
-    def load(self, path):
-        checkpoint = torch.load(path)
-        self.network.load_state_dict(checkpoint['network_state_dict'])
-        self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
-        if 'metrics' in checkpoint:
-            self.metrics = checkpoint['metrics']
+    def load(self, filepath):
+        self.model = PPO.load(filepath, env=self.master_vec_env)
+        print(f"[MasterModel] Loaded model from {filepath}")
+
+    def set_logger(self, logger):
+        """
+        Set the logger for the internal PPO model.
+        """
+        self.model.set_logger(logger)

@@ -15,7 +15,7 @@ if __name__ == "__main__":
         ROLE=Role.CAR1,
         MODEL_TYPE=ModelType.PPO,
         TIME_BETWEEN_STEPS=0.75,
-        EXPLORATION_EXPLOTATION_THRESHOLD=200,
+        EXPLORATION_EXPLOTATION_THRESHOLD=350,
         ONLY_INFERENCE=False,
         THROTTLE_SLOW=0.4,
         THROTTLE_FAST=0.6,

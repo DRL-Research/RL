@@ -59,12 +59,12 @@ class Agent(gym.Env):
 
 
     @staticmethod
-    def get_action(model, current_state, total_steps, exploration_threshold):
-        if total_steps > exploration_threshold:
+    def get_action(model, current_state, total_steps, exploration_threshold,training_master):
+        if (total_steps > exploration_threshold) or training_master:
             action = model.predict(current_state, deterministic=True)
             #print(f"Exploiting action: {action}")
         else:
-            action = model.predict(current_state, deterministic=False)
+            action = model.predict(current_state, deterministic=True)
             print(f"Exploring action: {action}")
         return action
 
