@@ -11,8 +11,8 @@ from utils.model.model_constants import ModelType
 @dataclass
 class Experiment:
     # General Experiment Settings
-    EPISODES_PER_CYCLE = 40
-    CYCLES =5
+    EPISODES_PER_CYCLE = 15
+    CYCLES =4
     EXPERIMENT_ID: str = ""
     ONLY_INFERENCE: bool = False
     EXPERIMENT_DATE_TIME: str = datetime.now().strftime("%d_%m_%Y-%H_%M_%S")
