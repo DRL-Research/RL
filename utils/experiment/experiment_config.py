@@ -7,7 +7,7 @@ import numpy as np
 from utils.experiment.experiment_constants import Role, CarName
 from utils.model.model_constants import ModelType
 
-#sC
+#sCD
 @dataclass
 class Experiment:
     # General Experiment Settings
