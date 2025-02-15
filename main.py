@@ -20,7 +20,6 @@ if __name__ == "__main__":
         THROTTLE_SLOW=0.4,
         THROTTLE_FAST=0.6,
         FIXED_THROTTLE=0.4,
-        LEARNING_RATE=0.01,
         # LOAD_MODEL_DIRECTORY=get_model_path_from_experiment_name("15_12_2024-20_08_51_Experiment1")
     )
 

@@ -11,7 +11,7 @@ from utils.model.model_constants import ModelType
 @dataclass
 class Experiment:
     # General Experiment Settings
-    EPISODES_PER_CYCLE = 15
+    EPISODES_PER_CYCLE = 20
     CYCLES =4
     EXPERIMENT_ID: str = ""
     ONLY_INFERENCE: bool = False
@@ -21,10 +21,10 @@ class Experiment:
     # Model and Training Configuration
     MODEL_TYPE: ModelType = None
     ROLE: Role = None  # Which car is using the DRL model. Car1, Car2, Both
-    EPOCHS: int = 1
-    LEARNING_RATE: float = 0.001
+    EPOCHS: int = 100
+    LEARNING_RATE: float = 3e-4
     N_STEPS: int = 160
-    BATCH_SIZE: int = 500
+    BATCH_SIZE: int = 160
     TIME_BETWEEN_STEPS: float = 0.05
     LOSS_FUNCTION: str = "mse"
     EXPLORATION_EXPLOTATION_THRESHOLD: int = 50
@@ -48,7 +48,7 @@ class Experiment:
     CAR2_DESIRED_POSITION_OPTION_2 = np.array([0, 10])
 
     # Cars Setup Configuration
-    RANDOM_INIT = False
+    RANDOM_INIT = True
 
     # Network Configuration
     PPO_NETWORK_ARCHITECTURE = {'pi': [32, 16], 'vf': [32, 32]}
