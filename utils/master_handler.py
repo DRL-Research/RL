@@ -47,7 +47,7 @@ class MasterEnv(gym.Env):
 
         self.state = None
         self.current_step = 0
-        self.max_episode_steps = 200  # Episode length limit
+        self.max_episode_steps = 20  # Episode length limit
         self.done = False
 
     def reset(self):
@@ -72,13 +72,10 @@ class MasterEnv(gym.Env):
 
         """
         self.current_step += 1
-
-        # Example: if you want the airsim_manager to "know" the embedding produced by the master,
-        # you could call a function like set_master_proto_action(action):
-        # self.airsim_manager.set_master_proto_action(action)
-
-        # Take a step in the simulator (or wait):
-        time.sleep(self.experiment.TIME_BETWEEN_STEPS)
+        # Retrieve updated state for car1 and car2
+        car1_state = self.airsim_manager.get_car1_state()
+        car2_state = self.airsim_manager.get_car2_state()
+        self.state = np.concatenate([car1_state, car2_state]).astype(np.float32)
 
         # Check terminal conditions
         collision = self.airsim_manager.collision_occurred()
@@ -96,11 +93,6 @@ class MasterEnv(gym.Env):
         # If we have exceeded the maximum steps per episode, finish the episode
         if self.current_step >= self.max_episode_steps:
             self.done = True
-
-        # Retrieve updated state for car1 and car2
-        car1_state = self.airsim_manager.get_car1_state()
-        car2_state = self.airsim_manager.get_car2_state()
-        self.state = np.concatenate([car1_state, car2_state]).astype(np.float32)
 
         return self.state, reward, self.done, {}
 
@@ -124,9 +116,9 @@ class MasterModel:
                  airsim_manager,
                  embedding_size=4,
                  policy_kwargs=None,
-                 learning_rate=1e-3,
+                 learning_rate=0.0005,
                  n_steps=30,
-                 batch_size=64,
+                 batch_size=32,
                  total_timesteps=10000):
         """
         :param experiment: Experiment configuration object with rewards, etc.
@@ -150,7 +142,7 @@ class MasterModel:
 
         # If no parameters are provided, set a simple hidden network architecture
         if policy_kwargs is None:
-            policy_kwargs = dict(net_arch=[64, 64])
+            policy_kwargs = dict(net_arch=[32, 16])
 
         # Create the PPO model - continuous action of size 4
         self.model = PPO(
@@ -180,7 +172,7 @@ class MasterModel:
         self.airsim_manager.resume_simulation()
         print(f"[MasterModel] Training completed.")
 
-    def get_proto_action(self, observation, deterministic=False):
+    def get_proto_action(self, observation, deterministic=True):
         """
         Uses the trained model to produce a 4-dimensional embedding (proto-action).
         :param observation: np.array of size 8 (state of car1 + car2).
@@ -191,7 +183,7 @@ class MasterModel:
             observation = observation[np.newaxis, :]
 
         action, _ = self.model.predict(observation, deterministic=deterministic)
-        print(f"[MasterModel] Predicted action: {action}")
+        #print(f"[MasterModel] Predicted action: {action}")
         # Returns a vector of size (4,)
         return action[0]
 

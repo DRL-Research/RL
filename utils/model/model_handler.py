@@ -61,6 +61,25 @@ class Model:
 
         return model_params, policy_kwargs
 
+    @classmethod
+    def load(cls, model_path, env, experiment_config):
+        """
+        Load a pre-trained model from the given model_path.
+        This method uses the load() method of the underlying stable-baselines3 model.
+        """
+        match experiment_config.MODEL_TYPE:
+            case ModelType.PPO:
+                loaded_model = PPO.load(model_path, env=env)
+            case ModelType.A2C:
+                loaded_model = A2C.load(model_path, env=env)
+            case ModelType.DQN:
+                loaded_model = DQN.load(model_path, env=env)
+            case _:
+                raise ValueError("Unsupported model type for loading.")
+        # Create a new instance and set the loaded model
+        instance = cls(env, experiment_config)
+        instance.model = loaded_model
+        return instance
 
 
 

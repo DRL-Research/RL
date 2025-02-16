@@ -15,17 +15,26 @@ if __name__ == "__main__":
         ROLE=Role.CAR1,
         MODEL_TYPE=ModelType.PPO,
         TIME_BETWEEN_STEPS=0.75,
-        EXPLORATION_EXPLOTATION_THRESHOLD=350,
+        EXPLORATION_EXPLOTATION_THRESHOLD=200,
         ONLY_INFERENCE=False,
-        THROTTLE_SLOW=0.4,
-        THROTTLE_FAST=0.6,
-        FIXED_THROTTLE=0.4,
+        INIT_SERIAL=True
         # LOAD_MODEL_DIRECTORY=get_model_path_from_experiment_name("15_12_2024-20_08_51_Experiment1")
     )
 
+    experiment5_inference=Experiment(
+        EXPERIMENT_ID='Experiment5_in',
+        EPOCHS= 100,
+        ROLE=Role.BOTH,
+        MODEL_TYPE=ModelType.PPO,
+        TIME_BETWEEN_STEPS=0.75,
+        EXPLORATION_EXPLOTATION_THRESHOLD=200,
+        ONLY_INFERENCE=True,
+        INIT_SERIAL=True,
+        #LOAD_MODEL_DIRECTORY=get_model_path_from_experiment_name("experiments/15_02_2025-21_15_42_Experiment5")
+    )
 
     # experiments = [experiment1, experiment2]
-    experiments = [experiment5]
+    experiments = [experiment5_inference]
     for experiment_config in experiments:
         print(f"Starting experiment: {experiment_config.EXPERIMENT_ID}")
         run_experiment(experiment_config)
