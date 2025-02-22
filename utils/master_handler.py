@@ -1,29 +1,13 @@
-import time
 import numpy as np
 import gym
 from gym import spaces
-
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
-
-
-# IMPORTANT: Ensure that you have an Experiment class from which you read the reward values,
-# and that you have an AirsimManager from which you obtain the states of car1 and car2.
-# Example:
-#   Experiment.COLLISION_REWARD = -20
-#   Experiment.REACHED_TARGET_REWARD = 10
-#   Experiment.STARVATION_REWARD = 0.1
-#   Experiment.TIME_BETWEEN_STEPS = 0.1
-#   ...
-# Exactly as it exists in your code:
-# from utils.experiment.experiment_config import Experiment
-
-
 class MasterEnv(gym.Env):
     """
     Environment for the 'Master Network':
       - observation: state of car1 (4 dimensions) + state of car2 (4 dimensions) = vector of length 8
-      - action: continuous vector of length 4 (proto-action)
+      - action: continuous vector of length 4 (proto-action) - Enviroment Embedding
       - reward: computed based on whether a collision occurred, the target was reached, or simply a step.
       - done: episode ends on collision or success (target reached).
     """
@@ -69,7 +53,7 @@ class MasterEnv(gym.Env):
 
     def step(self, action):
         """
-
+        Return the self state of the environment after taking a step with the given action.
         """
         self.current_step += 1
         # Retrieve updated state for car1 and car2
@@ -97,7 +81,9 @@ class MasterEnv(gym.Env):
         return self.state, reward, self.done, {}
 
     def render(self, mode='human'):
-        # Not required to implement.
+        '''
+        not implemented, only for AirSim and GYM environments to run
+        '''
         pass
 
     def close(self):
@@ -108,7 +94,6 @@ class MasterEnv(gym.Env):
 class MasterModel:
     """
     Wrapper class for the 'Master Network' based on stable-baselines3.
-    Instead of writing torch manually, we use PPO with MlpPolicy which produces a continuous action of size 4.
     """
 
     def __init__(self,
@@ -116,19 +101,19 @@ class MasterModel:
                  airsim_manager,
                  embedding_size=4,
                  policy_kwargs=None,
-                 learning_rate=0.0005,
+                 learning_rate=0.005,
                  n_steps=30,
                  batch_size=32,
                  total_timesteps=10000):
         """
         :param experiment: Experiment configuration object with rewards, etc.
-        :param airsim_manager: Class handling Airsim (as in your code).
-        :param embedding_size: Size of the embedding (action length).
-        :param policy_kwargs: Neural network architecture (net_arch) and more. If None, a default will be set.
-        :param learning_rate: Learning rate for PPO.
+        :param airsim_manager: Class handling Airsim.
+        :param embedding_size: Size of the embedding (proto-action) produced by the model.
+        :param policy_kwargs: Neural network architecture (net_arch).
+        :param learning_rate: Learning rate for PPO model.
         :param n_steps: Number of steps to collect before updating the PPO rollout.
         :param batch_size: Mini batch size for PPO updates.
-        :param total_timesteps: Number of timesteps to train the master (default).
+        :param total_timesteps: Number of timesteps to train the master.
         """
         self.experiment = experiment
         self.airsim_manager = airsim_manager
@@ -158,7 +143,6 @@ class MasterModel:
     def train_master(self, total_timesteps=None):
         """
         Runs PPO training on the MasterEnv environment.
-        By default, uses self.total_timesteps, or accepts an argument.
         """
         if self.is_frozen:
             print("[MasterModel] WARNING: Model is frozen. Unfreeze before training.")

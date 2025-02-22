@@ -1,13 +1,10 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List
-from utils.experiment.experiment_constants import Role
 import numpy as np
-
 from utils.experiment.experiment_constants import Role, CarName
 from utils.model.model_constants import ModelType
 
-#sCD2
 @dataclass
 class Experiment:
     # General Experiment Settings

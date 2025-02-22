@@ -1,12 +1,16 @@
 import time
-import torch
 import airsim
 import gym
 import numpy as np
 from gym import spaces
 
-from utils.experiment.experiment_config import Experiment
-
+'''
+This class is responsible for handling the agent's actions and observations.
+The agent interacts with the environment (AirSim) by taking actions and observing the state.
+The state is a combination of the agent's local state and the master network's state.
+Because this is a multi-agent environment and agents are both using different roles (due to master-slave architecture),
+the agent's role is defined in the experiment configuration.
+'''
 
 class Agent(gym.Env):
     def __init__(self, experiment, airsim_manager,master_model):
@@ -33,25 +37,20 @@ class Agent(gym.Env):
     def step(self, action):
         if self.airsim_manager.is_simulation_paused():
             return self.state, 0, False, {}
-
         # Split the action if a tuple is provided
         if isinstance(action, (tuple, list)):
             action1, action2 = action
         else:
             action1 = action2 = action
-
         # Map action to throttle (0 => FAST, 1 => SLOW)
         throttle1 = self.experiment.THROTTLE_FAST if action1 == 0 else self.experiment.THROTTLE_SLOW
         throttle2 = self.experiment.THROTTLE_FAST if action2 == 0 else self.experiment.THROTTLE_SLOW
-
         # Set controls for both vehicles
         self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle1), self.experiment.CAR1_NAME)
         self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle2), self.experiment.CAR2_NAME)
-
         # Get the global position (and speed) for each car
         car1_state = self.airsim_manager.get_car_position_and_speed(self.experiment.CAR1_NAME)  # dict with x,y,Vx,Vy
         car2_state = self.airsim_manager.get_car_position_and_speed(self.experiment.CAR2_NAME)
-
         # Get the initial positions (stored when reset)
         init_pos1 = self.airsim_manager.get_car1_initial_position()  # [x, y]
         init_pos2 = self.airsim_manager.get_car2_initial_position()  # [x, y]
@@ -118,9 +117,6 @@ class Agent(gym.Env):
             action = model.predict(current_state, deterministic=True)
             #print(f"Exploring action: {action}")
         return action
-
-
-    # This function override base function in "GYM" environment. do not touch!
 
     # This function override base function in "GYM" environment. do not touch!
     def close_env(self):
