@@ -11,9 +11,11 @@ class Experiment:
     EPISODES_PER_CYCLE = 30
     CYCLES = 4
     EXPERIMENT_ID: str = ""
-    ONLY_INFERENCE: bool = False
+    ONLY_INFERENCE: bool = True
     EXPERIMENT_DATE_TIME: str = datetime.now().strftime("%d_%m_%Y-%H_%M_%S")
     SELF_PLAY_MODE: bool = False
+    MASTER_TRAINED_MODEL : str = "EXP5_Inference_Models/master_trained_model.zip"
+    AGENT_TRAINED_MODEL: str = "EXP5_Inference_Models/agent_trained_model.zip"
 
     # Model and Training Configuration
     MODEL_TYPE: ModelType = None
@@ -43,6 +45,9 @@ class Experiment:
     CAR2_INITIAL_YAW_OPTION_2: int = 90
     CAR2_DESIRED_POSITION_OPTION_1 = np.array([0, -10])
     CAR2_DESIRED_POSITION_OPTION_2 = np.array([0, 10])
+
+    #Master
+    EMBEDDING_SIZE : int = 4
 
     # Cars Setup Configuration
     RANDOM_INIT = False
