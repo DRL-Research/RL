@@ -2,7 +2,7 @@ import os
 
 from stable_baselines3 import PPO, DQN, A2C
 
-from utils.model.model_constants import ModelType, Policy
+from utils.model.model_constants_for_training import ModelType, Policy
 
 
 class Model:

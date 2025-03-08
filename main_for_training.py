@@ -1,7 +1,7 @@
-from utils.experiment.experiment_config import Experiment
-from utils.experiment.experiment_constants import Role
-from utils.model.model_constants import ModelType
-from utils.training_loop import run_experiment
+from utils.experiment.experiment_config_for_training import Experiment
+from utils.experiment.experiment_constants_for_training import Role
+from utils.model.model_constants_for_training import ModelType
+from utils.training_loop_for_training import run_experiment
 
 if __name__ == "__main__":
     experiment5 = Experiment(

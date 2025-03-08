@@ -2,8 +2,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List
 import numpy as np
-from utils.experiment.experiment_constants import Role, CarName
-from utils.model.model_constants import ModelType
+from utils.experiment.experiment_constants_for_training import Role, CarName
+from utils.model.model_constants_for_training import ModelType
 
 @dataclass
 class Experiment:
