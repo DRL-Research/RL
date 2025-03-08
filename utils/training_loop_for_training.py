@@ -1,9 +1,9 @@
 from stable_baselines3.common.logger import configure
-from utils.model.model_handler import Model
-from utils.agent_handler import Agent
-from utils.airsim_manager import AirsimManager
-from utils.plotting_utils import *
-from master_handler import *
+from utils.model.model_handler_for_training import Model
+from utils.agent_handler_for_training import Agent
+from utils.airsim_manager_for_training import AirsimManager
+from utils.plotting_utils_for_training import *
+from master_handler_for_training import *
 import torch
 import pandas as pd
 import matplotlib.pyplot as plt

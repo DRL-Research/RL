@@ -2,7 +2,7 @@ import random
 import torch
 import airsim
 import numpy as np
-from utils.experiment.experiment_constants import StartingLocation,CarName
+from utils.experiment.experiment_constants_for_training import StartingLocation,CarName
 
 
 import random
