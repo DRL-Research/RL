@@ -40,8 +40,11 @@ class PlottingUtils:
         plt.ylabel('Action')
         plt.legend()
 
+
 def plot_metrics(metrics_path):
+    # Load metrics
     metrics = pd.read_csv(metrics_path)
+    # Plot Loss
     plt.figure(figsize=(10, 6))
     plt.plot(metrics["loss"], label="Loss")
     plt.title("Loss over Episodes")
@@ -50,6 +53,8 @@ def plot_metrics(metrics_path):
     plt.legend()
     plt.grid()
     plt.show()
+
+    # Plot Entropy
     plt.figure(figsize=(10, 6))
     plt.plot(metrics["entropy"], label="Entropy", color="orange")
     plt.title("Entropy over Episodes")
@@ -58,6 +63,8 @@ def plot_metrics(metrics_path):
     plt.legend()
     plt.grid()
     plt.show()
+
+    # Plot Return
     plt.figure(figsize=(10, 6))
     plt.plot(metrics["return"], label="Return", color="green")
     plt.title("Return over Episodes")

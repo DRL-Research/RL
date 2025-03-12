@@ -122,4 +122,3 @@ class Agent(gym.Env):
     def close_env(self):
         self.airsim_manager.close()
 
-

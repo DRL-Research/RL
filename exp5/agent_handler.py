@@ -116,10 +116,10 @@ class Agent(gym.Env):
         # Predict an action using the model's policy
         if total_steps < exploration_threshold:
             action = model.predict(current_state, deterministic=False)
-            print(f"bla bla  action: {action}")
+            print(f"Exploring action: {action[0]}")
         else:
             action = model.predict(current_state, deterministic=True)
-            print(f"real  action: {action}")
+            print(f"Exploiting action: {action[0]}")
         return action
 
     def close_env(self):
