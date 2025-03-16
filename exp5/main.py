@@ -1,17 +1,17 @@
-from utils.experiment.experiment_config_for_training import Experiment
-from utils.experiment.experiment_constants_for_training import Role
-from utils.model.model_constants_for_training import ModelType
-from utils.training_loop_for_training import run_experiment
+from src.constants import Role, ModelType
+from src.experiment_config import Experiment
+from training_loop import run_experiment
 
 if __name__ == "__main__":
     experiment5 = Experiment(
         EXPERIMENT_ID='Experiment5',
-        EPOCHS= 100,
+        EPOCHS=100,
         ROLE=Role.CAR1,
         MODEL_TYPE=ModelType.PPO,
         TIME_BETWEEN_STEPS=0.75,
-        EXPLORATION_EXPLOTATION_THRESHOLD=350,
+        EXPLORATION_EXPLOTATION_THRESHOLD=250,
         ONLY_INFERENCE=False,
+        INIT_SERIAL=True,
     )
 
     experiments = [experiment5]
@@ -20,4 +20,4 @@ if __name__ == "__main__":
         run_experiment(experiment_config)
         print(f"Experiment {experiment_config.EXPERIMENT_ID} completed.")
 
-#Last Experiment - [MasterModel] Saved model to experiments/22_02_2025-21_28_27_Experiment5/trained_model_master.pth
+# Last Experiment - [MasterModel] Saved model to experiments/22_02_2025-21_28_27_Experiment5/trained_model_master.pth

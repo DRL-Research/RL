@@ -1,15 +1,14 @@
-from master_handler import *
+import os
+
+import torch
 from stable_baselines3.common.logger import configure
 from stable_baselines3.common.vec_env import DummyVecEnv
-import numpy as np
-import torch
-import pandas as pd
-import matplotlib.pyplot as plt
-import os
-from utils.model.model_handler import Model
-from utils.agent_handler import Agent
-from utils.airsim_manager import AirsimManager
-from utils.plotting_utils import *
+from src.model_handler import Model
+
+from src.master_handler import *
+from agent_handler import Agent
+from src.airsim_manager import AirsimManager
+
 
 def inference_loop(p_agent_loss, p_master_loss, p_episode_counter, experiment, env, agent_model, master_model, agent):
     """
@@ -23,7 +22,7 @@ def inference_loop(p_agent_loss, p_master_loss, p_episode_counter, experiment, e
     """
     collision_counter, episode_counter, total_steps = 0, 0, 0
     all_rewards, all_actions = [], []
-    for episode in range(experiment.EPISODES_PER_CYCLE*experiment.CYCLES):
+    for episode in range(experiment.EPISODES_PER_CYCLE * experiment.CYCLES):
         episode_counter += 1
         p_episode_counter.append(episode_counter)
         print(f"  @ Episode {episode_counter} INFERENCE @")
@@ -36,6 +35,7 @@ def inference_loop(p_agent_loss, p_master_loss, p_episode_counter, experiment, e
         all_actions.append(episode_actions)
     print("Inference completed.")
     return p_episode_counter, p_agent_loss, p_master_loss, agent_model, collision_counter, all_rewards, all_actions
+
 
 def run_episode_inference(env, agent1_model, agent2_model, master_model, experiment):
     """
@@ -94,14 +94,15 @@ def run_episode_inference(env, agent1_model, agent2_model, master_model, experim
 # -------------------------------
 # Main Experiment Runner
 # -------------------------------
-def run_experiment(experiment_config):
+def run_inference(experiment_config):
     p_agent_loss = []
     p_master_loss = []
     p_episode_counter = []
     # Initialize AirSim Manager
     airsim_manager = AirsimManager(experiment_config)
     # Initialize Master Model and load pre-trained weights
-    master_model = MasterModel(embedding_size=experiment_config.EMBEDDING_SIZE, airsim_manager=airsim_manager, experiment=experiment_config)
+    master_model = MasterModel(embedding_size=experiment_config.EMBEDDING_SIZE, airsim_manager=airsim_manager,
+                               experiment=experiment_config)
     master_model.load(experiment_config.MASTER_TRAINED_MODEL)
     # Create two separate Agent instances (one for each car) with the same master model
     agent1 = Agent(experiment_config, airsim_manager, master_model)
@@ -123,7 +124,7 @@ def run_experiment(experiment_config):
     # Create a dictionary for the agent models
     agent_models = {'agent1': agent1_model, 'agent2': agent2_model}
     # Run the inference loop; note that the inference branch uses the two-agent-model version.
-    #all arrays are passing from and to functions, marked with p (ie p_episode_counter)
+    # all arrays are passing from and to functions, marked with p (ie p_episode_counter)
     p_episode_counter, p_agent_loss, p_master_loss, _, collision_counter, all_rewards, all_actions = inference_loop(
         p_agent_loss, p_master_loss, p_episode_counter,
         experiment=experiment_config,
@@ -141,6 +142,8 @@ def run_experiment(experiment_config):
     master_model_logger.close()
     print("Models loaded and inference completed")
     print("Total collisions:", collision_counter)
+
+
 # -------------------------------
 # Override GYM Environment Functions
 # -------------------------------

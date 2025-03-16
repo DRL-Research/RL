@@ -1,9 +1,11 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List
+
 import numpy as np
-from utils.experiment.experiment_constants_for_training import Role, CarName
-from utils.model.model_constants_for_training import ModelType
+
+from src.constants import Role, CarName, ModelType
+
 
 @dataclass
 class Experiment:
@@ -14,10 +16,12 @@ class Experiment:
     ONLY_INFERENCE: bool = False
     EXPERIMENT_DATE_TIME: str = datetime.now().strftime("%d_%m_%Y-%H_%M_%S")
     SELF_PLAY_MODE: bool = False
+    MASTER_TRAINED_MODEL: str = "EXP5_Inference_Models/master_trained_model.zip"
+    AGENT_TRAINED_MODEL: str = "EXP5_Inference_Models/agent_trained_model.zip"
 
     # Model and Training Configuration
     MODEL_TYPE: ModelType = None
-    ROLE: Role = CarName.CAR1   # Which car is using the DRL model. Car1, Car2, Both
+    ROLE: Role = CarName.CAR1  # Which car is using the DRL model. Car1, Car2, Both
     EPOCHS: int = 100
     LEARNING_RATE: float = 0.001
     N_STEPS: int = 160
@@ -44,6 +48,9 @@ class Experiment:
     CAR2_DESIRED_POSITION_OPTION_1 = np.array([0, -10])
     CAR2_DESIRED_POSITION_OPTION_2 = np.array([0, 10])
 
+    # Master
+    EMBEDDING_SIZE: int = 4
+
     # Cars Setup Configuration
     RANDOM_INIT = False
     INIT_SERIAL: bool = True
@@ -56,8 +63,8 @@ class Experiment:
 
     # Action Configuration
     ACTION_SPACE_SIZE: int = 2
-    THROTTLE_FAST: float = 0.8
-    THROTTLE_SLOW: float = 0.4
+    THROTTLE_FAST: float = 0.9
+    THROTTLE_SLOW: float = 0.6
     FIXED_THROTTLE: float = 0.6
 
     # Reward Configuration

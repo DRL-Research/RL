@@ -2,7 +2,7 @@ import os
 
 from stable_baselines3 import PPO, DQN, A2C
 
-from utils.model.model_constants import ModelType, Policy
+from src.constants import ModelType, Policy
 
 
 class Model:
@@ -10,18 +10,16 @@ class Model:
         self.env = env
         self.experiment_config = experiment_config
         self.model = self.init_model()
-        # self.freeze = self.freeze()
-        # self.unfreeze = self.unfreeze()
 
     def init_model(self):
         model_params, policy_kwargs = self.define_model_params(self.experiment_config)
         match self.experiment_config.MODEL_TYPE:
             case ModelType.PPO:
-                return PPO(policy=Policy, env=self.env, verbose=1, policy_kwargs=policy_kwargs, **model_params)
+                return PPO(policy=Policy.MlpPolicy, env=self.env, verbose=1, policy_kwargs=policy_kwargs, **model_params)
             case ModelType.DQN:
-                return DQN(policy=Policy, env=self.env, verbose=1, **model_params)
+                return DQN(policy=Policy.MlpPolicy, env=self.env, verbose=1, **model_params)
             case ModelType.A2C:
-                return A2C(policy=Policy, env=self.env, verbose=1, **model_params)
+                return A2C(policy=Policy.MlpPolicy, env=self.env, verbose=1, **model_params)
             case _:
                 raise ValueError(f"{self.experiment_config.MODEL_TYPE} Unsupported model type")
 
@@ -80,7 +78,6 @@ class Model:
         instance = cls(env, experiment_config)
         instance.model = loaded_model
         return instance
-
 
 
 def get_latest_model(directory):

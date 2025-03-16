@@ -1,17 +1,8 @@
 import random
+import airsim
+import numpy as np
 import torch
-import airsim
-import numpy as np
-from utils.experiment.experiment_constants import StartingLocation,CarName
-
-
-import random
-import numpy as np
-import airsim
-
-class StartingLocation:
-    LEFT = "LEFT"
-    RIGHT = "RIGHT"
+from src.constants import StartingLocation, CarName
 
 
 class AirsimManager:
@@ -223,21 +214,6 @@ class AirsimManager:
 
         return False
 
-
-    # def has_reached_target(self, car_state):
-    #     if self.experiment.ROLE is CarName.CAR1:
-    #         car1_initial_position = self.get_car1_initial_position()
-    #         if car1_initial_position[0] > 0:
-    #             return car_state[0] < self.experiment.CAR1_DESIRED_POSITION_OPTION_1[0]
-    #         elif car1_initial_position[0] < 0:
-    #             return car_state[0] > self.experiment.CAR1_DESIRED_POSITION_OPTION_2[0]
-    #
-    #     if self.experiment.ROLE is CarName.CAR2:
-    #         car2_initial_position = self.get_car2_initial_position()
-    #         if car2_initial_position[1] > 0:
-    #             return car_state[1] < self.experiment.CAR2_DESIRED_POSITION_OPTION_1[1]
-    #         elif car2_initial_position[1] < 0:
-    #             return car_state[1] > self.experiment.CAR2_DESIRED_POSITION_OPTION_2[1]
     def pause_simulation(self):
         self.simulation_paused = True
         self.airsim_client.simPause(True)
@@ -249,7 +225,7 @@ class AirsimManager:
     def is_simulation_paused(self):
         return self.simulation_paused
 
-    def get_proto_state(self,master_model):
+    def get_proto_state(self, master_model):
         state_car1 = self.get_car1_state()
         state_car2 = self.get_car2_state()
         master_input = torch.tensor(
