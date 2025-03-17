@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List
@@ -29,6 +30,7 @@ class Experiment:
     TIME_BETWEEN_STEPS: float = 0.05
     LOSS_FUNCTION: str = "mse"
     EXPLORATION_EXPLOTATION_THRESHOLD: int = 180
+    EPISODE_INTERVAL_FOR_TRAINING = 4
 
     # Car 1 Settings
     CAR1_NAME: CarName = CarName.CAR1
@@ -77,4 +79,6 @@ class Experiment:
 
     def __post_init__(self):
         self.EXPERIMENT_PATH = f"experiments/{self.EXPERIMENT_DATE_TIME}_{self.EXPERIMENT_ID}"
+        self.AGENT_LOGGER_PATH = os.path.join(self.EXPERIMENT_PATH, "agent_logs")
+        self.MASTER_LOGGER_PATH = os.path.join(self.EXPERIMENT_PATH, "master_logs")
         self.SAVE_MODEL_DIRECTORY = f"{self.EXPERIMENT_PATH}/trained_model"

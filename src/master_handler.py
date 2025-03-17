@@ -142,7 +142,7 @@ class MasterModel:
             verbose=1
         )
 
-    def train_master(self, total_timesteps=None):
+    def train_master(self, total_timestamps=None):
         """
         Runs PPO training on the MasterEnv environment.
         """
@@ -150,11 +150,12 @@ class MasterModel:
             print("[MasterModel] WARNING: Model is frozen. Unfreeze before training.")
             return
 
-        if total_timesteps is None:
-            total_timesteps = self.total_timesteps
-        print(f"[MasterModel] Training for {total_timesteps} timesteps...")
+        if total_timestamps is None:
+            total_timestamps = self.total_timesteps
+
+        print(f"[MasterModel] Training for {total_timestamps} timesteps...")
         self.airsim_manager.pause_simulation()
-        self.model.learn(total_timesteps=total_timesteps)
+        self.model.learn(total_timesteps=total_timestamps)
         self.airsim_manager.resume_simulation()
         print(f"[MasterModel] Training completed.")
 
