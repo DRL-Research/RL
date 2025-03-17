@@ -102,5 +102,5 @@ def get_latest_model(directory):
 
 
 def get_model_path_from_experiment_name(experiment_name):
-    full_directory = os.path.join("experiments", experiment_name, "trained_model")
+    full_directory = os.path.join("experiments_logs", experiment_name, "trained_model")
     return full_directory

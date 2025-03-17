@@ -20,4 +20,4 @@ if __name__ == "__main__":
         run_experiment(experiment_config)
         print(f"Experiment {experiment_config.EXPERIMENT_ID} completed.")
 
-# Last Experiment - [MasterModel] Saved model to experiments/22_02_2025-21_28_27_Experiment5/trained_model_master.pth
+# Last Experiment - [MasterModel] Saved model to experiments_logs/22_02_2025-21_28_27_Experiment5/trained_model_master.pth

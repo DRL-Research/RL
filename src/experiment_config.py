@@ -78,5 +78,5 @@ class Experiment:
 
 
     def __post_init__(self):
-        self.EXPERIMENT_PATH = f"experiments/{self.EXPERIMENT_DATE_TIME}_{self.EXPERIMENT_ID}"
+        self.EXPERIMENT_PATH = f"experiments_logs/{self.EXPERIMENT_DATE_TIME}_{self.EXPERIMENT_ID}"
         self.SAVE_MODEL_DIRECTORY = f"{self.EXPERIMENT_PATH}/trained_model"
