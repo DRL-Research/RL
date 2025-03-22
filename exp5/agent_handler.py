@@ -1,8 +1,11 @@
 import time
+from os import environ
+
 import airsim
 import gym
 import numpy as np
 from gym import spaces
+from sympy.codegen.cxxnodes import using
 
 '''
 This class handles the agent’s interaction with AirSim.
@@ -37,12 +40,13 @@ class Agent(gym.Env):
         proto_state = self.airsim_manager.get_proto_state(self.master_model)
         # Concatenate to form an 8-dim observation
         self.state = np.concatenate((local_state, proto_state))
-        print(f"Initial state: {self.state}")
+        #print(f"Initial state: {self.state}")
         return self.state
 
     def step(self, action):
+        #print("USING AGENT STEP")
         if self.airsim_manager.is_simulation_paused():
-            return self.state, 0, False, {}
+            return self.state, 0, True, {}
 
         # Use the action for Car1 (the agent) and use a fixed throttle for Car2
         action_value = action  # action is a single integer
@@ -103,6 +107,7 @@ class Agent(gym.Env):
 
         # Compute reward based on collision and target achievement
         reward = self.experiment.STARVATION_REWARD
+
         if collision:
             reward = self.experiment.COLLISION_REWARD
         elif reached_target:
@@ -116,10 +121,10 @@ class Agent(gym.Env):
         # Predict an action using the model's policy
         if total_steps < exploration_threshold:
             action = model.predict(current_state, deterministic=False)
-            print(f"Exploring action: {action[0]}")
+            print("deterministic is false action : ",action)
         else:
             action = model.predict(current_state, deterministic=True)
-            print(f"Exploiting action: {action[0]}")
+            print("deterministic is true action :",action)
         return action
 
     def close_env(self):

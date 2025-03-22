@@ -10,7 +10,7 @@ from src.constants import Role, CarName, ModelType
 @dataclass
 class Experiment:
     # General Experiment Settings
-    EPISODES_PER_CYCLE = 30
+    EPISODES_PER_CYCLE = 25
     CYCLES = 4
     EXPERIMENT_ID: str = ""
     ONLY_INFERENCE: bool = False
@@ -22,13 +22,13 @@ class Experiment:
     # Model and Training Configuration
     MODEL_TYPE: ModelType = None
     ROLE: Role = CarName.CAR1  # Which car is using the DRL model. Car1, Car2, Both
-    EPOCHS: int = 100
-    LEARNING_RATE: float = 0.001
-    N_STEPS: int = 160
-    BATCH_SIZE: int = 160
+    EPOCHS: int = 10
+    LEARNING_RATE: float = 0.1
+    N_STEPS: int = 90
+    BATCH_SIZE: int = 32
     TIME_BETWEEN_STEPS: float = 0.05
     LOSS_FUNCTION: str = "mse"
-    EXPLORATION_EXPLOTATION_THRESHOLD: int = 180
+    EXPLORATION_EXPLOTATION_THRESHOLD: int = 10
 
     # Car 1 Settings
     CAR1_NAME: CarName = CarName.CAR1
@@ -56,19 +56,19 @@ class Experiment:
     INIT_SERIAL: bool = True
 
     # Network Configuration
-    PPO_NETWORK_ARCHITECTURE = {'pi': [32, 16], 'vf': [32, 32]}
+    PPO_NETWORK_ARCHITECTURE = {'pi': [32, 16 , 8 ], 'vf': [32, 16 , 8 , 4]}
 
     # State Configuration
     STATE_INPUT_SIZE = 8
 
     # Action Configuration
     ACTION_SPACE_SIZE: int = 2
-    THROTTLE_FAST: float = 0.9
-    THROTTLE_SLOW: float = 0.6
+    THROTTLE_FAST: float = 0.8
+    THROTTLE_SLOW: float = 0.4
     FIXED_THROTTLE: float = 0.6
 
     # Reward Configuration
-    REACHED_TARGET_REWARD: int = 10
+    REACHED_TARGET_REWARD: int = 20
     COLLISION_REWARD: int = -20
     STARVATION_REWARD: float = -0.5
 

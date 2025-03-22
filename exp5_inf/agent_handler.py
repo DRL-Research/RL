@@ -31,7 +31,7 @@ class Agent(gym.Env):
         else:
             agent_state = self.airsim_manager.get_car2_state()
         self.state = np.concatenate((agent_state, self.airsim_manager.get_proto_state(self.master_model)))
-        print(f"Initial state: {self.state}")
+        #print(f"Initial state: {self.state}")
         return self.state
 
     def step(self, action):

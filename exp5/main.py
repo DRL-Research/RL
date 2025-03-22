@@ -3,13 +3,14 @@ from src.experiment_config import Experiment
 from training_loop import run_experiment
 
 if __name__ == "__main__":
+    print('mainnnn')
     experiment5 = Experiment(
         EXPERIMENT_ID='Experiment5',
-        EPOCHS=100,
+        EPOCHS=1,
         ROLE=Role.CAR1,
         MODEL_TYPE=ModelType.PPO,
         TIME_BETWEEN_STEPS=0.75,
-        EXPLORATION_EXPLOTATION_THRESHOLD=250,
+        EXPLORATION_EXPLOTATION_THRESHOLD=50,
         ONLY_INFERENCE=False,
         INIT_SERIAL=True,
     )
