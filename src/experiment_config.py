@@ -48,8 +48,9 @@ class Experiment:
     CAR2_DESIRED_POSITION_OPTION_1 = np.array([0, -10])
     CAR2_DESIRED_POSITION_OPTION_2 = np.array([0, 10])
 
-    # Master
+    # Master side configuration
     EMBEDDING_SIZE: int = 4
+
 
     # Cars Setup Configuration
     RANDOM_INIT = False
