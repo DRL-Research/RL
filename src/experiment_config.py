@@ -19,7 +19,7 @@ class Experiment:
     MASTER_TRAINED_MODEL: str = "EXP5_Inference_Models/master_trained_model.zip"
     AGENT_TRAINED_MODEL: str = "EXP5_Inference_Models/agent_trained_model.zip"
 
-    # Model and Training Configuration
+    # Model and Training Configuration-
     EPISODE_AMOUNT_FOR_TRAIN : int = 4
     MODEL_TYPE: ModelType = None
     ROLE: Role = CarName.CAR1  # Which car is using the DRL model. Car1, Car2, Both
