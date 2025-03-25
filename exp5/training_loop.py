@@ -9,7 +9,6 @@ from src.experiment_config import Experiment
 from src.master_handler import MasterModel
 from src.model_handler import Model
 from utils.plotting_utils import plot_results
-import src.experiment_config as config
 
 def training_loop(p_agent_loss, p_master_loss, p_episode_counter, experiment, env, agent_model, master_model):
     collision_counter, episode_counter, total_steps = 0, 0, 0
