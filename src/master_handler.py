@@ -125,7 +125,21 @@ class MasterModel:
         if policy_kwargs is None:
             policy_kwargs = dict(net_arch=[64,32,16,8 ])
 
-        # Create the PPO model with continuous action output (size 4).
+        # PPO Model Configuration:
+        # This configuration solved the issue where the MasterEnv agent was not learning effectively.
+        # Key parameter explanations:
+        # - learning_rate=0.0001: Low learning rate ensures stable updates, essential for complex environments.
+        # - n_steps=90: Controls the rollout buffer size, balancing learning signal and noise.
+        # - batch_size=32: Mini-batch size for updating the network, tuned to match n_steps for 4 episodes.
+        # - policy_kwargs=dict(net_arch=[64, 32, 16, 8]): Custom MLP architecture, deep enough to model the environment dynamics. 4 layers with 64, 32, 16, and 8 units.
+        # - n_epochs=10: Number of PPO epochs per update; allows better learning from collected experience.
+        # - vf_coef=0.5: Balances the value function loss with policy loss.
+        # - ent_coef=0.01: Encourages exploration by regularizing entropy.
+        # - gae_lambda=0.95: Controls the bias-variance tradeoff in advantage estimation.
+        # - max_grad_norm=0.5: Gradient clipping to prevent exploding gradients and stabilize training.
+        # - clip_range=0.2: Limits policy update steps to prevent drastic changes.
+        # - clip_range_vf=1: Clips value function updates to avoid instability.
+
         self.model = PPO(
             policy="MlpPolicy",
             env=self.master_vec_env,
