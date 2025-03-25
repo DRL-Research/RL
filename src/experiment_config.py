@@ -10,8 +10,8 @@ from src.constants import Role, CarName, ModelType
 @dataclass
 class Experiment:
     # General Experiment Settings
-    EPISODES_PER_CYCLE = 25
-    CYCLES = 4
+    EPISODES_PER_CYCLE = 50
+    CYCLES = 3
     EXPERIMENT_ID: str = ""
     ONLY_INFERENCE: bool = False
     EXPERIMENT_DATE_TIME: str = datetime.now().strftime("%d_%m_%Y-%H_%M_%S")
@@ -20,10 +20,11 @@ class Experiment:
     AGENT_TRAINED_MODEL: str = "EXP5_Inference_Models/agent_trained_model.zip"
 
     # Model and Training Configuration
+    EPISODE_AMOUNT_FOR_TRAIN : int = 4
     MODEL_TYPE: ModelType = None
     ROLE: Role = CarName.CAR1  # Which car is using the DRL model. Car1, Car2, Both
     EPOCHS: int = 10
-    LEARNING_RATE: float = 0.1
+    LEARNING_RATE: float = 0.05
     N_STEPS: int = 90
     BATCH_SIZE: int = 32
     TIME_BETWEEN_STEPS: float = 0.05
