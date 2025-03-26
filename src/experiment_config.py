@@ -1,9 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List
-
 import numpy as np
-
 from src.constants import Role, CarName, ModelType
 
 
@@ -18,6 +16,7 @@ class Experiment:
     SELF_PLAY_MODE: bool = False
     MASTER_TRAINED_MODEL: str = "EXP5_Inference_Models/master_trained_model.zip"
     AGENT_TRAINED_MODEL: str = "EXP5_Inference_Models/agent_trained_model.zip"
+    CARS_AMOUNT= 1
 
     # Model and Training Configuration-
     EPISODE_AMOUNT_FOR_TRAIN : int = 4
@@ -29,7 +28,7 @@ class Experiment:
     BATCH_SIZE: int = 32
     TIME_BETWEEN_STEPS: float = 0.05
     LOSS_FUNCTION: str = "mse"
-    EXPLORATION_EXPLOTATION_THRESHOLD: int = 10
+    EXPLORATION_EXPLOTATION_THRESHOLD: int = None
 
     # Car 1 Settings
     CAR1_NAME: CarName = CarName.CAR1
@@ -40,7 +39,7 @@ class Experiment:
     CAR1_DESIRED_POSITION_OPTION_1 = np.array([-10, 0])
     CAR1_DESIRED_POSITION_OPTION_2 = np.array([10, 0])
 
-    # Car 2 Settings
+    # Car 2,3  Settings
     CAR2_NAME: CarName = CarName.CAR2
     CAR2_INITIAL_POSITION_OPTION_1: List[int] = field(default_factory=lambda: [0, 30])
     CAR2_INITIAL_YAW_OPTION_1: int = 270
@@ -49,7 +48,7 @@ class Experiment:
     CAR2_DESIRED_POSITION_OPTION_1 = np.array([0, -10])
     CAR2_DESIRED_POSITION_OPTION_2 = np.array([0, 10])
 
-    # Master side configuration
+    # Master embedding size configuration
     EMBEDDING_SIZE: int = 4
 
 

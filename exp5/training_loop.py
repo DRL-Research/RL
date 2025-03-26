@@ -13,58 +13,53 @@ from utils.plotting_utils import plot_results
 def training_loop(p_agent_loss, p_master_loss, p_episode_counter, experiment, env, agent_model, master_model):
     collision_counter, episode_counter, total_steps = 0, 0, 0
     all_rewards, all_actions = [], []
-    # For cycle
     for cycle in range(experiment.CYCLES):
         print(f"@ Cycle {cycle + 1}/{experiment.CYCLES} @")
-        #Definiing the structure of the training process
+        # Define the structure of the training process
         train_both = cycle == 0
         training_master = not train_both and cycle % 2 == 1
         # Update weights logic
         master_model.unfreeze() if train_both or training_master else master_model.freeze()
         agent_model.policy.set_training_mode(train_both or not training_master)
-        #Enter episode loop
+        # Enter episode loop
         for episode in range(experiment.EPISODES_PER_CYCLE):
             episode_counter += 1
             p_episode_counter.append(episode_counter)
             print(f"  @ Episode {episode_counter} @")
-            #Run Epsiode
+
             episode_rewards, episode_actions, steps, *_ = run_episode(
                 experiment, total_steps, env, master_model, agent_model,
                 train_both=train_both, training_master=training_master
             )
-            #after Done we need to stop the simulation for updating the network
+            # After Done, stop simulation to update network
             pause_experiment_simulation(env)
             total_steps += steps
             all_rewards.append(episode_rewards)
             all_actions.append(episode_actions)
 
-            #Check if the buffer is full or if we reached experiment counter for updatinf the network
-            if master_model.model.rollout_buffer.full or agent_model.rollout_buffer.full or episode_counter % Experiment.EPISODE_AMOUNT_FOR_TRAIN  == 0:
-                last_master_tensor= train_master_and_reset_buffer(env, master_model, agent_model)
-                train_agents_and_reset_buffer(env, master_model, agent_model, last_master_tensor)
+            # Check if the buffer is full or if we reached the episode count for updating the network
+            if master_model.model.rollout_buffer.full or agent_model.rollout_buffer.full or episode_counter % Experiment.EPISODE_AMOUNT_FOR_TRAIN == 0:
+                last_master_tensor = train_master_and_reset_buffer(env, master_model, agent_model)
+                train_agent_and_reset_buffer(env, master_model, agent_model, last_master_tensor)
     print("Training completed.")
     return p_episode_counter, p_agent_loss, p_master_loss, agent_model, collision_counter, all_rewards, all_actions
 
 def run_episode(experiment, total_steps, env, master_model, agent_model, train_both, training_master):
-    all_states = []
-    all_rewards = []
+    all_states,all_rewards,actions_per_episode = [],[],[]
+    steps_counter,episode_sum_of_rewards = 0,0
     done = False
-    steps_counter = 0
-    episode_sum_of_rewards = 0
-    actions_per_episode = []
+    env.reset()
     resume_experiment_simulation(env)
-    #env.reset()
-
     # Run the episode
     while not done:
         steps_counter += 1
         # Get the state of the cars
-        car1 = env.envs[0].airsim_manager.get_car1_state()
-        car2 = env.envs[0].airsim_manager.get_car2_state()
+        car1_state = env.envs[0].airsim_manager.get_car1_state()
+        car2_state = env.envs[0].airsim_manager.get_car2_state()
         # Get the master network’s proto embedding (4-dim)
-        master_obs = np.concatenate((car1, car2))
-        master_tensor = torch.tensor(master_obs).unsqueeze(0).float()
-        # get the proto action from the master model
+        master_obs_as_tensor = np.concatenate((car1_state, car2_state))
+        master_tensor = torch.tensor(master_obs_as_tensor).unsqueeze(0).float()
+        # Get the proto action from the master model
         if train_both or training_master:
             with torch.no_grad():
                 proto_action, value, log_prob = master_model.model.policy.forward(master_tensor)
@@ -72,10 +67,9 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
         else:
             embedding = master_model.get_proto_action(master_tensor)
         # Build the new observation (8-dim)
-        agent_obs = np.concatenate((car1, embedding))
+        agent_obs = np.concatenate((car1_state, embedding))
         agent_action = Agent.get_action(agent_model, agent_obs, total_steps,
-                                        experiment.EXPLORATION_EXPLOTATION_THRESHOLD,
-                                        training_master if not train_both else None)
+                                        experiment.EXPLORATION_EXPLOTATION_THRESHOLD)
         scalar_action = agent_action[0]
         # Get the value and log_prob of the agent
         if train_both or not training_master:
@@ -85,33 +79,28 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
                 dist = agent_model.policy.get_distribution(obs_tensor)
                 # Convert the action to a tensor
                 action_array = np.array([[scalar_action]])
-
-                # Convert the action to a tensor (pytorch)
                 action_tensor = torch.tensor(action_array, dtype=torch.long)
-
                 log_prob_agent = dist.log_prob(action_tensor)
         # Take a step in the environment
         next_obs, reward, done, info = env.step(agent_action)
         episode_sum_of_rewards += reward
         all_rewards.append(reward)
-        all_states.append(master_obs)
+        all_states.append(master_obs_as_tensor)
         actions_per_episode.append(scalar_action)
-        # Check if the episode is at the start because we need to add the first observation to the buffer
+        # Check if the episode is at the start (for adding the first observation to the buffer)
         episode_start = (steps_counter == 1)
-
         if train_both:
-            # Add the observations to the buffer
             agent_model.rollout_buffer.add(
-                agent_obs,  #current state
+                agent_obs,  # current state
                 action_array,  # action
-                reward, # reward
+                reward,  # reward
                 episode_start,  # is it the start of the episode
-                agent_value,  # value
+                agent_value,  # value (the critic's estimate for this state)
                 log_prob_agent  # log_prob of the action by the agent
             )
-            master_model.model.rollout_buffer.add(master_obs, embedding, reward, episode_start, value, log_prob)
+            master_model.model.rollout_buffer.add(master_obs_as_tensor, embedding, reward, episode_start, value, log_prob)
         elif training_master:
-            master_model.model.rollout_buffer.add(master_obs, embedding, reward, episode_start, value, log_prob)
+            master_model.model.rollout_buffer.add(master_obs_as_tensor, embedding, reward, episode_start, value, log_prob)
         else:
             agent_model.rollout_buffer.add(
                 agent_obs,
@@ -140,14 +129,12 @@ def run_experiment(experiment_config):
     # Run the training loop
     results = training_loop(p_agent_loss, p_master_loss, p_episode_counter,
                             experiment_config, env, agent_model, master_model)
-
     if not experiment_config.ONLY_INFERENCE:
         plot_results(path=os.path.join(base_path, "agent_logs"),
                      all_rewards=results[5], all_actions=results[6])
         plot_results(path=os.path.join(base_path, "master_logs"),
                      all_rewards=results[5], all_actions=results[6])
-
-    agent_model.save(experiment_config.SAVE_MODEL_DIRECTORY)
+    agent_model.save(f"{experiment_config.SAVE_MODEL_DIRECTORY}_agent.pth")
     master_model.save(f"{experiment_config.SAVE_MODEL_DIRECTORY}_master.pth")
     print("Models saved.")
     env.close()
@@ -158,8 +145,7 @@ def resume_experiment_simulation(env):
 def pause_experiment_simulation(env):
     env.envs[0].airsim_manager.pause_simulation()
 
-def train_master_and_reset_buffer(env,master_model,agent_model):
-    # add the relevant information and train the models
+def train_master_and_reset_buffer(env, master_model, agent_model):
     with torch.no_grad():
         last_master_obs = np.concatenate((
             env.envs[0].airsim_manager.get_car1_state(),
@@ -177,7 +163,7 @@ def train_master_and_reset_buffer(env,master_model,agent_model):
     master_model.model.rollout_buffer.reset()
     return last_master_tensor
 
-def train_agents_and_reset_buffer(env,master_model,agent_model,last_master_tensor):
+def train_agent_and_reset_buffer(env, master_model, agent_model, last_master_tensor):
     with torch.no_grad():
         car1_state = env.envs[0].airsim_manager.get_car1_state()
         embedding = master_model.get_proto_action(last_master_tensor)

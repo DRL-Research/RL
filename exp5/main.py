@@ -3,10 +3,9 @@ from src.experiment_config import Experiment
 from training_loop import run_experiment
 
 if __name__ == "__main__":
-    print('mainnnn')
     experiment5 = Experiment(
         EXPERIMENT_ID='Experiment5',
-        EPOCHS=1,
+        EPOCHS=10,
         ROLE=Role.CAR1,
         MODEL_TYPE=ModelType.PPO,
         TIME_BETWEEN_STEPS=0.75,

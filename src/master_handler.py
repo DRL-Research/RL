@@ -27,13 +27,12 @@ class MasterEnv(gym.Env):
         self.airsim_manager = airsim_manager
 
         # Define observation space: 8-dimensional (car1 state + car2 state).
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(8,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(experiment.STATE_INPUT_SIZE,), dtype=np.float32)
         # Define action space: continuous, 4-dimensional proto-action.
-        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(4,), dtype=np.float32)
+        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(experiment.EMBEDDING_SIZE,), dtype=np.float32)
 
         self.state = None
         self.current_step = 0
-        self.max_episode_steps = 20  # Limit episode length.
         self.done = False
 
     def reset(self):
@@ -79,10 +78,6 @@ class MasterEnv(gym.Env):
             reward = self.experiment.REACHED_TARGET_REWARD  # For reaching target (e.g., +10).
             self.done = True
 
-        # Terminate if maximum steps reached.
-        if self.current_step >= self.max_episode_steps:
-            self.done = True
-
         return self.state, reward, self.done, {}
 
     def render(self, mode='human'):
@@ -121,7 +116,6 @@ class MasterModel:
         self.master_env = MasterEnv(experiment=self.experiment, airsim_manager=self.airsim_manager)
         self.master_vec_env = DummyVecEnv([lambda: self.master_env])
 
-        # Set a default network architecture if not provided.
         if policy_kwargs is None:
             policy_kwargs = dict(net_arch=[64,32,16,8 ])
 
@@ -149,22 +143,6 @@ class MasterModel:
             policy_kwargs=policy_kwargs,
             verbose=1,n_epochs=10,vf_coef= 0.5,ent_coef=0.01,gae_lambda=0.95,max_grad_norm=0.5,clip_range=0.2,clip_range_vf=1
         )
-
-    def train_master(self, steps_for_train_master=None):
-        """
-        Updates the master network using the data currently in its rollout buffer.
-        Here, we call the internal train() method, which processes the full buffer.
-        """
-        if self.is_frozen:
-            print("[MasterModel] WARNING: Model is frozen. Unfreeze before training.")
-            return
-
-        if steps_for_train_master is None:
-            steps_for_train_master = self.total_timesteps
-        print(f"[MasterModel] Training for {steps_for_train_master} timesteps...")
-        # Call the PPO model's internal training update on the filled rollout buffer.
-        self.model.train()
-        print("[MasterModel] Training completed.")
 
     def get_proto_action(self, observation, deterministic=True):
         """
