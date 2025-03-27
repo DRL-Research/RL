@@ -5,7 +5,8 @@ from typing import List
 import numpy as np
 
 from src.constants import Role, CarName, ModelType
-
+from src.logger.neptune_logger import NeptuneLogger
+import json
 
 @dataclass
 class Experiment:
@@ -59,7 +60,7 @@ class Experiment:
     PPO_NETWORK_ARCHITECTURE = {'pi': [32, 16], 'vf': [32, 32]}
 
     # State Configuration
-    STATE_INPUT_SIZE = 8
+    STATE_INPUT_SIZE = 4
 
     # Action Configuration
     ACTION_SPACE_SIZE: int = 2
@@ -80,3 +81,21 @@ class Experiment:
     def __post_init__(self):
         self.EXPERIMENT_PATH = f"experiments_logs/{self.EXPERIMENT_DATE_TIME}_{self.EXPERIMENT_ID}"
         self.SAVE_MODEL_DIRECTORY = f"{self.EXPERIMENT_PATH}/trained_model"
+
+
+        # Load API token from external JSON file
+        # try:
+        #     with open("src/logger/neptune_token.json", "r") as f:
+        #         config = json.load(f)
+        #         print(config)
+        #         api_token = config["api_token"]
+        # except (FileNotFoundError, KeyError) as e:
+        #     raise RuntimeError("Failed to load API token from config.json") from e
+
+        self.logger = NeptuneLogger(
+            project_name="AS-DRL/DRL-Research",
+            # api_token=api_token,
+            api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI2OTA2Y2ZkYi1iNzQ0LTQwOWEtYWUyNi1kNmEwMDc3NzA2Y2MifQ==",
+            run_name=self.EXPERIMENT_ID,
+            tags=["experiment", "training"]
+        )

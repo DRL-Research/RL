@@ -117,6 +117,13 @@ class AirsimManager:
     def set_car_controls(self, updated_car_controls, car_name):
         self.airsim_client.setCarControls(updated_car_controls, car_name)
 
+    def get_vehicle_speed(self, car_name):
+        """Returns the speed (magnitude of velocity vector) of the given vehicle."""
+        car_state = self.airsim_client.getCarState(car_name)
+        velocity = car_state.kinematics_estimated.linear_velocity
+        speed = np.sqrt(velocity.x_val ** 2 + velocity.y_val ** 2)  # Compute speed magnitude
+        return speed
+
     def get_car_position_and_speed(self, car_name):
         car_position = self.airsim_client.simGetObjectPose(car_name).position
         car_position_and_speed = {
