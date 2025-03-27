@@ -81,6 +81,14 @@ def training_loop(experiment, env, agent, model):
 
     resume_experiment_simulation(env)
 
+    # TODO- I want to delete this entire graph, and I think the entire function, so we can just use Neptune.
+    plt = PlottingUtils.plot_vehicle_speeds(all_speeds_car1, all_speeds_car2, episode_steps, collision_steps)
+    plot_path = "vehicle_speeds.png"
+    plt.savefig(plot_path, bbox_inches='tight')
+
+    plt.show()
+
+    experiment.logger.run["plots/vehicle_speeds"].upload(plot_path)
 
     # Save model and log training metrics
     if not experiment.ONLY_INFERENCE:
@@ -99,14 +107,6 @@ def plot_results(experiment, all_rewards, all_actions, all_speeds_car1, all_spee
     PlottingUtils.plot_rewards(all_rewards)
     PlottingUtils.show_plots()
     PlottingUtils.plot_actions(all_actions)
-
-
-    # TODO- I want to delete this entire graph, and I think the entire function, so we can just use Neptune.
-    plt = PlottingUtils.plot_vehicle_speeds(all_speeds_car1, all_speeds_car2, episode_steps, collision_steps)
-    plot_path = "vehicle_speeds.png"
-    plt.savefig(plot_path, bbox_inches='tight')
-    plt.show()
-    experiment.logger.run["plots/vehicle_speeds"].upload(plot_path)
 
 
 
