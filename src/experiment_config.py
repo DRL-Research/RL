@@ -7,6 +7,7 @@ import numpy as np
 from src.constants import Role, CarName, ModelType
 from src.logger.neptune_logger import NeptuneLogger
 import json
+from pathlib import Path
 
 @dataclass
 class Experiment:
@@ -30,6 +31,7 @@ class Experiment:
     TIME_BETWEEN_STEPS: float = 0.05
     LOSS_FUNCTION: str = "mse"
     EXPLORATION_EXPLOTATION_THRESHOLD: int = 180
+    SEED: int = 42
 
     # Car 1 Settings
     CAR1_NAME: CarName = CarName.CAR1
@@ -83,9 +85,15 @@ class Experiment:
         self.SAVE_MODEL_DIRECTORY = f"{self.EXPERIMENT_PATH}/trained_model"
 
         # Load API token from external JSON file
+
+
+
         try:
-            with open("C:/Users/User/PycharmProjects/RL/src/logger/token.json", "r") as f:
+            token_path = Path(__file__).resolve().parents[1] / "src" / "logger" / "token.json"
+            print(token_path)
+            with open(token_path, "r") as f:
                 config = json.load(f)
+                print(config)
                 api_token = config["api_token"]
         except (FileNotFoundError, KeyError) as e:
             raise RuntimeError("Failed to load API token from token.json") from e
