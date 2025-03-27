@@ -132,7 +132,7 @@ def run_experiment(experiment_config):
     model.save(experiment_config.SAVE_MODEL_DIRECTORY)
     logger.close()
 
-    experiment_config.logger.log_model(experiment_config.SAVE_MODEL_DIRECTORY, model_name="trained_model")
+    experiment_config.logger.upload_model(experiment_config.SAVE_MODEL_DIRECTORY, model_name="trained_model")
     experiment_config.logger.stop()
 
     print('Model saved')
