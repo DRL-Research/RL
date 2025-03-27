@@ -71,10 +71,10 @@ class NeptuneLogger:
         actions_str_combined = ', '.join(actions_str)
         self.run[f"{car_name}_actions_per_episode"].log(actions_str_combined)
 
-    def log_state_to_neptune(self, car_state: np.array, car_name: str):  # TODO implement this function
+    def log_state_to_neptune(self, car_state: np.array, car_name: str):
         self.run[f"{car_name}_state"].log(car_state)
 
-    def log_model(self, model_path, model_name="trained_model"):
+    def upload_model(self, model_path, model_name="trained_model"):
         model_path = f"{model_path}.zip"
         if not os.path.exists(model_path):
             print(f"Model path does not exist: {model_path}")
@@ -93,7 +93,7 @@ class NeptuneLogger:
             "learning_rate": experiment_config.LEARNING_RATE,
             "n_steps": experiment_config.N_STEPS,
             "batch_size": experiment_config.BATCH_SIZE,
-            # "seed": experiment_config.SEED,
+            "seed": experiment_config.SEED,
             "policy_network": str(experiment_config.PPO_NETWORK_ARCHITECTURE['pi']),
             "value_network": str(experiment_config.PPO_NETWORK_ARCHITECTURE['vf']),
             "loss_function": experiment_config.LOSS_FUNCTION,
@@ -111,11 +111,6 @@ class NeptuneLogger:
                 experiment_config.CAR2_INITIAL_POSITION_OPTION_1,
                 experiment_config.CAR2_INITIAL_POSITION_OPTION_2,
             ]),
-            "car1_action_fast": experiment_config.THROTTLE_FAST,
-            "car1_action_slow": experiment_config.THROTTLE_SLOW,
-            "car2_action": (experiment_config.THROTTLE_FAST + experiment_config.THROTTLE_SLOW) / 2,
-            "car1_state": "[x1, y1, Vx1, Vy1, x2, y2, Vx2, Vy2]",
-            "car2_state": "[x2, y2, Vx2, Vy2, x1, y1, Vx1, Vy1]",
         }
 
         self.run["hyperparameters"] = hyperparams
