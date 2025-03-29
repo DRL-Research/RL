@@ -17,7 +17,7 @@ class AirsimManager:
         # Enable API control for Car1, Car2 and Car3
         self.airsim_client.enableApiControl(True, self.experiment.CAR1_NAME)  # Car1
         self.airsim_client.enableApiControl(True, self.experiment.CAR2_NAME)  # Car2
-        self.airsim_client.enableApiControl(True, "Car3")                      # Car3
+        # self.airsim_client.enableApiControl(True, "Car3")                      # Car3
 
         # Set cars initial throttle:
         car_controls_car_1 = airsim.CarControls()
@@ -26,9 +26,9 @@ class AirsimManager:
         car_controls_car_2 = airsim.CarControls()
         car_controls_car_2.throttle = 1
         self.airsim_client.setCarControls(car_controls_car_2, self.experiment.CAR2_NAME)
-        car_controls_car_3 = airsim.CarControls()
-        car_controls_car_3.throttle = 1
-        self.airsim_client.setCarControls(car_controls_car_3, "Car3")
+        # car_controls_car_3 = airsim.CarControls()
+        # car_controls_car_3.throttle = 1
+        # self.airsim_client.setCarControls(car_controls_car_3, "Car3")
 
         # Get initial positions according to settings offset
         self.car1_x_offset = 0  # Change only if settings.json is changed.
@@ -57,7 +57,7 @@ class AirsimManager:
         # Re-enable API control for all vehicles after reset
         self.airsim_client.enableApiControl(True, self.experiment.CAR1_NAME)
         self.airsim_client.enableApiControl(True, self.experiment.CAR2_NAME)
-        self.airsim_client.enableApiControl(True, "Car3")
+        # self.airsim_client.enableApiControl(True, "Car3")
 
         # Helper function to calculate starting position and orientation
         def get_initial_position_and_yaw(car_direction, pos_opt1, pos_opt2, yaw_opt1, yaw_opt2, x_offset, y_offset):
@@ -115,17 +115,17 @@ class AirsimManager:
 
         # Set the pose for Car3 based on Car2's position and orientation.
         # We place Car3 a fixed distance behind Car2 along the reverse direction of Car2's heading.
-        distance_offset = 5  # desired distance behind Car2
-        car2_yaw_rad = np.radians(car2_start_yaw)
-        car3_start_x = car2_start_x + distance_offset * np.cos(car2_yaw_rad + np.pi)
-        car3_start_y = car2_start_y + distance_offset * np.sin(car2_yaw_rad + np.pi)
-        car3_start_yaw = car2_start_yaw  # Same heading as Car2
+        # distance_offset = 5  # desired distance behind Car2
+        # car2_yaw_rad = np.radians(car2_start_yaw)
+        # car3_start_x = car2_start_x + distance_offset * np.cos(car2_yaw_rad + np.pi)
+        # car3_start_y = car2_start_y + distance_offset * np.sin(car2_yaw_rad + np.pi)
+        # car3_start_yaw = car2_start_yaw  # Same heading as Car2
 
-        initial_pose_car3 = create_initial_pose(car3_start_x, car3_start_y, np.radians(car3_start_yaw))
-        self.airsim_client.simSetVehiclePose(initial_pose_car3, True, "Car3")
-        print("car 1 initial position: ", car1_start_x, car1_start_y)
-        print("car 2 initial position: ", car2_start_x, car2_start_y)
-        print("car 3 initial position: ", car3_start_x, car3_start_y)
+        # initial_pose_car3 = create_initial_pose(car3_start_x, car3_start_y, np.radians(car3_start_yaw))
+        # self.airsim_client.simSetVehiclePose(initial_pose_car3, True, "Car3")
+        # print("car 1 initial position: ", car1_start_x, car1_start_y)
+        # print("car 2 initial position: ", car2_start_x, car2_start_y)
+        # print("car 3 initial position: ", car3_start_x, car3_start_y)
 
     def collision_occurred(self):
         collision_info = self.airsim_client.simGetCollisionInfo()
@@ -138,6 +138,13 @@ class AirsimManager:
 
     def set_car_controls(self, updated_car_controls, car_name):
         self.airsim_client.setCarControls(updated_car_controls, car_name)
+
+    def get_vehicle_speed(self, car_name):
+        """Returns the speed (magnitude of velocity vector) of the given vehicle."""
+        car_state = self.airsim_client.getCarState(car_name)
+        velocity = car_state.kinematics_estimated.linear_velocity
+        speed = np.sqrt(velocity.x_val ** 2 + velocity.y_val ** 2)  # Compute speed magnitude
+        return speed
 
     def get_car_position_and_speed(self, car_name):
         car_position = self.airsim_client.simGetObjectPose(car_name).position
