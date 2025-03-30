@@ -7,7 +7,6 @@ from turns.utils import plots_utils_turns
 from turns.initialization.setup_simulation_turns import SetupManager
 from turns.path_planning import turn_points_generator, path_following
 from turns.utils.path_planning import turn_helper, path_control
-# from turns.utils.airsim_manager_turns import AirsimManager
 from turns.utils.airsim_manager_merged_with_original import AirsimManager
 
 def run_for_single_car(moving_car_name):
