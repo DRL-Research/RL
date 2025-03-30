@@ -11,10 +11,6 @@ from utils.agent_handler import Agent
 from utils.experiment.experiment_turns_config import ExperimentTurns
 from utils.experiment.experiment_constants import Role
 from utils.model.model_constants import ModelType
-from turns.utils.airsim_manager_merged_with_original import AirsimManager
-import time
-from utils.model.model_handler import get_model_path_from_experiment_name
-
 
 
 if __name__ == "__main__":
