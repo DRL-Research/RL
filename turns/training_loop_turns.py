@@ -1,8 +1,8 @@
 import time
 import random
-from multiprocessing.dummy import Pool as ThreadPool  # <- add this import at the top
 
 import airsim
+from stable_baselines3.common.logger import configure
 from stable_baselines3.common.vec_env import DummyVecEnv
 
 from turns.initialization.config_turns import CREATE_MAIN_PLOT, TURN_DIRECTION_STRAIGHT, TURN_DIRECTION_RIGHT, \
@@ -17,40 +17,6 @@ from utils.agent_handler import Agent
 from turns.utils.airsim_manager_merged_with_original import AirsimManager
 from utils.plotting_utils import PlottingUtils
 
-def process_car_turn(moving_car_name, experiment, current_state, env, agent, model, total_steps, collision_counter, episode_rewards, episode_actions):
-    print(f"Generating turn for {moving_car_name}")
-    airsim_client = airsim.CarClient()
-    path_control.SteeringProcManager.create_steering_procedure()
-    directions = [
-        TURN_DIRECTION_STRAIGHT,
-        TURN_DIRECTION_RIGHT,
-        TURN_DIRECTION_LEFT]
-    direction = random.choices(directions, k=1)[0]
-    print(f"Generating turn for {moving_car_name} in direction {direction}")
-    # Generate spline for the car
-    tracked_points, _, _, _ = turn_points_generator.generate_points_for_turn(
-        airsim_client, moving_car_name, direction
-    )
-    AirsimManager.stop_car(airsim_client, moving_car_name, 0.1)
-    spline = turn_helper.filter_tracked_points_and_generate_spline(tracked_points, moving_car_name)
-
-    # Follow the spline while integrating RL training
-    print(f"Starting spline-following for {moving_car_name}")
-    positions_lst = following_loop_with_rl(
-        experiment=experiment,
-        current_state=current_state,
-        client=airsim_client,
-        spline=spline,
-        moving_car_name=moving_car_name,
-        env=env,
-        agent=agent,
-        model=model,
-        total_steps=total_steps,
-        collision_counter=collision_counter,
-        episode_rewards=episode_rewards,
-        episode_actions=episode_actions,
-    )
-    return positions_lst, moving_car_name
 
 def training_loop_turns(experiment, env, agent, model, cars_names):
 
@@ -73,18 +39,41 @@ def training_loop_turns(experiment, env, agent, model, cars_names):
             resume_experiment_simulation(env)
             actions_per_episode = []
 
-            args_list = []
-            for car_name in cars_names:
-                args_list.append((
-                                 car_name, experiment, current_state, env, agent, model, total_steps, collision_counter,
-                                 episode_rewards, episode_actions))
+            # Iterate over each car to generate and follow turns
+            for moving_car_name in cars_names:
+                # TODO: change to multiprocessing
+                print(f"Generating turn for {moving_car_name}")
+                airsim_client = airsim.CarClient()
+                path_control.SteeringProcManager.create_steering_procedure()
+                directions = [
+                    # TURN_DIRECTION_STRAIGHT,
+                              TURN_DIRECTION_RIGHT,
+                              TURN_DIRECTION_LEFT]
+                direction = random.choices(directions, k=1)[0]
+                print(f"Generating turn for {moving_car_name} in direction {direction}")
+                # Generate spline for the car
+                tracked_points, _, _, _ = turn_points_generator.generate_points_for_turn(
+                    airsim_client, moving_car_name, direction
+                )
+                AirsimManager.stop_car(airsim_client, moving_car_name, 0.1)
+                spline = turn_helper.filter_tracked_points_and_generate_spline(tracked_points, moving_car_name)
 
-            with ThreadPool(processes=len(cars_names)) as pool:
-                car_location_by_name = pool.starmap(process_car_turn, args_list)
-
-            all_cars_positions_list = []
-            for positions_lst, car_name in car_location_by_name:
-                all_cars_positions_list.append((positions_lst, car_name))
+                # Follow the spline while integrating RL training
+                print(f"Starting spline-following for {moving_car_name}")
+                positions_lst = following_loop_with_rl(
+                    experiment=experiment,
+                    current_state=current_state,
+                    client=airsim_client,
+                    spline=spline,
+                    moving_car_name=moving_car_name,
+                    env=env,
+                    agent=agent,
+                    model=model,
+                    total_steps=total_steps,
+                    collision_counter=collision_counter,
+                    episode_rewards=episode_rewards,
+                    episode_actions=episode_actions,
+                )
 
             print(f"Episode {episode + 1} finished with reward: {sum(episode_rewards)}")
             all_rewards.append(sum(episode_rewards))
@@ -94,7 +83,7 @@ def training_loop_turns(experiment, env, agent, model, cars_names):
                     model.learn(total_timesteps=steps_counter, log_interval=1)
                     print(f"Model learned on {steps_counter} steps")
 
-        return model, collision_counter, all_rewards, all_actions, all_cars_positions_list
+        return model, collision_counter, all_rewards, all_actions, positions_lst
 
 
 def plot_results(experiment, all_rewards, all_actions):
@@ -109,8 +98,8 @@ def run_experiment_turns(experiment_config):
     time.sleep(0.2)
     cars_names = setup_manager.cars_names
     airsim_manager = AirsimManager(experiment_config, setup_manager_cars=setup_manager.cars)
+    env = DummyVecEnv([lambda: Agent(experiment_config, airsim_manager)])
     agent = Agent(experiment_config, airsim_manager)
-    env = DummyVecEnv([lambda: agent])
     model = Model(env, experiment_config).model
     # logger = configure(experiment_config.EXPERIMENT_PATH, ["stdout", "csv", "tensorboard"])
 

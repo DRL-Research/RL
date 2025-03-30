@@ -20,7 +20,6 @@ class Agent(gym.Env):
         self.action_space = spaces.Discrete(experiment.ACTION_SPACE_SIZE)
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(experiment.INPUT_SIZE,), dtype=np.float32)
         self.state = None
-        self.steering = {}
         self.reset()
 
     def reset(self) -> np.ndarray:
@@ -38,16 +37,16 @@ class Agent(gym.Env):
 
         throttle = Experiment.THROTTLE_FAST if action == 0 else Experiment.THROTTLE_SLOW
         if self.experiment.ROLE == self.experiment.CAR1_NAME:
-            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle, steering=self.get_steering(self.experiment.CAR1_NAME)), self.experiment.CAR1_NAME)
+            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR1_NAME)
             self.airsim_manager.set_car_controls(airsim.CarControls(throttle=Experiment.FIXED_THROTTLE),
                                                  self.experiment.CAR2_NAME)
         elif self.experiment.ROLE == self.experiment.CAR2_NAME:
-            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle, steering=self.get_steering(self.experiment.CAR2_NAME)), self.experiment.CAR2_NAME)
+            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR2_NAME)
             self.airsim_manager.set_car_controls(airsim.CarControls(throttle=Experiment.FIXED_THROTTLE),
                                                  self.experiment.CAR1_NAME)
         elif self.experiment.ROLE == 'Both':
-            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle, steering=self.get_steering(self.experiment.CAR1_NAME)), self.experiment.CAR1_NAME)
-            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle, steering=self.get_steering(self.experiment.CAR2_NAME)), self.experiment.CAR2_NAME)
+            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR1_NAME)
+            self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle), self.experiment.CAR2_NAME)
 
         time.sleep(self.experiment.TIME_BETWEEN_STEPS)
 
@@ -82,11 +81,5 @@ class Agent(gym.Env):
     # This function override base function in "GYM" environment. do not touch!
     def close_env(self):
         self.airsim_manager.close()
-
-    def set_steering(self, desired_steering, car_name):
-        self.steering[car_name] = desired_steering
-
-    def get_steering(self, car_name):
-        return self.steering[car_name]
 
 
