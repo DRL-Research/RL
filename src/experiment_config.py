@@ -86,6 +86,7 @@ class Experiment:
         self.EXPERIMENT_PATH = f"experiments/{self.EXPERIMENT_DATE_TIME}_{self.EXPERIMENT_ID}"
         self.SAVE_MODEL_DIRECTORY = f"{self.EXPERIMENT_PATH}/trained_model"
 
+        # Connecting to Neptune AI logger
         try:
             token_path = Path(__file__).resolve().parents[1] / "src" / "logger" / "token.json"
             print(token_path)
