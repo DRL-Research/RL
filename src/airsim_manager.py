@@ -14,10 +14,17 @@ class AirsimManager:
         self.experiment = experiment
         self.airsim_client = airsim.CarClient()
         self.airsim_client.confirmConnection()
+
+        # TODO
         # Enable API control for Car1, Car2 and Car3
-        self.airsim_client.enableApiControl(True, self.experiment.CAR1_NAME)  # Car1
-        self.airsim_client.enableApiControl(True, self.experiment.CAR2_NAME)  # Car2
+        # self.airsim_client.enableApiControl(True, self.experiment.CAR1_NAME)  # Car1
+        # self.airsim_client.enableApiControl(True, self.experiment.CAR2_NAME)  # Car2
         # self.airsim_client.enableApiControl(True, "Car3")                      # Car3
+
+        # Enable API control for Car1, Car2 and Car3
+        self.car_names = self.experiment.CAR_NAMES
+        for car_name in self.car_names:
+            self.airsim_client.enableApiControl(True, car_name)
 
         # Set cars initial throttle:
         car_controls_car_1 = airsim.CarControls()
