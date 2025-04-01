@@ -175,6 +175,7 @@ def run_experiment(experiment_config):
     # Run the training loop
     results = training_loop(p_agent_loss, p_master_loss, p_episode_counter,
                             experiment_config, env, agent_model, master_model)
+
     # if not experiment_config.ONLY_INFERENCE:
     #     plot_results(path=os.path.join(base_path, "agent_logs"),
     #                  all_rewards=results[5], all_actions=results[6])
@@ -184,6 +185,10 @@ def run_experiment(experiment_config):
 
     agent_model.save(f"{experiment_config.SAVE_MODEL_DIRECTORY}/trained_model_agent.pth")
     master_model.save(f"{experiment_config.SAVE_MODEL_DIRECTORY}/trained_model_master.pth")
+
+    # Close Stable-Baselines loggers
+    agent_logger.close()
+    master_logger.close()
 
     experiment_config.logger.log_from_csv(
         path=f"{experiment_config.SAVE_MODEL_DIRECTORY}/agent_logs/progress.csv",
