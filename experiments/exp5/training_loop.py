@@ -42,7 +42,6 @@ def training_loop(p_agent_loss, p_master_loss, p_episode_counter, experiment, en
             pause_experiment_simulation(env)
             total_steps += steps
             all_rewards.append(episode_rewards)
-            # experiment.logger.run["episode_reward"].append(sum(episode_rewards), step=episode_counter)
 
             all_actions.append(episode_actions)
 
@@ -108,6 +107,8 @@ def run_episode(experiment, episode, total_steps, env, master_model, agent_model
         next_obs, reward, done, info = env.step(agent_action)
         episode_sum_of_rewards += reward
         all_rewards.append(reward)
+        experiment.logger.run["episode_reward"].append(reward)
+
         all_states.append(master_obs_as_tensor)
         actions_per_episode.append(scalar_action)
 
