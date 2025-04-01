@@ -6,11 +6,10 @@ from highway_env.envs.common.observation import observation_factory
 from highway_env.road.lane import AbstractLane, CircularLane, LineType, StraightLane
 from highway_env.road.regulation import RegulatedRoad
 from highway_env.road.road import RoadNetwork
-from highway_env.vehicle.behavior import IDMVehicle
-from highway_env.vehicle.controller import ControlledVehicle
 from highway_env.vehicle.kinematics import Vehicle
 import gym
 
+from highwayenv.CustomControlledVehicle import CustomControlledVehicle
 from highwayenv.custom_action import action_factory
 
 class IntersectionEnv(AbstractEnv):
@@ -252,7 +251,7 @@ class IntersectionEnv(AbstractEnv):
 
         # Controlled Vehicle: Speed can change
         lane_1 = self.road.network.get_lane(car1_conf["start_lane"])  # South-to-North
-        controlled_vehicle = ControlledVehicle(
+        controlled_vehicle = CustomControlledVehicle(
             self.road,
             lane_1.position(car1_conf["init_location"]["longitudinal"], car1_conf["init_location"]["lateral"]),  # Start 40m from the start of the road
             speed=car1_conf["speed"],  # Initial speed
