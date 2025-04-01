@@ -66,7 +66,7 @@ class Experiment:
     PPO_NETWORK_ARCHITECTURE = {'pi': [32, 16 , 8 ], 'vf': [32, 16 , 8 , 4]}
 
     # State Configuration
-    STATE_INPUT_SIZE = 4
+    STATE_INPUT_SIZE = 8
 
     # Action Configuration
     ACTION_SPACE_SIZE: int = 2
@@ -84,15 +84,13 @@ class Experiment:
 
     def __post_init__(self):
         self.EXPERIMENT_PATH = f"experiments/{self.EXPERIMENT_DATE_TIME}_{self.EXPERIMENT_ID}"
-        self.SAVE_MODEL_DIRECTORY = f"{self.EXPERIMENT_PATH}/trained_model"
+        self.SAVE_MODEL_DIRECTORY = f"{self.EXPERIMENT_PATH}"
 
         # Connecting to Neptune AI logger
         try:
             token_path = Path(__file__).resolve().parents[1] / "src" / "logger" / "token.json"
-            print(token_path)
             with open(token_path, "r") as f:
                 config = json.load(f)
-                print(config)
                 api_token = config["api_token"]
         except (FileNotFoundError, KeyError) as e:
             raise RuntimeError("Failed to load API token from token.json") from e
