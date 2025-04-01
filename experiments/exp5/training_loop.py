@@ -9,6 +9,8 @@ from src.experiment_config import Experiment
 from src.master_handler import MasterModel
 from src.model_handler import Model
 from utils.plotting_utils import plot_results
+import json
+
 
 def training_loop(p_agent_loss, p_master_loss, p_episode_counter, experiment, env, agent_model, master_model):
     collision_counter, episode_counter, total_steps = 0, 0, 0
@@ -40,7 +42,7 @@ def training_loop(p_agent_loss, p_master_loss, p_episode_counter, experiment, en
             pause_experiment_simulation(env)
             total_steps += steps
             all_rewards.append(episode_rewards)
-            experiment.logger.run["episode_reward"].append(sum(episode_rewards), step=episode_counter)
+            # experiment.logger.run["episode_reward"].append(sum(episode_rewards), step=episode_counter)
 
             all_actions.append(episode_actions)
 
@@ -89,11 +91,7 @@ def run_episode(experiment, episode, total_steps, env, master_model, agent_model
         scalar_action = agent_action[0]
 
         experiment.logger.run["Actions_Car1"].append(scalar_action)
-        # experiment.logger.run["Actions_Car1"].append(scalar_action, step=total_steps + steps_counter)
-        # Suppose you track a global 'total_steps' (integer) or something similar
-        # experiment.logger.run["Actions_Car1"].append(scalar_action, step=total_steps)
-
-        # experiment.logger.run["embedding"].append(list(embedding), step=total_steps + steps_counter)
+        experiment.logger.run["Embedding"].log(json.dumps(embedding.astype(float).tolist()))
 
         # Get the value and log_prob of the agent
         if train_both or not training_master:
@@ -113,7 +111,7 @@ def run_episode(experiment, episode, total_steps, env, master_model, agent_model
         all_states.append(master_obs_as_tensor)
         actions_per_episode.append(scalar_action)
 
-        experiment.logger.run["rewards"].append(reward, step=total_steps)
+        # experiment.logger.run["rewards"].append(reward, step=total_steps)
 
         # Get speed from AirSim
         speed_car1 = env.envs[0].airsim_manager.get_vehicle_speed(experiment.CAR1_NAME)
@@ -123,8 +121,7 @@ def run_episode(experiment, episode, total_steps, env, master_model, agent_model
         is_collision = int(reward <= experiment.COLLISION_REWARD)
         experiment.logger.run["Speed"].append(
             {"speed_car1": speed_car1, "speed_car2": speed_car2, "episode": episode,
-             "collision_flag": is_collision * 12},
-            step=total_steps + steps_counter
+             "collision_flag": is_collision * 12}
         )
 
         # Check if the episode is at the start (for adding the first observation to the buffer)
@@ -178,36 +175,33 @@ def run_experiment(experiment_config):
     # Run the training loop
     results = training_loop(p_agent_loss, p_master_loss, p_episode_counter,
                             experiment_config, env, agent_model, master_model)
-    if not experiment_config.ONLY_INFERENCE:
-        plot_results(path=os.path.join(base_path, "agent_logs"),
-                     all_rewards=results[5], all_actions=results[6])
-        plot_results(path=os.path.join(base_path, "master_logs"),
-                     all_rewards=results[5], all_actions=results[6])
+    # if not experiment_config.ONLY_INFERENCE:
+    #     plot_results(path=os.path.join(base_path, "agent_logs"),
+    #                  all_rewards=results[5], all_actions=results[6])
+    #     plot_results(path=os.path.join(base_path, "master_logs"),
+    #                  all_rewards=results[5], all_actions=results[6])
 
-        # Upload the stable-baselines CSV stats
-        agent_csv = os.path.join(base_path, "agent_logs", "progress.csv")
-        master_csv = os.path.join(base_path, "master_logs", "progress.csv")
 
-        experiment_config.logger.log_from_csv(
-            path=agent_csv,
-            column_name="train/value_loss",
-            metric_name="agent_value_loss"
-        )
-        experiment_config.logger.log_from_csv(
-            path=master_csv,
-            column_name="train/value_loss",
-            metric_name="master_value_loss"
-        )
+    agent_model.save(f"{experiment_config.SAVE_MODEL_DIRECTORY}/trained_model_agent.pth")
+    master_model.save(f"{experiment_config.SAVE_MODEL_DIRECTORY}/trained_model_master.pth")
 
-    agent_model.save(f"{experiment_config.SAVE_MODEL_DIRECTORY}_agent.pth")
-    master_model.save(f"{experiment_config.SAVE_MODEL_DIRECTORY}_master.pth")
+    experiment_config.logger.log_from_csv(
+        path=f"{experiment_config.SAVE_MODEL_DIRECTORY}/agent_logs/progress.csv",
+        column_name="train/value_loss",
+        metric_name="agent_value_loss"
+    )
+    experiment_config.logger.log_from_csv(
+        path=f"{experiment_config.SAVE_MODEL_DIRECTORY}/master_logs/progress.csv",
+        column_name="train/value_loss",
+        metric_name="master_value_loss"
+    )
 
     # Upload final models to Neptune
     experiment_config.logger.upload_model(
-        f"{experiment_config.SAVE_MODEL_DIRECTORY}_agent.pth", model_name="trained_agent"
+        f"{experiment_config.SAVE_MODEL_DIRECTORY}/trained_model_agent.pth", model_name="trained_agent"
     )
     experiment_config.logger.upload_model(
-        f"{experiment_config.SAVE_MODEL_DIRECTORY}_master.pth", model_name="trained_master"
+        f"{experiment_config.SAVE_MODEL_DIRECTORY}/trained_model_master.pth", model_name="trained_master"
     )
     print("Models saved.")
     env.close()
