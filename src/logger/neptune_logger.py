@@ -74,8 +74,8 @@ class NeptuneLogger:
     def log_state_to_neptune(self, car_state: np.array, car_name: str):
         self.run[f"{car_name}_state"].log(car_state)
 
-    def upload_model(self, model_path, model_name="trained_model"):
-        model_path = f"{model_path}.zip"
+    def upload_model(self, model_path, model_name):
+        model_path = f"{model_path}"
         if not os.path.exists(model_path):
             print(f"Model path does not exist: {model_path}")
         elif not os.path.isfile(model_path):
