@@ -89,7 +89,9 @@ class NeptuneLogger:
         hyperparams = {
             "experiment_id": experiment_config.EXPERIMENT_ID,
             "model_type": experiment_config.MODEL_TYPE,
-            "epochs": experiment_config.EPOCHS,
+            "cycles": experiment_config.CYCLES,
+            "episodes_per_cycle": experiment_config.EPISODES_PER_CYCLE,
+            "total_episodes": experiment_config.EPISODES_PER_CYCLE * experiment_config.CYCLES,
             "learning_rate": experiment_config.LEARNING_RATE,
             "n_steps": experiment_config.N_STEPS,
             "batch_size": experiment_config.BATCH_SIZE,
