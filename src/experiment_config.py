@@ -4,6 +4,10 @@ from typing import List
 import numpy as np
 from src.constants import Role, CarName, ModelType
 
+from src.logger.neptune_logger import NeptuneLogger
+import json
+from pathlib import Path
+
 
 @dataclass
 class Experiment:
@@ -17,6 +21,7 @@ class Experiment:
     MASTER_TRAINED_MODEL: str = "EXP5_Inference_Models/master_trained_model.zip"
     AGENT_TRAINED_MODEL: str = "EXP5_Inference_Models/agent_trained_model.zip"
     CARS_AMOUNT= 1
+    NUM_CARS = 3
 
     # Model and Training Configuration-
     EPISODE_AMOUNT_FOR_TRAIN : int = 4
@@ -29,6 +34,7 @@ class Experiment:
     TIME_BETWEEN_STEPS: float = 0.05
     LOSS_FUNCTION: str = "mse"
     EXPLORATION_EXPLOTATION_THRESHOLD: int = None
+    SEED: int = 42
 
     # Car 1 Settings
     CAR1_NAME: CarName = CarName.CAR1
@@ -78,4 +84,20 @@ class Experiment:
 
     def __post_init__(self):
         self.EXPERIMENT_PATH = f"experiments/{self.EXPERIMENT_DATE_TIME}_{self.EXPERIMENT_ID}"
-        self.SAVE_MODEL_DIRECTORY = f"{self.EXPERIMENT_PATH}/trained_model"
+        self.SAVE_MODEL_DIRECTORY = f"{self.EXPERIMENT_PATH}"
+
+        # Connecting to Neptune AI logger
+        try:
+            token_path = Path(__file__).resolve().parents[1] / "src" / "logger" / "token.json"
+            with open(token_path, "r") as f:
+                config = json.load(f)
+                api_token = config["api_token"]
+        except (FileNotFoundError, KeyError) as e:
+            raise RuntimeError("Failed to load API token from token.json") from e
+
+        self.logger = NeptuneLogger(
+            project_name="AS-DRL/DRL-Research",
+            api_token=api_token,
+            run_name=self.EXPERIMENT_ID,
+            tags=["experiment", "training"]
+        )

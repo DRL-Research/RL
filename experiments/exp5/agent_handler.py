@@ -54,7 +54,7 @@ class Agent(gym.Env):
         # Apply controls: agent's action to Car1; fixed control to Car2 and Car3
         self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle1), self.experiment.CAR1_NAME)
         self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle2), self.experiment.CAR2_NAME)
-        self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle2), "Car3")
+        # self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle2), "Car3")
 
         # Get the global position and speed for Car1 and Car2
         car1_state = self.airsim_manager.get_car_position_and_speed(self.experiment.CAR1_NAME)
