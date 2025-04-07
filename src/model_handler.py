@@ -15,7 +15,15 @@ class Model:
         model_params, policy_kwargs = self.define_model_params(self.experiment_config)
         match self.experiment_config.MODEL_TYPE:
             case ModelType.PPO:
-                return PPO(policy=Policy.MlpPolicy, env=self.env, verbose=1, policy_kwargs=policy_kwargs, **model_params, n_epochs=1)
+                return PPO(policy=Policy.MlpPolicy, env=self.env,verbose=1,
+            n_epochs=4,
+            vf_coef=0.7,
+            ent_coef=0.01,
+            gae_lambda=0.95,
+            max_grad_norm=0.75,
+            clip_range=0.25,
+            clip_range_vf=1 ,
+            policy_kwargs=policy_kwargs, **model_params)
             case ModelType.DQN:
                 return DQN(policy=Policy.MlpPolicy, env=self.env, verbose=1, **model_params)
             case ModelType.A2C:
