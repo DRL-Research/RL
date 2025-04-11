@@ -17,7 +17,6 @@ class Agent(gym.Env):
         self.experiment = experiment
         self.airsim_manager = airsim_manager
         self.master_model = master_model
-
         # Define the discrete action space (e.g., 0 = FAST, 1 = SLOW)
         self.action_space = spaces.Discrete(experiment.ACTION_SPACE_SIZE)
         # Define the observation space: continuous vector of length STATE_INPUT_SIZE.
