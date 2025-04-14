@@ -12,6 +12,7 @@ import gym
 from highwayenv.CustomControlledVehicle import CustomControlledVehicle
 from highwayenv.custom_action import action_factory
 
+
 class IntersectionEnv(AbstractEnv):
     @classmethod
     def default_config(cls) -> dict:
@@ -246,32 +247,43 @@ class IntersectionEnv(AbstractEnv):
             ]
 
         self.controlled_vehicles = []
-        car1_conf = self.config["car1"]
-        car2_conf = self.config["car2"]
+        controlled_conf = self.config["controlled_cars"]
+        other_conf = self.config["other_cars"]
 
-        # Controlled Vehicle: Speed can change
-        lane_1 = self.road.network.get_lane(car1_conf["start_lane"])  # South-to-North
-        controlled_vehicle = CustomControlledVehicle(
-            self.road,
-            lane_1.position(car1_conf["init_location"]["longitudinal"], car1_conf["init_location"]["lateral"]),  # Start 40m from the start of the road
-            speed=car1_conf["speed"],  # Initial speed
-            heading=lane_1.heading_at(car1_conf["init_location"]["longitudinal"]),
-        )
-        controlled_vehicle.color = car1_conf["color"]  # Set color to green (RGB format)
-
-        controlled_vehicle.plan_route_to(car1_conf["destination"])  # North exit
-        self.road.vehicles.append(controlled_vehicle)
-        self.controlled_vehicles.append(controlled_vehicle)
+        # Controlled vehicles
+        for other_car in controlled_conf.values():
+            lane = self.road.network.get_lane(other_car["start_lane"])
+            controlled_vehicle = CustomControlledVehicle(
+                self.road,
+                lane.position(other_car["init_location"]["longitudinal"], other_car["init_location"]["lateral"]),
+                speed=other_car["speed"],
+                heading=lane.heading_at(other_car["init_location"]["longitudinal"]),
+            )
+            controlled_vehicle.color = other_car["color"]   # Set color to green (RGB format)
+            controlled_vehicle.plan_route_to(other_car["destination"])
+            self.road.vehicles.append(controlled_vehicle)
+            self.controlled_vehicles.append(controlled_vehicle)
 
         # Regular Vehicle: Constant speed
-        lane_2 = self.road.network.get_lane(car2_conf["start_lane"])  # East-to-West
-        regular_vehicle = Vehicle(
-            self.road,
-            lane_2.position(car2_conf["init_location"]["longitudinal"], car2_conf["init_location"]["lateral"]),  # Start 30m from the intersection
-            speed=car2_conf["speed"],  # Constant speed
-            heading=lane_2.heading_at(car2_conf["init_location"]["longitudinal"]),
-        )
-        self.road.vehicles.append(regular_vehicle)
+        for other_car in other_conf.values():
+            lane = self.road.network.get_lane(other_car["start_lane"])
+            other_vehicle = Vehicle(
+                self.road,
+                lane.position(other_car["init_location"]["longitudinal"], other_car["init_location"]["lateral"]),
+                speed=other_car["speed"],
+                heading=lane.heading_at(other_car["init_location"]["longitudinal"]),
+            )
+            self.road.vehicles.append(other_vehicle)
+
+        # lane_4 = self.road.network.get_lane(car4_conf["start_lane"])  # East-to-West
+        # regular_vehicle_4 = Vehicle(
+        #     self.road,
+        #     lane_3.position(car4_conf["init_location"]["longitudinal"], car4_conf["init_location"]["lateral"]),
+        #     # Start 30m from the intersection
+        #     speed=car4_conf["speed"],  # Constant speed
+        #     heading=lane_4.heading_at(car4_conf["init_location"]["longitudinal"]),
+        # )
+        # self.road.vehicles.append(regular_vehicle_4)
 
         for v in self.road.vehicles:  # Prevent early collisions
             if (
