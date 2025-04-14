@@ -122,7 +122,7 @@ CONFIG_EXP2 = {
         }
     }
     ,
-    "other_cars": {
+    "static_cars": {
         "car2": {
         "start_lane": Lanes.EAST_TO_WEST,
         "destination": Direction.OUTER_EAST,
@@ -149,7 +149,7 @@ CONFIG_EXP1 = {
             "color": (0, 204, 0)  # Green car
         }
     },
-    "other_cars": {
+    "static_cars": {
         "car2": {
             "start_lane": Lanes.WEST_TO_EAST,
             "destination": Direction.OUTER_EAST,
@@ -195,7 +195,7 @@ CONFIG_EXP3 = {
             },
         "color": (0, 204, 0)  # Green car
     },
-    "other_cars": {
+    "static_cars": {
 
         "car2": {
         "start_lane": Lanes.EAST_TO_WEST,

@@ -248,7 +248,7 @@ class IntersectionEnv(AbstractEnv):
 
         self.controlled_vehicles = []
         controlled_conf = self.config["controlled_cars"]
-        other_conf = self.config["other_cars"]
+        other_conf = self.config["static_cars"]
 
         # Controlled vehicles
         for other_car in controlled_conf.values():
