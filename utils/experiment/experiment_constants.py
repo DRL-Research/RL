@@ -109,7 +109,8 @@ def create_full_experiment_config(experiment_configs):
 
 
 CONFIG_EXP2 = {
-    "car1": {
+    "controlled_cars": {
+        "car1": {
         "start_lane": Lanes.SOUTH_TO_NORTH,
         "destination": Direction.OUTER_NORTH,
         "speed": Speed.FAST,
@@ -118,20 +119,25 @@ CONFIG_EXP2 = {
             "lateral": 0
         },
         "color": (0, 204, 0)  # green
-    },
-    "car2": {
+        }
+    }
+    ,
+    "static_cars": {
+        "car2": {
         "start_lane": Lanes.EAST_TO_WEST,
         "destination": Direction.OUTER_EAST,
         "speed": Speed.FAST,
         "init_location": {
             "longitudinal": 40,
             "lateral": 0
+            }
         }
     }
 }
 
 
 CONFIG_EXP1 = {
+    "controlled_cars": {
         "car1": {
             "start_lane": Lanes.SOUTH_TO_NORTH,
             "destination": Direction.OUTER_NORTH,
@@ -141,9 +147,11 @@ CONFIG_EXP1 = {
                 "lateral": 0
             },
             "color": (0, 204, 0)  # Green car
-        },
+        }
+    },
+    "static_cars": {
         "car2": {
-            "start_lane": Lanes.EAST_TO_WEST,
+            "start_lane": Lanes.WEST_TO_EAST,
             "destination": Direction.OUTER_EAST,
             "speed": Speed.SLOW,  # **Low speed for first case**
             "init_location": {
@@ -152,32 +160,138 @@ CONFIG_EXP1 = {
             }
         }
     }
+    }
 
 
 exp3_speed = random.choice([Speed.SLOW, Speed.FAST])
 CONFIG_EXP3 = {
-    "car1": {
+    "controlled_cars": {
+        "car1": {
         "start_lane": Lanes.SOUTH_TO_NORTH,
         "destination": Direction.OUTER_NORTH,
         "speed": exp3_speed,  # Same speed for both cars
         "init_location": {
             "longitudinal": 40,
             "lateral": 0
-        },
+        }
+            },
         "color": (0, 204, 0)  # Green car
     },
-    "car2": {
+    "static_cars": {
+
+        "car2": {
         "start_lane": Lanes.EAST_TO_WEST,
         "destination": Direction.OUTER_EAST,
         "speed": exp3_speed,  # Same speed for both cars
         "init_location": {
             "longitudinal": 40,
             "lateral": 0
-        },
+            },
+        }
     }
 }
+
+CONFIG_EXP4 = {
+    "controlled_cars": {
+        "car1": {
+            "start_lane": Lanes.SOUTH_TO_NORTH,
+            "destination": Direction.OUTER_NORTH,
+            "speed": Speed.SLOW,  # Initial speed is FAST
+            "init_location": {
+                "longitudinal": 40,
+                "lateral": 0
+            },
+            "color": (0, 204, 0)  # Green car
+        }
+    },
+    "static_cars": {
+        "car2": {
+            "start_lane": Lanes.WEST_TO_EAST,
+            "destination": Direction.OUTER_EAST,
+            "speed": Speed.SLOW,  # **Low speed for first case**
+            "init_location": {
+                "longitudinal": 40,
+                "lateral": 0
+            }
+        },
+        "car3": {
+            "start_lane": Lanes.EAST_TO_WEST,
+            "destination": Direction.OUTER_NORTH,
+            "speed": Speed.FAST,
+            "init_location": {
+                "longitudinal": 40,
+                "lateral": 0
+            }
+        },
+        "car4": {
+            "start_lane": Lanes.EAST_TO_WEST,
+            "destination": Direction.OUTER_NORTH,
+            "speed": Speed.SLOW,  # **Low speed for first case**
+            "init_location": {
+                "longitudinal": 30,
+                "lateral": 0
+            }
+        }
+    }
+    }
+
+
+CONFIG_EXP5 = {
+    "controlled_cars": {
+        "car1": {
+            "start_lane": Lanes.SOUTH_TO_NORTH,
+            "destination": Direction.OUTER_NORTH,
+            "speed": Speed.SLOW,  # Initial speed is FAST
+            "init_location": {
+                "longitudinal": 40,
+                "lateral": 0
+            },
+            "color": (0, 204, 0)  # Green car
+        }
+    },
+    "static_cars": {
+        "car2": {
+            "start_lane": Lanes.WEST_TO_EAST,
+            "destination": Direction.OUTER_EAST,
+            "speed": Speed.SLOW,  # **Low speed for first case**
+            "init_location": {
+                "longitudinal": 40,
+                "lateral": 0
+            }
+        },
+        "car3": {
+            "start_lane": Lanes.EAST_TO_WEST,
+            "destination": Direction.OUTER_SOUTH,
+            "speed": Speed.SLOW,  # **Low speed for first case**
+            "init_location": {
+                "longitudinal": 20,
+                "lateral": 0
+            }
+        },
+        "car4": {
+            "start_lane": Lanes.EAST_TO_WEST,
+            "destination": Direction.OUTER_NORTH,
+            "speed": Speed.FAST,  # **Low speed for first case**
+            "init_location": {
+                "longitudinal": 50,
+                "lateral": 0
+            }
+        },
+        "car5": {
+            "start_lane": Lanes.NORTH_TO_SOUTH,
+            "destination": Direction.OUTER_WEST,
+            "speed": Speed.FAST,  # **Low speed for first case**
+            "init_location": {
+                "longitudinal": 30,
+                "lateral": 0
+            }
+        }
+    }
+    }
 
 full_config_exp1 = create_full_experiment_config(CONFIG_EXP1)
 full_config_exp2 = create_full_experiment_config(CONFIG_EXP2)
 full_config_exp3 = create_full_experiment_config(CONFIG_EXP3)
+full_config_exp4 = create_full_experiment_config(CONFIG_EXP4)
+full_config_exp5 = create_full_experiment_config(CONFIG_EXP5)
 
