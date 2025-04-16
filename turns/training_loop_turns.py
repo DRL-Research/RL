@@ -20,11 +20,7 @@ def process_car_turn(moving_car_name, experiment, current_state, env, agent, mod
     print(f"Generating turn for {moving_car_name}")
     airsim_client = airsim.CarClient()
     path_control.SteeringProcManager.create_steering_procedure()
-    directions = [
-        TURN_DIRECTION_STRAIGHT,
-        TURN_DIRECTION_RIGHT,
-        TURN_DIRECTION_LEFT]
-    direction = random.choices(directions, k=1)[0]
+    direction = experiment.CAR1_DIRECTION if moving_car_name == experiment.CAR1_NAME else experiment.CAR2_DIRECTION
     print(f"Generating turn for {moving_car_name} in direction {direction}")
     # Generate spline for the car
     tracked_points, _, _, _ = turn_points_generator.generate_points_for_turn(
