@@ -10,6 +10,14 @@ class AirsimManager:
     """
 
     def __init__(self, experiment):
+        self.car1_started_turning = False
+
+        self.direction_steering_map = {
+            "STRAIGHT": 0.0,
+            "LEFT": -0.5,
+            "RIGHT": 0.5
+        }
+
         self.simulation_paused = False
         self.experiment = experiment
         self.airsim_client = airsim.CarClient()
@@ -23,6 +31,7 @@ class AirsimManager:
         # Set cars initial throttle:
         car_controls_car_1 = airsim.CarControls()
         car_controls_car_1.throttle = 1
+        # car_controls_car_1.steering = 0.5
         self.airsim_client.setCarControls(car_controls_car_1, self.experiment.CAR1_NAME)
         car_controls_car_2 = airsim.CarControls()
         car_controls_car_2.throttle = 1
@@ -139,6 +148,19 @@ class AirsimManager:
 
     def set_car_controls(self, updated_car_controls, car_name):
         self.airsim_client.setCarControls(updated_car_controls, car_name)
+
+    def steer_car_by_direction(self, car_name, direction_str):
+        if direction_str not in self.direction_steering_map:
+            raise ValueError(f"Unknown direction: {direction_str}")
+
+        controls = self.get_car_controls(car_name)
+        controls.steering = self.direction_steering_map[direction_str]
+
+        if controls.throttle == 0:
+            controls.throttle = 1.0
+
+        self.set_car_controls(controls, car_name)
+
 
     def get_vehicle_speed(self, car_name):
         """Returns the speed (magnitude of velocity vector) of the given vehicle."""
