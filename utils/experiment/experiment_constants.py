@@ -1,18 +1,6 @@
 from dataclasses import dataclass
 import random
 
-# @dataclass
-# class CarName:
-#     CAR1 = "Car1"
-#     CAR2 = "Car2"
-#
-#
-# @dataclass
-# class Role:
-#     CAR1 = CarName.CAR1
-#     CAR2 = CarName.CAR2
-#     BOTH = "Both"
-
 
 @dataclass
 class Speed:
@@ -42,7 +30,7 @@ class Direction:
     INNER_EAST = "i3"
 
 
-def create_full_experiment_config(experiment_configs):
+def create_full_environment_config(env_config):
     """
     Creates a full experiment configuration by combining a default configuration
     with user-specified experiment configurations. If a key in the experiment_configs
@@ -53,7 +41,7 @@ def create_full_experiment_config(experiment_configs):
     rewards, and environment parameters.
 
     Args:
-        experiment_configs (dict): A dictionary containing configuration updates.
+        env_config (dict): A dictionary containing configuration updates.
                                    Keys in this dictionary will override the corresponding
                                    keys in the default configuration.
 
@@ -72,7 +60,6 @@ def create_full_experiment_config(experiment_configs):
     default_config = {
         "observation": {
             "type": "Kinematics",
-            "vehicles_count": 2,
             "features": ["x", "y", "vx", "vy"],
             "features_range": {
                 "x": [-100, 100],
@@ -104,7 +91,7 @@ def create_full_experiment_config(experiment_configs):
         "centering_position": [0.5, 0.6],  # Do not change, this centers the simulation
         "scaling": 5.5 * 1.3,
     }
-    default_config.update(experiment_configs)  # Update with values from updates
+    default_config.update(env_config)  # Update with values from updates
     return default_config
 
 
@@ -232,8 +219,8 @@ CONFIG_EXP4 = {
                 "lateral": 0
             }
         }
-    }
-    }
+    },
+}
 
 
 CONFIG_EXP5 = {
@@ -289,9 +276,9 @@ CONFIG_EXP5 = {
     }
     }
 
-full_config_exp1 = create_full_experiment_config(CONFIG_EXP1)
-full_config_exp2 = create_full_experiment_config(CONFIG_EXP2)
-full_config_exp3 = create_full_experiment_config(CONFIG_EXP3)
-full_config_exp4 = create_full_experiment_config(CONFIG_EXP4)
-full_config_exp5 = create_full_experiment_config(CONFIG_EXP5)
+full_env_config_exp1 = create_full_environment_config(CONFIG_EXP1)
+full_env_config_exp2 = create_full_environment_config(CONFIG_EXP2)
+full_env_config_exp3 = create_full_environment_config(CONFIG_EXP3)
+full_env_config_exp4 = create_full_environment_config(CONFIG_EXP4)
+full_env_config_exp5 = create_full_environment_config(CONFIG_EXP5)
 

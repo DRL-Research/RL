@@ -275,16 +275,6 @@ class IntersectionEnv(AbstractEnv):
             )
             self.road.vehicles.append(other_vehicle)
 
-        # lane_4 = self.road.network.get_lane(car4_conf["start_lane"])  # East-to-West
-        # regular_vehicle_4 = Vehicle(
-        #     self.road,
-        #     lane_3.position(car4_conf["init_location"]["longitudinal"], car4_conf["init_location"]["lateral"]),
-        #     # Start 30m from the intersection
-        #     speed=car4_conf["speed"],  # Constant speed
-        #     heading=lane_4.heading_at(car4_conf["init_location"]["longitudinal"]),
-        # )
-        # self.road.vehicles.append(regular_vehicle_4)
-
         for v in self.road.vehicles:  # Prevent early collisions
             if (
                     v is not controlled_vehicle
