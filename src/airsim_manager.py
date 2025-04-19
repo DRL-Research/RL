@@ -241,18 +241,33 @@ class AirsimManager:
     def has_reached_target(self, car_state):
         if self.experiment.ROLE == CarName.CAR1:
             init_pos = self.get_car1_initial_position()
-            desired_global = (self.experiment.CAR1_DESIRED_POSITION_OPTION_1[0]
+            desired_global = (self.experiment.CAR1_DESIRED_POSITION_OPTION_1
                               if init_pos[0] > 0
-                              else self.experiment.CAR1_DESIRED_POSITION_OPTION_2[0])
-            required_distance = abs(desired_global - init_pos[0])
-            return car_state[0] >= required_distance
+                              else self.experiment.CAR1_DESIRED_POSITION_OPTION_2)
+
+            required_distance = [
+                float(abs(desired_global[0] - init_pos[0])),
+                float(abs(desired_global[1] - init_pos[1]))
+            ]
+
+            # TODO: prints for debugging
+            # print(f"init_pos: {init_pos}, desired_global: {desired_global}, required_distance: {required_distance}, car_state (relative position): X: {car_state[0]:.6f} m, Y: {car_state[1]:.6f} m")
+            # print(f"car_state[0] >= required_distance[0]: {car_state[0] >= required_distance[0] and car_state[1] >= required_distance[1] }")
+
+            return car_state[0] >= required_distance[0] and car_state[1] >= required_distance[1]
+
         elif self.experiment.ROLE == CarName.CAR2:
             init_pos = self.get_car2_initial_position()
-            desired_global = (self.experiment.CAR2_DESIRED_POSITION_OPTION_1[1]
+            desired_global = (self.experiment.CAR2_DESIRED_POSITION_OPTION_1
                               if init_pos[1] > 0
-                              else self.experiment.CAR2_DESIRED_POSITION_OPTION_2[1])
-            required_distance = abs(desired_global - init_pos[1])
-            return car_state[0] >= required_distance
+                              else self.experiment.CAR2_DESIRED_POSITION_OPTION_2)
+
+            required_distance = [
+                float(abs(desired_global[0] - init_pos[0])),
+                float(abs(desired_global[1] - init_pos[1]))
+            ]
+
+            return car_state[0] >= required_distance[0] and car_state[1] >= required_distance[1]
         return False
 
     def pause_simulation(self):
