@@ -4,6 +4,7 @@ from typing import List
 
 import numpy as np
 
+from turns.initialization.config_turns import TURN_DIRECTION_STRAIGHT, TURN_DIRECTION_RIGHT, TURN_DIRECTION_LEFT
 from utils.experiment.experiment_constants import Role, CarName
 from utils.model.model_constants import ModelType
 
@@ -34,6 +35,7 @@ class ExperimentTurns:
     CAR1_INITIAL_YAW_OPTION_2: int = 0
     CAR1_DESIRED_POSITION_OPTION_1 = np.array([-30, 0])
     CAR1_DESIRED_POSITION_OPTION_2 = np.array([30, 0])
+    CAR1_DIRECTION = TURN_DIRECTION_STRAIGHT
 
     # Car 2 Settings
     CAR2_NAME: CarName = CarName.CAR2
@@ -41,6 +43,7 @@ class ExperimentTurns:
     CAR2_INITIAL_YAW_OPTION_1: int = 270
     CAR2_INITIAL_POSITION_OPTION_2: List[int] = field(default_factory=lambda: [0, -30])
     CAR2_INITIAL_YAW_OPTION_2: int = 90
+    CAR2_DIRECTION = TURN_DIRECTION_STRAIGHT
 
     # Cars Setup Configuration
     RANDOM_INIT = True
