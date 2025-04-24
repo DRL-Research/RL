@@ -67,15 +67,30 @@ def training_loop_turns(experiment, env, agent, model, cars_names):
             episode_counter += 1
             resume_experiment_simulation(env)
             actions_per_episode = []
+            car_location_by_name=[]
 
             args_list = []
-            for car_name in cars_names:
+            if experiment.ROLE == 'Car1':
                 args_list.append((
-                    car_name, experiment, current_state, env, agent, model, total_steps, collision_counter,
-                    episode_rewards, episode_actions))
+                    'Car1', experiment, current_state, env, agent, model, total_steps,
+                    collision_counter, episode_rewards, episode_actions
+                ))
+            elif experiment.ROLE == 'Car2':
+                args_list.append((
+                    "Car2", experiment, current_state, env, agent, model, total_steps,
+                    collision_counter, episode_rewards, episode_actions
+                ))
+            elif experiment.ROLE == 'BOTH':
+                for car_name in cars_names:
+                    args_list.append((
+                        car_name, experiment, current_state, env, agent, model, total_steps,
+                        collision_counter, episode_rewards, episode_actions
+                    ))
 
-            with ThreadPool(processes=len(cars_names)) as pool:
-                car_location_by_name = pool.starmap(process_car_turn, args_list)
+            # Only run if there's something to run
+            if args_list:
+                with ThreadPool(processes=len(args_list)) as pool:
+                    car_location_by_name = pool.starmap(process_car_turn, args_list)
 
             all_cars_positions_list = []
             for positions_lst, car_name in car_location_by_name:
@@ -89,7 +104,7 @@ def training_loop_turns(experiment, env, agent, model, cars_names):
                     model.learn(total_timesteps=steps_counter, log_interval=1)
                     print(f"Model learned on {steps_counter} steps")
 
-        return model, collision_counter, all_rewards, all_actions, all_cars_positions_list
+    return model, collision_counter, all_rewards, all_actions, all_cars_positions_list
 
 def plot_results(experiment, all_rewards, all_actions):
     PlottingUtils.plot_losses(experiment.EXPERIMENT_PATH)
@@ -127,7 +142,8 @@ def run_experiment_turns(experiment_config):
 
     # Plotting after the training and simulation
     if CREATE_MAIN_PLOT:
-        plots_utils_turns.plot_vehicle_object_path(all_cars_positions_list[:-1])
+        for car_positions, car_name in all_cars_positions_list:
+            plots_utils_turns.plot_vehicle_object_path([(car_positions, car_name)])
 
     print('All cars have completed their tasks.')
 

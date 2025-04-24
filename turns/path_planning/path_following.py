@@ -8,6 +8,7 @@ from turns.utils.path_planning.pidf_controller import PidfControl
 import struct
 import os
 from turns.initialization.config_turns import *
+import numpy as np
 
 # Helper functions
 
@@ -53,14 +54,14 @@ def get_current_position(client, moving_car_name):
 
     return curr_pos_airsim, curr_pos_global, curr_obj_pos
 
-def turn_completed_check(distance, yaw, yaw_bounds, client, moving_car_name, positions_lst):
+def turn_completed_check(distance, yaw, yaw_bounds, client, moving_car_name, positions_lst, action, experiment, agent):
     """
     Checks if the turn is completed based on distance and yaw.
     Input: Distance, yaw angle, yaw bounds, client, car name, and position lists.
     Output: Boolean indicating if the turn is completed.
     """
     if distance < 2.0 and any(low <= abs(yaw) <= high for low, high in yaw_bounds):
-        set_car_controls_by_name(client, moving_car_name, desired_steer=0.0, throttle=0.2)
+        set_car_controls_by_name(client, moving_car_name,0.0,action, experiment, agent, throttle=0.2)
         t = time.perf_counter()
         while True:
             if time.perf_counter() - t > TIME_TO_KEEP_STRAIGHT_AFTER_TURN:
@@ -68,10 +69,12 @@ def turn_completed_check(distance, yaw, yaw_bounds, client, moving_car_name, pos
                 break
             curr_pos_airsim, _, curr_obj_pos = get_current_position(client, moving_car_name)
             positions_lst.append(curr_pos_airsim)
+            # Add a small delay to prevent buffer errors
+            time.sleep(0.1)
         return True
     return False
 
-def follow_spline_step(client, follow_handler, shmem_setpoint, curr_pos_global, curr_vel, curr_yaw,moving_car_name, action, experiment, agent):
+def follow_spline_step(client, follow_handler, shmem_setpoint, curr_pos_global, curr_vel, curr_yaw, moving_car_name, action, experiment, agent):
     """
     Calculates desired speed and steering, updates shared memory, and applies car controls.
     Input: Client, follower handler, shared memory, current position, velocity, and yaw.
@@ -97,7 +100,7 @@ def plot_results(spline, current_vehicle_positions_lst, moving_car_name):
 
 
 # Main orchestrator function
-def following_loop_with_rl(experiment,current_state, client, spline, moving_car_name, env, agent, model, total_steps, collision_counter, episode_rewards, episode_actions):
+def following_loop_with_rl(experiment, current_state, client, spline, moving_car_name, env, agent, model, total_steps, collision_counter, episode_rewards, episode_actions):
     """
     Modified following_loop that integrates RL training with spline-following.
     Input:
@@ -127,6 +130,8 @@ def following_loop_with_rl(experiment,current_state, client, spline, moving_car_
     max_run_time = 60
     turn_completed = False
     target_point = [spline.xi[-1], spline.yi[-1]]
+    print("Target point:", target_point)
+    print("Experiment target point:", experiment.CAR1_DESIRED_POSITION_OPTION_1)
 
     while not turn_completed:
         now = time.perf_counter()
@@ -135,19 +140,48 @@ def following_loop_with_rl(experiment,current_state, client, spline, moving_car_
             break
 
         # RL action selection and environment step
-        action = agent.get_action(model, current_state, total_steps,
-                                  experiment.EXPLORATION_EXPLOTATION_THRESHOLD)
-        print(f"Action selected: {action}")
+        # action = agent.get_action(model, current_state, total_steps,
+        #                           experiment.EXPLORATION_EXPLOTATION_THRESHOLD)
+        # print(f"Action selected: {action}")
         # Spline-following logic
         curr_pos_airsim, curr_pos_global, curr_obj_pos = get_current_position(client, moving_car_name)
         current_vehicle_positions_lst.append(curr_pos_airsim)
         current_object_positions_lst.append(curr_obj_pos)
-
         distance = spatial_utils.calculate_distance_in_2d_from_array(curr_pos_global, target_point)
+        print(f"Current position: {curr_pos_global}, Distance to target: {distance}")
+
+        # Calculate steering using Stanley follower BEFORE action selection
         curr_yaw = spatial_utils.extract_rotation_from_airsim(
             client.simGetVehiclePose(moving_car_name).orientation
         )[0]
+        print(f"Current yaw: {curr_yaw}")
+        
+        # Calculate and set steering
+        desired_speed, desired_steer = follow_handler.calc_ref_speed_steering(curr_pos_global, 
+                                                                           client.getCarState(moving_car_name).speed, 
+                                                                           np.deg2rad(curr_yaw))
+        desired_steer /= follow_handler.max_steering
+        desired_steer = np.clip(desired_steer, -1, 1)
+        print(f"[CONTROL FLOW] Calculated steering for {moving_car_name}: {desired_steer}")
+        
+        # Store steering in agent's dictionary
+        agent.set_steering(desired_steer, moving_car_name)
+        print(f"[CONTROL FLOW] Stored steering in agent for {moving_car_name}: {agent.get_steering(moving_car_name)}")
 
+        # Get action from RL agent (this only decides throttle)
+        action = agent.get_action(model, current_state, total_steps,
+                               experiment.EXPLORATION_EXPLOTATION_THRESHOLD)
+        print(f"[CONTROL FLOW] Selected action (throttle): {action}")
+
+        # Apply action through env.step (this will use the stored steering value)
+        try:
+            current_state, reward, done, _ = env.step(action)
+            print(f"Step completed - reward: {reward}, steering: {agent.get_steering(moving_car_name)}")
+        except Exception as e:
+            print(f"Error in env.step: {e}")
+            return current_vehicle_positions_lst
+
+        # Check if turn is completed
         yaw_bounds = [
             (ZERO_YAW_LOW_BOUNDREY, ZERO_YAW_HIGH_BOUNDERY),
             (NINETY_YAW_LOW_BOUNDREY, NINETY_YAW_HIGH_BOUNDERY),
@@ -155,39 +189,67 @@ def following_loop_with_rl(experiment,current_state, client, spline, moving_car_
         ]
 
         turn_completed = turn_completed_check(
-            distance, curr_yaw, yaw_bounds, client, moving_car_name, current_vehicle_positions_lst
+            distance, curr_yaw, yaw_bounds, client, moving_car_name, current_vehicle_positions_lst, action, experiment, agent
         )
+        # print(f"Experiment: {experiment}")
 
-        print(f"Experiment: {experiment}")
+    #     if not turn_completed:
+    #         follow_spline_step(client, follow_handler, shmem_setpoint, curr_pos_global,
+    #                            client.getCarState(moving_car_name).speed, np.deg2rad(curr_yaw), moving_car_name, action,
+    #                            experiment, agent)
+            
+    #         # Add a small delay to ensure the steering value is properly set
+    #         time.sleep(0.05)
 
-        if not turn_completed:
-            follow_spline_step(client, follow_handler, shmem_setpoint, curr_pos_global,
-                               client.getCarState(moving_car_name).speed, np.deg2rad(curr_yaw), moving_car_name, action,
-                               experiment, agent)
-
-        current_state, reward, done, _ = env.step(action)
+    #         try:
+    #             current_state, reward, done, _ = env.step(action)
+    #             # Add a delay after env.step to prevent buffer errors
+    #             time.sleep(0.1)
+    #         except KeyError as e:
+    #             print(f"Error accessing steering value: {e}")
+    #             # Set a default steering value if the key is missing
+    #             agent.set_steering(0.0, moving_car_name)
+    #             current_state, reward, done, _ = env.step(action)
+    #             # Add a delay after env.step to prevent buffer errors
+    #             time.sleep(0.1)
+    #         except Exception as e:
+    #             print(f"Error in env.step: {e}")
+    #             # If there's an error, return the positions collected so far
+    #             return current_vehicle_positions_lst
+    #     print(f"Turn completed: {turn_completed}")
 
         # Update RL metrics
-        # episode_rewards.append(reward)
-        # episode_actions.append(action)
-        # total_steps += 1
-        #
-        # if reward < experiment.COLLISION_REWARD or done:
-        #     if reward <= experiment.COLLISION_REWARD:
-        #         collision_counter += 1
-        #         print('********* collision ***********')
-        #     break
-
-
+        episode_rewards.append(reward)
+        episode_actions.append(action)
+        total_steps += 1
+        
+        if reward < experiment.COLLISION_REWARD or done:
+            if reward <= experiment.COLLISION_REWARD:
+                collision_counter += 1
+                print('********* collision ***********')
+            break
+    
+    print(f"Total positions collected for {moving_car_name}: {len(current_vehicle_positions_lst)}")
     plot_results(spline, current_vehicle_positions_lst, moving_car_name)
     return current_vehicle_positions_lst
 
 
-def set_car_controls_by_name(airsim_client, car_name, desired_steer, action, experiment, agent):
+def set_car_controls_by_name(airsim_client, car_name, desired_steer, action, experiment, agent, throttle=None):
     car_controls = airsim.CarControls()
     car_controls.throttle = experiment.THROTTLE_FAST if action == 0 else experiment.THROTTLE_SLOW
-    print(f'Car controls throttle: {car_controls.throttle}')
-    print(f'Car controls steering: {desired_steer}')
+    if throttle is not None:
+        car_controls.throttle = throttle
+    print(f'{car_name} controls throttle: {car_controls.throttle}')
+    
+    # Ensure steering is within valid range
+    if desired_steer == 0.0:
+        desired_steer = desired_steer
+    else:
+        desired_steer = np.clip(desired_steer, -1.0, 1.0)
+
+    print(f'{car_name} controls steering before setting: {desired_steer}')
+    
+    # Set steering in car controls
     car_controls.steering = desired_steer
     agent.set_steering(desired_steer, car_name)
     # airsim_client.setCarControls(car_controls, car_name)

@@ -9,7 +9,7 @@ from turns.initialization.setup_simulation_turns import SetupManager
 from turns.utils import plots_utils_turns
 from utils.agent_handler import Agent
 from utils.experiment.experiment_turns_config import ExperimentTurns
-from utils.experiment.experiment_constants import Role
+from src.constants import Role
 from utils.model.model_constants import ModelType
 
 

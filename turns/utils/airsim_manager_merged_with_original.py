@@ -1,7 +1,7 @@
 import random
 import airsim
 import numpy as np
-from utils.experiment.experiment_constants import StartingLocation
+from src.constants import StartingLocation, CarName
 from turns.initialization.config_turns import *
 from turns.initialization.setup_simulation_turns import SetupManager
 
@@ -225,14 +225,38 @@ class AirsimManager:
         return self.simulation_paused
 
     def has_reached_target(self, car_state):
-        if self.experiment:
-            car1_initial_position = self.get_car1_initial_position()
-            if car1_initial_position[0] > 0:
-                return car_state[0] < self.experiment.CAR1_DESIRED_POSITION_OPTION_1[0]
-            elif car1_initial_position[0] < 0:
-                return car_state[0] > self.experiment.CAR1_DESIRED_POSITION_OPTION_2[0]
-        else:
-            return car_state['x_c1'] > CAR1_DESIRED_POSITION[0]
+        if self.experiment.ROLE == CarName.CAR1:
+            init_pos = self.get_car1_initial_position()
+            desired_global = (self.experiment.CAR1_DESIRED_POSITION_OPTION_1
+                              if init_pos[0] > 0
+                              else self.experiment.CAR1_DESIRED_POSITION_OPTION_2)
+
+            required_distance = [
+                float(abs(desired_global[0] - init_pos[0])),
+                float(abs(desired_global[1] - init_pos[1]))
+            ]
+
+            # TODO: prints for debugging
+            print(f"init_pos: {init_pos}, desired_global: {desired_global}, required_distance: {required_distance}, car_state (relative position): X: {car_state[0]:.6f} m, Y: {car_state[1]:.6f} m")
+            # print(f"car_state[0] >= required_distance[0]: {car_state[0] >= required_distance[0] and car_state[1] >= required_distance[1] }")
+            # if car_state[0] >= required_distance[0] and car_state[1] >= required_distance[1]:
+            if car_state[1] >= required_distance[1]:
+                print("🏆🏆🏆🏆🏆🏆🏆🏆 Target reached 🏆🏆🏆🏆🏆🏆🏆🏆")
+            return car_state[1] >= required_distance[1]
+
+        # elif self.experiment.ROLE == CarName.CAR2:
+        #     init_pos = self.get_car2_initial_position()
+        #     desired_global = (self.experiment.CAR2_DESIRED_POSITION_OPTION_1
+        #                       if init_pos[1] > 0
+        #                       else self.experiment.CAR2_DESIRED_POSITION_OPTION_2)
+        #
+        #     required_distance = [
+        #         float(abs(desired_global[0] - init_pos[0])),
+        #         float(abs(desired_global[1] - init_pos[1]))
+        #     ]
+        #
+        #     return car_state[0] >= required_distance[0] and car_state[1] >= required_distance[1]
+        return False
 
     def get_car1_initial_position(self):
         if self.car1_initial_position_saved is None:

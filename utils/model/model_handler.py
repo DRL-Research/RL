@@ -2,7 +2,7 @@ import os
 
 from stable_baselines3 import PPO, DQN, A2C
 
-from src.constants import ModelType, Policy
+from utils.model.model_constants import ModelType, Policy
 
 
 class Model:
@@ -15,11 +15,11 @@ class Model:
         model_params, policy_kwargs = self.define_model_params(self.experiment_config)
         match self.experiment_config.MODEL_TYPE:
             case ModelType.PPO:
-                return PPO(policy=Policy.MlpPolicy, env=self.env, verbose=1, policy_kwargs=policy_kwargs, **model_params, n_epochs=1)
+                return PPO(policy=Policy, env=self.env, verbose=1, policy_kwargs=policy_kwargs, **model_params)
             case ModelType.DQN:
-                return DQN(policy=Policy.MlpPolicy, env=self.env, verbose=1, **model_params)
+                return DQN(policy=Policy, env=self.env, verbose=1, **model_params)
             case ModelType.A2C:
-                return A2C(policy=Policy.MlpPolicy, env=self.env, verbose=1, **model_params)
+                return A2C(policy=Policy, env=self.env, verbose=1, **model_params)
             case _:
                 raise ValueError(f"{self.experiment_config.MODEL_TYPE} Unsupported model type")
 
@@ -58,26 +58,6 @@ class Model:
                 raise ValueError(f"Unsupported model type: {experiment}")
 
         return model_params, policy_kwargs
-
-    @classmethod
-    def load(cls, model_path, env, experiment_config):
-        """
-        Load a pre-trained model from the given model_path.
-        This method uses the load() method of the underlying stable-baselines3 model.
-        """
-        match experiment_config.MODEL_TYPE:
-            case ModelType.PPO:
-                loaded_model = PPO.load(model_path, env=env)
-            case ModelType.A2C:
-                loaded_model = A2C.load(model_path, env=env)
-            case ModelType.DQN:
-                loaded_model = DQN.load(model_path, env=env)
-            case _:
-                raise ValueError("Unsupported model type for loading.")
-        # Create a new instance and set the loaded model
-        instance = cls(env, experiment_config)
-        instance.model = loaded_model
-        return instance
 
 
 def get_latest_model(directory):

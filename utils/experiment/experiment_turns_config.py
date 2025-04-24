@@ -5,12 +5,13 @@ from typing import List
 import numpy as np
 
 from turns.initialization.config_turns import TURN_DIRECTION_STRAIGHT, TURN_DIRECTION_RIGHT, TURN_DIRECTION_LEFT
-from utils.experiment.experiment_constants import Role, CarName
+from src.constants import Role, CarName
 from utils.model.model_constants import ModelType
 
 
 @dataclass
 class ExperimentTurns:
+    print("ExperimentTurns class initialized")
     # General Experiment Settings
     EXPERIMENT_ID: str = ""
     ONLY_INFERENCE: bool = False
@@ -31,19 +32,19 @@ class ExperimentTurns:
     CAR1_NAME: CarName = CarName.CAR1
     CAR1_INITIAL_POSITION_OPTION_1: List[int] = field(default_factory=lambda: [30, 0])
     CAR1_INITIAL_YAW_OPTION_1: int = 180
-    CAR1_INITIAL_POSITION_OPTION_2: List[int] = field(default_factory=lambda: [-30, 0])
-    CAR1_INITIAL_YAW_OPTION_2: int = 0
-    CAR1_DESIRED_POSITION_OPTION_1 = np.array([-30, 0])
-    CAR1_DESIRED_POSITION_OPTION_2 = np.array([30, 0])
-    CAR1_DIRECTION = TURN_DIRECTION_STRAIGHT
+    CAR1_INITIAL_POSITION_OPTION_2: List[int] = field(default_factory=lambda: [30, 0])
+    CAR1_INITIAL_YAW_OPTION_2: int = 180
+    CAR1_DESIRED_POSITION_OPTION_1 = np.array([0, 10])
+    CAR1_DESIRED_POSITION_OPTION_2 = np.array([0, 10])
+    CAR1_DIRECTION = TURN_DIRECTION_LEFT
 
     # Car 2 Settings
     CAR2_NAME: CarName = CarName.CAR2
     CAR2_INITIAL_POSITION_OPTION_1: List[int] = field(default_factory=lambda: [0, 30])
     CAR2_INITIAL_YAW_OPTION_1: int = 270
-    CAR2_INITIAL_POSITION_OPTION_2: List[int] = field(default_factory=lambda: [0, -30])
-    CAR2_INITIAL_YAW_OPTION_2: int = 90
-    CAR2_DIRECTION = TURN_DIRECTION_STRAIGHT
+    CAR2_INITIAL_POSITION_OPTION_2: List[int] = field(default_factory=lambda: [0, 30])
+    CAR2_INITIAL_YAW_OPTION_2: int = 270
+    CAR2_DIRECTION = TURN_DIRECTION_LEFT
 
     # Cars Setup Configuration
     RANDOM_INIT = True
