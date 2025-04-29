@@ -3,13 +3,16 @@ import airsim
 import gym
 import numpy as np
 from gym import spaces
+
+
 class Agent(gym.Env):
     """
     The Agent environment builds an 8-dimensional observation by concatenating:
       - 4 dimensions from the local state of the agent vehicle.
       - 4 dimensions from the proto embedding provided by the Master network.
 
-    The agent's discrete action is applied to Car1 while Car2 and Car3 receive fixed throttle.
+    The agent's discrete action is applied to Car1 while all other cars (Car2, Car3, Car4, Car5)
+    receive appropriate throttle settings based on their role.
     """
 
     def __init__(self, experiment, airsim_manager, master_model):
@@ -25,20 +28,6 @@ class Agent(gym.Env):
         self.state = None
 
         self.reset()
-
-    # def reset(self) -> np.ndarray:
-    #     """
-    #     Resets the environment and returns the initial observation.
-    #     """
-    #     self.airsim_manager.reset_cars_to_initial_positions()
-    #     self.airsim_manager.reset_for_new_episode()
-    #     if self.experiment.ROLE == self.experiment.CAR1_NAME:
-    #         car_state = self.airsim_manager.get_car1_state()
-    #     else:
-    #         car_state = self.airsim_manager.get_car2_state()
-    #     proto_state = self.airsim_manager.get_proto_state(self.master_model)
-    #     self.state = np.concatenate((car_state, proto_state))
-    #     return self.state
 
     def reset(self) -> np.ndarray:
         """
@@ -70,10 +59,14 @@ class Agent(gym.Env):
 
         action_value = action
         throttle1 = self.experiment.THROTTLE_FAST if action_value == 0 else self.experiment.THROTTLE_SLOW
-        throttle2 = self.experiment.FIXED_THROTTLE
+        throttle_non_agent = self.experiment.FIXED_THROTTLE
+
         self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle1), self.experiment.CAR1_NAME)
-        self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle2), self.experiment.CAR2_NAME)
-        self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle2), self.experiment.CAR3_NAME)
+        self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle_non_agent+0.1), self.experiment.CAR2_NAME)
+        self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle_non_agent), self.experiment.CAR3_NAME)
+        self.airsim_manager.set_car_controls(airsim.CarControls(throttle=throttle_non_agent), self.experiment.CAR4_NAME)
+        self.airsim_manager.set_car_controls(airsim.CarControls(throttle=self.experiment.THROTTLE_FAST), self.experiment.CAR5_NAME)
+
         car1_state = self.airsim_manager.get_car_position_and_speed(self.experiment.CAR1_NAME)
         car2_state = self.airsim_manager.get_car_position_and_speed(self.experiment.CAR2_NAME)
         init_pos1 = self.airsim_manager.get_car1_initial_position()
@@ -103,8 +96,6 @@ class Agent(gym.Env):
 
         proto_state = self.airsim_manager.get_proto_state(self.master_model)
         self.state = np.concatenate((local_state, proto_state))
-
-        import time
         time.sleep(self.experiment.TIME_BETWEEN_STEPS)
 
         collision = self.airsim_manager.collision_occurred()

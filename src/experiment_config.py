@@ -4,6 +4,7 @@ from typing import List, Dict
 import numpy as np
 from src.constants import Role, CarName, ModelType
 
+
 @dataclass
 class Experiment:
     # General Experiment Settings
@@ -15,7 +16,7 @@ class Experiment:
     SELF_PLAY_MODE: bool = False
     MASTER_TRAINED_MODEL: str = "EXP5_Inference_Models/master_trained_model.zip"
     AGENT_TRAINED_MODEL: str = "EXP5_Inference_Models/agent_trained_model.zip"
-    CARS_AMOUNT: int = 3
+    CARS_AMOUNT: int = 5  # Updated to 5 cars
 
     # Model and Training Configuration
     EPISODE_AMOUNT_FOR_TRAIN: int = 1
@@ -29,7 +30,7 @@ class Experiment:
     LOSS_FUNCTION: str = "mse"
     EXPLORATION_EXPLOTATION_THRESHOLD: int = 50
 
-    # Car 1 Settings
+    # Car 1 Settings (Agent)
     CAR1_NAME: CarName = CarName.CAR1
     CAR1_INITIAL_POSITION_OPTION_1: List[int] = field(default_factory=lambda: [30, 0])
     CAR1_INITIAL_YAW_OPTION_1: int = 180
@@ -38,7 +39,7 @@ class Experiment:
     CAR1_DESIRED_POSITION_OPTION_1: np.ndarray = field(default_factory=lambda: np.array([-10, 0]))
     CAR1_DESIRED_POSITION_OPTION_2: np.ndarray = field(default_factory=lambda: np.array([10, 0]))
 
-    # Car 2 and Car 3 Settings
+    # Car 2 and Car 3 Settings (Perpendicular cars)
     CAR2_NAME: CarName = CarName.CAR2
     CAR2_INITIAL_POSITION_OPTION_1: List[int] = field(default_factory=lambda: [0, 30])
     CAR2_INITIAL_YAW_OPTION_1: int = 270
@@ -48,22 +49,37 @@ class Experiment:
     CAR2_DESIRED_POSITION_OPTION_2: np.ndarray = field(default_factory=lambda: np.array([0, 10]))
     CAR3_NAME: CarName = CarName.CAR3
 
+    # New Car 4 Settings (In front of Car1)
+    CAR4_NAME: CarName = CarName.CAR4
+    CAR4_INITIAL_POSITION_OPTION_1: List[int] = field(default_factory=lambda: [20, 0])
+    CAR4_INITIAL_YAW_OPTION_1: int = 180
+    CAR4_INITIAL_POSITION_OPTION_2: List[int] = field(default_factory=lambda: [-20, 0])
+    CAR4_INITIAL_YAW_OPTION_2: int = 0
+
+    # New Car 5 Settings (Opposite direction to Cars 2/3)
+    CAR5_NAME: CarName = CarName.CAR5
+    CAR5_INITIAL_POSITION_OPTION_1: List[int] = field(default_factory=lambda: [0, -30])
+    CAR5_INITIAL_YAW_OPTION_1: int = 90
+    CAR5_INITIAL_POSITION_OPTION_2: List[int] = field(default_factory=lambda: [0, 30])
+    CAR5_INITIAL_YAW_OPTION_2: int = 270
+
     # Master embedding size configuration
     EMBEDDING_SIZE: int = 4
 
     # Cars Setup Configuration
     RANDOM_INIT: bool = False
-    INIT_SERIAL: bool = True
+    INIT_SERIAL: bool = False
 
     # Network Configuration
-    PPO_NETWORK_ARCHITECTURE: Dict[str, List[int]] = field(default_factory=lambda: {'pi': [32, 16, 8, 4], 'vf': [32, 16, 8, 4]})
+    PPO_NETWORK_ARCHITECTURE: Dict[str, List[int]] = field(
+        default_factory=lambda: {'pi': [64, 32, 16, 8], 'vf': [64, 32, 16, 8]})
 
-    # State Configuration
+    # State Configuration - still 8-dimensional (4 from car state + 4 from master embedding)
     STATE_INPUT_SIZE: int = 8
 
     # Action Configuration
     ACTION_SPACE_SIZE: int = 2
-    THROTTLE_FAST: float = 0.8
+    THROTTLE_FAST: float = 1
     THROTTLE_SLOW: float = 0.4
     FIXED_THROTTLE: float = 0.6
 

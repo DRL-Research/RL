@@ -17,7 +17,8 @@ import src.experiment_config
 class MasterEnv(gym.Env):
     """
     Environment for the Master Network:
-      - Observation: Concatenation of Car1, Car2, and Car3 states (each 4-dimensional), resulting in a 12-dimensional vector.
+      - Observation: Concatenation of Car1, Car2, Car3, Car4, and Car5 states (each 4-dimensional),
+        resulting in a 20-dimensional vector.
       - Action: A continuous proto-action (embedding) of 4 dimensions.
       - Reward: Determined based on collision, target achievement, or a default step reward.
       - Done: True if a collision occurs, the target is reached, or max episode steps are exceeded.
@@ -27,8 +28,8 @@ class MasterEnv(gym.Env):
         self.experiment = experiment
         self.airsim_manager = airsim_manager
 
-        # Update observation space to 12 dimensions (4 dims from each car)
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(12,), dtype=np.float32)
+        # Update observation space to 20 dimensions (4 dims from each of the 5 cars)
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(20,), dtype=np.float32)
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(experiment.EMBEDDING_SIZE,), dtype=np.float32)
         self.state = None
         self.current_step = 0
@@ -37,18 +38,20 @@ class MasterEnv(gym.Env):
     def reset(self):
         """
         Resets the environment: resets car positions and states.
-        Returns the initial 12-dimensional observation.
+        Returns the initial 20-dimensional observation.
         """
         self.done = False
         self.current_step = 0
         self.airsim_manager.reset_cars_to_initial_positions()
         self.airsim_manager.reset_for_new_episode()
 
-        # Get initial states from Car1, Car2, and Car3 (each 4-dimensional)
+        # Get initial states from all 5 cars (each 4-dimensional)
         car1_state = self.airsim_manager.get_car1_state()
         car2_state = self.airsim_manager.get_car2_state()
         car3_state = self.airsim_manager.get_car3_state()
-        self.state = np.concatenate([car1_state, car2_state, car3_state]).astype(np.float32)
+        car4_state = self.airsim_manager.get_car4_state()
+        car5_state = self.airsim_manager.get_car5_state()
+        self.state = np.concatenate([car1_state, car2_state, car3_state, car4_state, car5_state]).astype(np.float32)
         return self.state
 
     def step(self, action):
@@ -58,11 +61,13 @@ class MasterEnv(gym.Env):
         """
         self.current_step += 1
 
-        # Retrieve updated states from all three cars.
+        # Retrieve updated states from all five cars.
         car1_state = self.airsim_manager.get_car1_state()
         car2_state = self.airsim_manager.get_car2_state()
         car3_state = self.airsim_manager.get_car3_state()
-        self.state = np.concatenate([car1_state, car2_state, car3_state]).astype(np.float32)
+        car4_state = self.airsim_manager.get_car4_state()
+        car5_state = self.airsim_manager.get_car5_state()
+        self.state = np.concatenate([car1_state, car2_state, car3_state, car4_state, car5_state]).astype(np.float32)
 
         # Check terminal conditions.
         collision = self.airsim_manager.collision_occurred()
@@ -91,15 +96,10 @@ class MasterEnv(gym.Env):
 # Master Model Wrapper
 ###############################################
 
-from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import DummyVecEnv
-import numpy as np
-import torch
-
 class MasterModel:
     """
     This wrapper creates and manages the master network using PPO.
-    It uses the MasterEnv (which now provides a 12-dimensional observation from Car1, Car2, and Car3)
+    It uses the MasterEnv (which now provides a 20-dimensional observation from 5 cars)
     to generate a 4-dimensional proto-action (embedding).
     """
     def __init__(self,
@@ -121,8 +121,9 @@ class MasterModel:
         self.master_env = MasterEnv(experiment=self.experiment, airsim_manager=self.airsim_manager)
         self.master_vec_env = DummyVecEnv([lambda: self.master_env])
 
+        # Update network architecture to handle 20-dimensional input
         if policy_kwargs is None:
-            policy_kwargs = dict(net_arch=[64, 32, 16, 8])
+            policy_kwargs = dict(net_arch=[128, 64, 32, 16])
 
         self.model = PPO(
             policy="MlpPolicy",

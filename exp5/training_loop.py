@@ -46,6 +46,7 @@ def training_loop(p_agent_loss, p_master_loss, p_episode_counter, experiment, en
             total_steps += steps
             all_rewards.append(episode_rewards)
             all_actions.append(episode_actions)
+            print(f"  Episode {episode_counter} finished with reward: {episode_rewards} and action: {episode_actions}")
 
             # Only update the networks when the rollout buffers are full or at the designated interval.
             if (master_model.model.rollout_buffer.full or agent_model.rollout_buffer.full or
@@ -55,7 +56,9 @@ def training_loop(p_agent_loss, p_master_loss, p_episode_counter, experiment, en
                     last_master_obs = np.concatenate((
                         env.envs[0].airsim_manager.get_car1_state(),
                         env.envs[0].airsim_manager.get_car2_state(),
-                        env.envs[0].airsim_manager.get_car3_state()
+                        env.envs[0].airsim_manager.get_car3_state(),
+                        env.envs[0].airsim_manager.get_car4_state(),
+                        env.envs[0].airsim_manager.get_car5_state()
                     ))
                     last_master_tensor = torch.tensor(last_master_obs, dtype=torch.float32).unsqueeze(0)
                 if train_both:
@@ -89,9 +92,22 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
         # Get states for Car1, Car2, and Car3.
         car1_state = env.envs[0].airsim_manager.get_car1_state()
         car2_state = env.envs[0].airsim_manager.get_car2_state()
-        car3_state = env.envs[0].airsim_manager.get_car3_state()  # Include Car3 state.
+        car3_state = env.envs[0].airsim_manager.get_car3_state()
+        car4_state = env.envs[0].airsim_manager.get_car4_state()
+        car5_state = env.envs[0].airsim_manager.get_car5_state()
+        #dbggggg
+        if car2_state[2] > 100 or car3_state[2] > 100 or car4_state[2] > 100 or car5_state[2] > 100 or car2_state[3] < -100 or car3_state[3] < -100 or car4_state[3] < -100 or car5_state[3] < -100:
+            print(f"Car1 state: {car1_state}")
+            print(f"Car2 state: {car2_state}")
+            print(f"Car3 state: {car3_state}")
+            print(f"Car4 state: {car4_state}")
+            print(f"Car5 state: {car5_state}")
+            print("Car2, Car3, Car4, or Car5 may out of bounds. Resetting cars to initial positions.")
+            pause_experiment_simulation(env)
+            env.envs[0].airsim_manager.reset_car2_specifically()
+            return 0, [], steps_counter, None, None, all_states
         # Concatenate states to form a 12-dimensional observation for the master network.
-        master_obs_as_array = np.concatenate((car1_state, car2_state, car3_state))
+        master_obs_as_array = np.concatenate((car1_state, car2_state, car3_state,car4_state, car5_state))
         master_input = torch.tensor(master_obs_as_array, dtype=torch.float32).unsqueeze(0)
 
         if train_both or training_master:
@@ -179,7 +195,9 @@ def train_master_and_reset_buffer(env, master_model):
         last_master_obs = np.concatenate((
             env.envs[0].airsim_manager.get_car1_state(),
             env.envs[0].airsim_manager.get_car2_state(),
-            env.envs[0].airsim_manager.get_car3_state()
+            env.envs[0].airsim_manager.get_car3_state(),
+            env.envs[0].airsim_manager.get_car4_state(),
+            env.envs[0].airsim_manager.get_car5_state()
         ))
         last_master_tensor = torch.tensor(last_master_obs, dtype=torch.float32).unsqueeze(0)
         last_value = master_model.model.policy.predict_values(last_master_tensor)

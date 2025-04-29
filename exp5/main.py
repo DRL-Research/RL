@@ -16,7 +16,7 @@ if __name__ == "__main__":
         BATCH_SIZE=32,
         TIME_BETWEEN_STEPS=0.75,
         LOSS_FUNCTION="mse",
-        EXPLORATION_EXPLOTATION_THRESHOLD=200,
+        EXPLORATION_EXPLOTATION_THRESHOLD=100,
 
     )
     run_experiment(experiment_config)
