@@ -2,13 +2,13 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Dict
 import numpy as np
-from utils.experiment.experiment_constants import Role, CarName
 
 
 @dataclass
 class Experiment:
     LOAD_PREVIOUS_WEIGHT = True
     BYPASS_RANDOM_INITIALIZATION = False
+
     # General Experiment Settings
     EPISODES_PER_CYCLE: int = 100
     CYCLES: int = 3
@@ -19,50 +19,21 @@ class Experiment:
     MASTER_TRAINED_MODEL: str = "EXP5_Inference_Models/master_trained_model.zip"
     AGENT_TRAINED_MODEL: str = "EXP5_Inference_Models/agent_trained_model.zip"
     CARS_AMOUNT: int = 5  # Updated to 5 cars
+    SPAWN_PROBABILITY: float = 0
 
     # Model and Training Configuration
     EPISODE_AMOUNT_FOR_TRAIN: int = 1
-    ROLE: Role = CarName.CAR1  # Which car uses the DRL model: Car1, Car2, or Both
     EPOCHS: int = 10
     LEARNING_RATE: float = 0.05
     N_STEPS: int = 22
     BATCH_SIZE: int = 32
-    TIME_BETWEEN_STEPS: float = 0.05
+    EPISODE_MAX_TIME = 13 #s
     LOSS_FUNCTION: str = "mse"
     EXPLORATION_EXPLOTATION_THRESHOLD: int = 50
 
-    # Car 1 Settings (Agent)
-    CAR1_NAME: CarName = CarName.CAR1
-    CAR1_INITIAL_POSITION_OPTION_1: List[int] = field(default_factory=lambda: [30, 0])
-    CAR1_INITIAL_YAW_OPTION_1: int = 180
-    CAR1_INITIAL_POSITION_OPTION_2: List[int] = field(default_factory=lambda: [-30, 0])
-    CAR1_INITIAL_YAW_OPTION_2: int = 0
-    CAR1_DESIRED_POSITION_OPTION_1: np.ndarray = field(default_factory=lambda: np.array([-10, 0]))
-    CAR1_DESIRED_POSITION_OPTION_2: np.ndarray = field(default_factory=lambda: np.array([10, 0]))
-
-    # Car 2 and Car 3 Settings (Perpendicular cars)
-    CAR2_NAME: CarName = CarName.CAR2
-    CAR2_INITIAL_POSITION_OPTION_1: List[int] = field(default_factory=lambda: [0, 30])
-    CAR2_INITIAL_YAW_OPTION_1: int = 270
-    CAR2_INITIAL_POSITION_OPTION_2: List[int] = field(default_factory=lambda: [0, -30])
-    CAR2_INITIAL_YAW_OPTION_2: int = 90
-    CAR2_DESIRED_POSITION_OPTION_1: np.ndarray = field(default_factory=lambda: np.array([0, -10]))
-    CAR2_DESIRED_POSITION_OPTION_2: np.ndarray = field(default_factory=lambda: np.array([0, 10]))
-    # CAR3_NAME: CarName = CarName.CAR3
-    #
-    # # New Car 4 Settings (In front of Car1)
-    # CAR4_NAME: CarName = CarName.CAR4
-    # CAR4_INITIAL_POSITION_OPTION_1: List[int] = field(default_factory=lambda: [20, 0])
-    # CAR4_INITIAL_YAW_OPTION_1: int = 180
-    # CAR4_INITIAL_POSITION_OPTION_2: List[int] = field(default_factory=lambda: [-20, 0])
-    # CAR4_INITIAL_YAW_OPTION_2: int = 0
-    #
-    # # New Car 5 Settings (Opposite direction to Cars 2/3)
-    # CAR5_NAME: CarName = CarName.CAR5
-    # CAR5_INITIAL_POSITION_OPTION_1: List[int] = field(default_factory=lambda: [0, -30])
-    # CAR5_INITIAL_YAW_OPTION_1: int = 90
-    # CAR5_INITIAL_POSITION_OPTION_2: List[int] = field(default_factory=lambda: [0, 30])
-    # CAR5_INITIAL_YAW_OPTION_2: int = 270
+    #Cars Configuration - distance from intersection
+    LONGITUDINAL: int = 40
+    LATERAL: int = 0
 
     # Master embedding size configuration
     EMBEDDING_SIZE: int = 4
@@ -80,9 +51,9 @@ class Experiment:
 
     # Action Configuration
     ACTION_SPACE_SIZE: int = 2
-    THROTTLE_FAST: float = 1
-    THROTTLE_SLOW: float = 0.4
-    FIXED_THROTTLE: float = 0.6
+    THROTTLE_FAST: float = 10
+    THROTTLE_SLOW: float = 5
+    FIXED_THROTTLE: float = 7.5
 
     # Reward Configuration
     REACHED_TARGET_REWARD: int = 20
@@ -95,6 +66,35 @@ class Experiment:
     # Computed fields (not passed via __init__)
     EXPERIMENT_PATH: str = field(init=False)
     SAVE_MODEL_DIRECTORY: str = field(init=False)
+
+    # Lanes Directions
+    SOUTH_TO_NORTH = ("o0", "ir0", 0)
+    EAST_TO_WEST = ("o1", "ir1", 0)
+    WEST_TO_EAST = ("o3", "ir3", 0)
+    NORTH_TO_SOUTH = ("o2", "ir2", 0)
+
+    # Directions for the cars
+    OUTER_SOUTH = "o0"
+    OUTER_WEST = "o1"
+    OUTER_NORTH = "o2"
+    OUTER_EAST = "o3"
+    INNER_SOUTH = "i0"
+    INNER_WEST = "i1"
+    INNER_NORTH = "i2"
+    INNER_EAST = "i3"
+
+    # Car Names
+    CAR1 = "car1"
+    CAR2 = "car2"
+    CAR3 = "car3"
+    CAR4 = "car4"
+    CAR5 = "car5"
+
+    #Simulations Graphics
+    SCREEN_WIDTH: int = 600
+    SCREEN_HEIGHT: int = 600
+    CENTERING_POSITION: List[float] = field(default_factory=lambda: [0.5, 0.6])  # Do not change, this centers the simulation
+    SCALING: float = 5.5 * 1.3
 
     def __post_init__(self):
         self.EXPERIMENT_PATH = f"experiments/{self.EXPERIMENT_DATE_TIME}_{self.EXPERIMENT_ID}"
