@@ -96,6 +96,9 @@ class Experiment:
     CENTERING_POSITION: List[float] = field(default_factory=lambda: [0.5, 0.6])  # Do not change, this centers the simulation
     SCALING: float = 5.5 * 1.3
 
+    LOAD_PREVIOUS_WEIGHT = True
+    BYPASS_RANDOM_INITIALIZATION = False
+
     def __post_init__(self):
         self.EXPERIMENT_PATH = f"experiments/{self.EXPERIMENT_DATE_TIME}_{self.EXPERIMENT_ID}"
         self.SAVE_MODEL_DIRECTORY = f"{self.EXPERIMENT_PATH}/trained_model"

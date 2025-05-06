@@ -21,38 +21,28 @@ if __name__ == "__main__":
     experiment1_config = Experiment(
         EXPERIMENT_ID='Experiment1',
         LOAD_MODEL_DIRECTORY='experiments/08_12_2024-13_56_13_Experiment1/trained_model.zip',
-        EPOCHS=4,
-        LOAD_PREVIOUS_WEIGHT=True,
-        BYPASS_RANDOM_INITIALIZATION=False)
+        EPOCHS=4,)
 
     experiment2_config = Experiment(
         EXPERIMENT_ID='Experiment2',
         LOAD_MODEL_DIRECTORY='experiments/08_12_2024-13_56_13_Experiment1/trained_model.zip',
-        EPOCHS=4,
-        LOAD_PREVIOUS_WEIGHT=True,
-        BYPASS_RANDOM_INITIALIZATION=False
+        EPOCHS=4
     )
 
     experiment3_config = Experiment(
         EXPERIMENT_ID='Experiment3',
         LOAD_MODEL_DIRECTORY='experiments/08_12_2024-13_56_13_Experiment1/trained_model.zip',
-        EPOCHS=4,
-        LOAD_PREVIOUS_WEIGHT=True,
-        BYPASS_RANDOM_INITIALIZATION=False)
+        EPOCHS=4)
 
     experiment4_config = Experiment(
         EXPERIMENT_ID='Experiment4',
         LOAD_MODEL_DIRECTORY='experiments/08_12_2024-13_56_13_Experiment1/trained_model.zip',
-        EPOCHS=2,
-        LOAD_PREVIOUS_WEIGHT=True,
-        BYPASS_RANDOM_INITIALIZATION=False)
+        EPOCHS=2)
 
     experiment5_config = Experiment(
         EXPERIMENT_ID='Experiment5',
         LOAD_MODEL_DIRECTORY='experiments/08_12_2024-13_56_13_Experiment1/trained_model.zip',
-        EPOCHS=2,
-        LOAD_PREVIOUS_WEIGHT=True,
-        BYPASS_RANDOM_INITIALIZATION=False)
+        EPOCHS=2)
 
     # dictionary were the keys are EXPERIMENT_ID (experiment name) and the values are environment configurations defined in experiment_constants.py
     custom_env_configs ={

@@ -7,10 +7,13 @@ from gymnasium import spaces
 
 class Agent(gym.Env):
     """
-    Agent environment wrapper for Highway.
+    Agent environment wrapper for Highway intersection.
 
     This wrapper interfaces with the Highway environment and integrates
     the master model's embedding into the agent's observation.
+
+    The agent controls only one car (car1) and receives information about
+    all cars in the environment through the master embedding.
     """
 
     def __init__(self, experiment, master_model=None):
@@ -19,18 +22,18 @@ class Agent(gym.Env):
         self.master_model = master_model
 
         # Load environment configuration
-        self.config = experiment.CONFIG
+        self.config = experiment.CONFIG if hasattr(experiment, 'CONFIG') else None
 
         # Define action and observation spaces
-        # Highway environment typically uses discrete actions
-        self.action_space = spaces.Discrete(5)  # Example: 5 possible actions (NOOP, LEFT, RIGHT, FASTER, SLOWER)
+        # Highway environment uses discrete actions
+        self.action_space = spaces.Discrete(experiment.ACTION_SPACE_SIZE)
 
         # Observation space: combined car state and embedding
-        # Assuming car state is 4-dimensional and embedding is 4-dimensional
+        # Car state is 4-dimensional (x, y, vx, vy) and embedding is 4-dimensional
         self.observation_space = spaces.Box(
             low=-np.inf,
             high=np.inf,
-            shape=(8,),  # 4 (car state) + 4 (embedding)
+            shape=(experiment.STATE_INPUT_SIZE,),  # Default is 8 (4 car state + 4 embedding)
             dtype=np.float32
         )
 
@@ -70,6 +73,8 @@ class Agent(gym.Env):
 
         # Get embedding from master if available
         if self.master_model is not None:
+            # Create master input from full observation
+            # The observation includes all cars in the environment
             master_input = torch.tensor(next_state, dtype=torch.float32).unsqueeze(0)
             embedding = self.master_model.get_proto_action(master_input)
             self.current_embedding = embedding
@@ -77,10 +82,9 @@ class Agent(gym.Env):
             # Use zeros if master not available (for debugging/testing)
             self.current_embedding = np.zeros(4)
 
-        # Combine highway state with embedding for agent observation
-        # Adjust indices based on your specific implementation
-        car_state = next_state[:4]  # Assuming first 4 values are the ego car state
-        agent_observation = np.concatenate((car_state, self.current_embedding))
+        # Combine car1 state with embedding for agent observation
+        car1_state = next_state[:4]  # First 4 values are the ego car state
+        agent_observation = np.concatenate((car1_state, self.current_embedding))
 
         # Update internal state
         self.current_state = next_state
@@ -110,8 +114,8 @@ class Agent(gym.Env):
             self.current_embedding = np.zeros(4)
 
         # Combine highway state with embedding for agent observation
-        car_state = state[:4]  # Assuming first 4 values are the ego car state
-        agent_observation = np.concatenate((car_state, self.current_embedding))
+        car1_state = state[:4]  # First 4 values are the ego car state
+        agent_observation = np.concatenate((car1_state, self.current_embedding))
 
         return agent_observation, info
 
@@ -131,28 +135,9 @@ class Agent(gym.Env):
         """
         Set random seed.
         """
-        return self.highway_env.seed(seed)
-
-    def get_car_states(self):
-        """
-        Get the states of all cars in the environment.
-        Adapt this to how Highway represents multiple vehicles.
-        """
-        # This is a placeholder - implement based on your Highway environment
-        # For example, Highway might store vehicle states differently than AirSim
-
-        # Get the full observation which might contain all vehicle states
-        full_obs = self.current_state
-
-        # Extract individual car states (adapt to your Highway implementation)
-        # Example: if the state is [ego_x, ego_y, ego_vx, ego_vy, car1_x, car1_y, ...]
-        car1_state = full_obs[:4]  # Ego vehicle
-        car2_state = full_obs[4:8]  # First other vehicle
-        car3_state = full_obs[8:12]  # Second other vehicle
-        car4_state = full_obs[12:16]  # Third other vehicle
-        car5_state = full_obs[16:20]  # Fourth other vehicle
-
-        return car1_state, car2_state, car3_state, car4_state, car5_state
+        if hasattr(self.highway_env, 'seed'):
+            return self.highway_env.seed(seed)
+        return None
 
 
 class DummyVecEnv(gym.Wrapper):

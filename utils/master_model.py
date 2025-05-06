@@ -1,184 +1,267 @@
 import os
-import time
 import torch
 import numpy as np
-import gym
-from gym import spaces
+import gymnasium as gym
+from gymnasium import spaces
 from stable_baselines3 import PPO
-from stable_baselines3.common.logger import configure
-from stable_baselines3.common.vec_env import DummyVecEnv
-
-import utils.experiment.experiment_config
-
-
-###############################################
-# Master Environment Definition
-###############################################
-class MasterEnv(gym.Env):
-    """
-    Environment for the Master Network:
-      - Observation: Concatenation of Car1, Car2, Car3, Car4, and Car5 states (each 4-dimensional),
-        resulting in a 20-dimensional vector.
-      - Action: A continuous proto-action (embedding) of 4 dimensions.
-      - Reward: Determined based on collision, target achievement, or a default step reward.
-      - Done: True if a collision occurs, the target is reached, or max episode steps are exceeded.
-    """
-    def __init__(self, experiment, airsim_manager):
-        super(MasterEnv, self).__init__()
-        self.experiment = experiment
-        self.airsim_manager = airsim_manager
-
-        # Update observation space to 20 dimensions (4 dims from each of the 5 cars)
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(20,), dtype=np.float32)
-        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(experiment.EMBEDDING_SIZE,), dtype=np.float32)
-        self.state = None
-        self.current_step = 0
-        self.done = False
-
-    def reset(self):
-        """
-        Resets the environment: resets car positions and states.
-        Returns the initial 20-dimensional observation.
-        """
-        self.done = False
-        self.current_step = 0
-        self.airsim_manager.reset_cars_to_initial_positions()
-        self.airsim_manager.reset_for_new_episode()
-
-        # Get initial states from all 5 cars (each 4-dimensional)
-        car1_state = self.airsim_manager.get_car1_state()
-        car2_state = self.airsim_manager.get_car2_state()
-        car3_state = self.airsim_manager.get_car3_state()
-        car4_state = self.airsim_manager.get_car4_state()
-        car5_state = self.airsim_manager.get_car5_state()
-        self.state = np.concatenate([car1_state, car2_state, car3_state, car4_state, car5_state]).astype(np.float32)
-        return self.state
-
-    def step(self, action):
-        """
-        Executes one environment step using the given action.
-        Updates the state, computes the reward, and determines whether the episode is done.
-        """
-        self.current_step += 1
-
-        # Retrieve updated states from all five cars.
-        car1_state = self.airsim_manager.get_car1_state()
-        car2_state = self.airsim_manager.get_car2_state()
-        car3_state = self.airsim_manager.get_car3_state()
-        car4_state = self.airsim_manager.get_car4_state()
-        car5_state = self.airsim_manager.get_car5_state()
-        self.state = np.concatenate([car1_state, car2_state, car3_state, car4_state, car5_state]).astype(np.float32)
-
-        # Check terminal conditions.
-        collision = self.airsim_manager.collision_occurred()
-        # Here we check target achievement using Car1's state (adjust as needed)
-        reached_target = self.airsim_manager.has_reached_target(car1_state)
-
-        # Default reward (e.g., starvation reward)
-        reward = self.experiment.STARVATION_REWARD
-        if collision:
-            reward = self.experiment.COLLISION_REWARD
-            self.done = True
-        elif reached_target:
-            reward = self.experiment.REACHED_TARGET_REWARD
-            self.done = True
-
-        return self.state, reward, self.done, {}
-
-    def render(self, mode='human'):
-        pass
-
-    def close(self):
-        pass
+from stable_baselines3.common.buffers import RolloutBuffer
+from stable_baselines3.common.policies import ActorCriticPolicy
+import torch.nn as nn
 
 
 ###############################################
-# Master Model Wrapper
+# Master Network Components
 ###############################################
-
-class MasterModel:
+class CustomMasterNetwork(nn.Module):
     """
-    This wrapper creates and manages the master network using PPO.
-    It uses the MasterEnv (which now provides a 20-dimensional observation from 5 cars)
-    to generate a 4-dimensional proto-action (embedding).
+    Custom neural network for master model that outputs an embedding
+    rather than direct actions.
     """
-    def __init__(self,
-                 experiment,
-                 embedding_size=utils.experiment.experiment_config.Experiment.EMBEDDING_SIZE,
-                 policy_kwargs=None,
-                 learning_rate=0.0001,
-                 n_steps=utils.experiment.experiment_config.Experiment.N_STEPS,
-                 batch_size=32,
-                 total_timesteps=22):
-        self.experiment = experiment
-        self.embedding_size = embedding_size
-        self.total_timesteps = total_timesteps
-        self.is_frozen = False
 
-        # Create the updated MasterEnv and wrap it in a DummyVecEnv.
-        self.master_env = MasterEnv(experiment=self.experiment)
-        self.master_vec_env = DummyVecEnv([lambda: self.master_env])
+    def __init__(self, observation_dim, embedding_dim=4):
+        super().__init__()
+        self.embedding_dim = embedding_dim
 
-        # Update network architecture to handle 20-dimensional input
-        if policy_kwargs is None:
-            policy_kwargs = dict(net_arch=[128, 64, 32, 16])
-
-        self.model = PPO(
-            policy="MlpPolicy",
-            env=self.master_vec_env,
-            learning_rate=learning_rate,
-            n_steps=n_steps,
-            batch_size=batch_size,
-            policy_kwargs=policy_kwargs,
-            verbose=1,
-            n_epochs=10,
-            vf_coef=0.5,
-            ent_coef=0.01,
-            gae_lambda=0.95,
-            max_grad_norm=0.5,
-            clip_range=0.2,
-            clip_range_vf=1
+        # Network architecture - adjust as needed
+        self.shared_net = nn.Sequential(
+            nn.Linear(observation_dim, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64),
+            nn.ReLU()
         )
 
-    def get_proto_action(self, observation, deterministic=True):
-        """
-        Given an observation (from MasterEnv), returns a 4-dimensional proto-action (embedding).
-        """
-        if observation.ndim == 1:
-            observation = observation[np.newaxis, :]
-        action, _ = self.model.predict(observation, deterministic=deterministic)
-        return action[0]
+        # Actor head (outputs embedding)
+        self.embedding_head = nn.Sequential(
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Linear(32, embedding_dim),
+            nn.Tanh()  # Normalized embedding in [-1, 1]
+        )
 
-    def freeze(self):
+        # Critic head (outputs value)
+        self.value_head = nn.Sequential(
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Linear(32, 1)
+        )
+
+    def forward(self, obs):
         """
-        Freezes the master network (prevents further updates).
+        Forward pass through the network
         """
-        self.is_frozen = True
-        self.model.policy.set_training_mode(False)
+        shared_features = self.shared_net(obs)
+        embedding = self.embedding_head(shared_features)
+        value = self.value_head(shared_features)
+
+        return embedding, value
+
+
+class CustomMasterPolicy(ActorCriticPolicy):
+    """
+    Custom policy for master model that outputs an embedding
+    instead of a categorical distribution.
+    """
+
+    def __init__(
+            self,
+            observation_space,
+            action_space,
+            lr_schedule,
+            embedding_dim=4,
+            *args,
+            **kwargs
+    ):
+        super().__init__(
+            observation_space,
+            action_space,
+            lr_schedule,
+            *args,
+            **kwargs
+        )
+
+        # Override the default network with our custom one
+        obs_dim = observation_space.shape[0]
+        self.custom_network = CustomMasterNetwork(obs_dim, embedding_dim)
+
+        # Set up optimizer
+        self.optimizer = self.optimizer_class(
+            self.parameters(),
+            lr=lr_schedule(1),
+            **self.optimizer_kwargs
+        )
+
+    def forward(self, obs, deterministic=False):
+        """
+        Forward pass in the neural network
+        Returns embedding, value, and log probability
+        """
+        embedding, value = self.custom_network(obs)
+
+        # For PPO compatibility: we need to return a "log_prob"
+        # Since the embedding is continuous, we'll use a normal distribution
+        # with fixed variance and mean = embedding
+        log_prob = -0.5 * torch.sum(torch.ones_like(embedding), dim=-1)
+
+        return embedding, value, log_prob
+
+    def evaluate_actions(
+            self,
+            obs: torch.Tensor,
+            actions: torch.Tensor
+    ):
+        """
+        Evaluate actions according to the current policy,
+        given the observations.
+        """
+        embedding, values = self.custom_network(obs)
+        log_prob = -0.5 * torch.sum(torch.ones_like(embedding), dim=-1)
+        entropy = torch.sum(torch.ones_like(embedding) * 1.0, dim=-1)
+
+        return values, log_prob, entropy
+
+    def get_distribution(self, obs):
+        """
+        For compatibility with PPO - returns a dummy distribution
+        """
+
+        # Return a dummy distribution with appropriate methods
+        class DummyDistribution:
+            def __init__(self, embedding):
+                self.embedding = embedding
+
+            def log_prob(self, actions):
+                return -0.5 * torch.sum(torch.ones_like(self.embedding), dim=-1)
+
+            def entropy(self):
+                return torch.sum(torch.ones_like(self.embedding) * 1.0, dim=-1)
+
+        embedding, _ = self.custom_network(obs)
+        return DummyDistribution(embedding)
+
+    def predict_values(self, obs):
+        """
+        Predict the values for the given observations
+        """
+        _, values = self.custom_network(obs)
+        return values
+
+
+###############################################
+# Master Model Class
+###############################################
+class MasterModel:
+    """
+    Master model for the Highway environment.
+    Uses a custom policy to output embeddings instead of actions.
+
+    This model can handle variable numbers of cars (up to 5) in the environment.
+    """
+
+    def __init__(self, embedding_size=4, experiment=None):
+        self.embedding_size = embedding_size
+        self.experiment = experiment
+        self.is_frozen = False
+
+        # Determine observation space based on experiment configuration
+        # Each car has 4 dimensions (x, y, vx, vy)
+        max_cars = self.experiment.CARS_AMOUNT if experiment else 5
+        self.observation_dim = max_cars * 4
+
+        # Create a dummy environment for PPO initialization
+        import gymnasium as gym
+        from gymnasium import spaces
+
+        dummy_env = gym.Env()
+        dummy_env.observation_space = spaces.Box(
+            low=-np.inf, high=np.inf, shape=(self.observation_dim,)
+        )
+        # The action space is the embedding size (continuous)
+        dummy_env.action_space = spaces.Box(
+            low=-1.0, high=1.0, shape=(embedding_size,), dtype=np.float32
+        )
+
+        # Initialize PPO with our custom policy
+        if experiment and hasattr(experiment, 'PPO_NETWORK_ARCHITECTURE'):
+            policy_kwargs = dict(net_arch=experiment.PPO_NETWORK_ARCHITECTURE)
+        else:
+            policy_kwargs = dict(net_arch=[64, 32, 16, 8])
+
+        learning_rate = experiment.LEARNING_RATE if experiment else 3e-4
+        n_steps = experiment.N_STEPS if experiment else 2048
+        batch_size = experiment.BATCH_SIZE if experiment else 64
+
+        self.model = PPO(
+            policy=CustomMasterPolicy,
+            env=dummy_env,
+            verbose=1,
+            policy_kwargs={"embedding_dim": embedding_size, **policy_kwargs},
+            n_steps=n_steps,
+            batch_size=batch_size,
+            learning_rate=learning_rate,
+            gamma=0.99,
+            gae_lambda=0.95,
+            clip_range=0.2,
+            ent_coef=0.01,
+            vf_coef=0.5,
+            max_grad_norm=0.5,
+            device="cpu"  # Change to "cuda" if you have GPU
+        )
+
+        # Create a rollout buffer
+        self.rollout_buffer = RolloutBuffer(
+            buffer_size=n_steps,
+            observation_space=dummy_env.observation_space,
+            action_space=dummy_env.action_space,
+            gamma=0.99,
+            gae_lambda=0.95,
+            n_envs=1
+        )
 
     def unfreeze(self):
-        """
-        Unfreezes the master network (allows updates).
-        """
+        """Enable training for master network"""
         self.is_frozen = False
+        for param in self.model.policy.parameters():
+            param.requires_grad = True
         self.model.policy.set_training_mode(True)
 
-    def save(self, filepath):
-        """
-        Saves the master model to the given filepath.
-        """
-        self.model.save(filepath)
-        print(f"[MasterModel] Saved model to {filepath}")
+    def freeze(self):
+        """Disable training for master network"""
+        self.is_frozen = True
+        for param in self.model.policy.parameters():
+            param.requires_grad = False
+        self.model.policy.set_training_mode(False)
 
-    def load(self, filepath):
+    def get_proto_action(self, state_tensor):
         """
-        Loads a master model from the given filepath.
+        Get embedding from master network.
+        Used during inference or when master is frozen.
         """
-        self.model = PPO.load(filepath, env=self.master_vec_env)
-        print(f"[MasterModel] Loaded model from {filepath}")
+        with torch.no_grad():
+            embedding, _, _ = self.model.policy.forward(state_tensor)
+            return embedding.cpu().numpy()[0]
 
     def set_logger(self, logger):
-        """
-        Sets the logger for the PPO model.
-        """
+        """Set logger for master network"""
         self.model.set_logger(logger)
+
+    def save(self, path):
+        """Save master network"""
+        # Save the PPO model
+        self.model.save(path)
+
+        # If we need to save additional parameters not covered by PPO save
+        custom_params = {
+            "embedding_size": self.embedding_size,
+            # Add any other custom parameters here
+        }
+        torch.save(custom_params, f"{path}_custom_params.pt")
+
+    def load(self, path):
+        """Load master network"""
+        # Load the PPO model
+        self.model = PPO.load(path)
+
+        # Load additional custom parameters if needed
+        if os.path.exists(f"{path}_custom_params.pt"):
+            custom_params = torch.load(f"{path}_custom_params.pt")
+            self.embedding_size = custom_params["embedding_size"]

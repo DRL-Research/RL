@@ -1,34 +1,23 @@
 import os
+import time
 import torch
 import numpy as np
 import gymnasium as gym
 from stable_baselines3.common.logger import configure
-from stable_baselines3.common.vec_env import DummyVecEnv
-from utils.plotting_utils import PlottingUtils
-from utils.model.model_handler import Model
 from agent_handler import Agent, DummyVecEnv
 from master_model import MasterModel
-
-# Register the environment if needed
-# You may need to adapt this based on your specific Highway environment
-try:
-    gym.register(
-        id='RELintersection-v0',
-        entry_point='envs.intersection:RELIntersectionEnv',
-    )
-except gym.error.RegistrationError:
-    # Environment already registered
-    pass
+from utils.model.model_handler import Model
+from utils.plotting_utils import PlottingUtils
 
 
-def run_experiment(experiment_config, config):
+def run_experiment(experiment_config, env_config):
     """
     Main function to run a complete experiment with master-agent architecture
-    in the Highway environment.
+    in the Highway intersection environment.
 
     Args:
         experiment_config: Configuration for experiment parameters
-        config: Configuration for the Highway environment
+        env_config: Configuration for the Highway environment
 
     Returns:
         agent_model: Trained agent model
@@ -36,6 +25,8 @@ def run_experiment(experiment_config, config):
         collision_counter: Number of collisions during training
     """
     print("Starting experiment:", experiment_config.EXPERIMENT_ID)
+    print(
+        f"Environment configuration: {len(env_config['controlled_cars'])} controlled cars, {len(env_config['static_cars'])} static cars")
 
     # Create experiment directory if it doesn't exist
     os.makedirs(experiment_config.EXPERIMENT_PATH, exist_ok=True)
@@ -43,14 +34,21 @@ def run_experiment(experiment_config, config):
     # Initialize tracking variables
     p_agent_loss, p_master_loss, p_episode_counter = [], [], []
 
+    # Attach environment configuration to experiment_config for easy access
+    experiment_config.CONFIG = env_config
+
     # Create master model
-    master_model = MasterModel(embedding_size=4, experiment=experiment_config)
+    master_model = MasterModel(
+        embedding_size=experiment_config.EMBEDDING_SIZE,
+        experiment=experiment_config
+    )
 
-    # Create agent environment wrapper
-    env = DummyVecEnv([lambda: Agent(experiment_config, master_model=master_model)])
+    # Create environment wrapper with Agent handler
+    env_fn = lambda: Agent(experiment_config, master_model=master_model)
+    wrapped_env = DummyVecEnv([env_fn])
 
-    # Create agent model (using your Model class)
-    agent_model = Model(env, experiment_config).model
+    # Create agent model
+    agent_model = Model(wrapped_env, experiment_config).model
 
     # Configure loggers
     base_path = experiment_config.EXPERIMENT_PATH
@@ -59,50 +57,24 @@ def run_experiment(experiment_config, config):
     agent_model.set_logger(agent_logger)
     master_model.set_logger(master_logger)
 
-    # Training process
+    # Inference or training mode
     if experiment_config.ONLY_INFERENCE:
         print("Running in inference-only mode")
-        agent_model.load(f"{experiment_config.LOAD_WEIGHT_DIRECTORY}_agent.pth")
-        master_model.load(f"{experiment_config.LOAD_WEIGHT_DIRECTORY}_master.pth")
-        print(f"Loaded weights from {experiment_config.LOAD_WEIGHT_DIRECTORY} for inference.")
 
-        # Run some evaluation episodes if needed
-        # This section can be expanded for evaluation metrics
-        eval_rewards = []
-        eval_actions = []
+        # Load pre-trained models
+        try:
+            agent_model.load(f"{experiment_config.LOAD_MODEL_DIRECTORY}_agent.pth")
+            master_model.load(f"{experiment_config.LOAD_MODEL_DIRECTORY}_master.pth")
+            print(f"Loaded weights from {experiment_config.LOAD_MODEL_DIRECTORY} for inference.")
+        except Exception as e:
+            print(f"Failed to load inference models: {e}")
+            print("Using untrained models for inference.")
 
-        for episode in range(experiment_config.EVAL_EPISODES):
-            print(f"Evaluation episode {episode + 1}/{experiment_config.EVAL_EPISODES}")
-            obs, _ = env.reset()
-            done = False
-            truncated = False
-            episode_reward = 0
-            actions = []
-
-            while not done and not truncated:
-                # Get embedding from master
-                master_input = torch.tensor(obs[:20], dtype=torch.float32).unsqueeze(0)  # Full state to master
-                embedding = master_model.get_proto_action(master_input)
-
-                # Combine car state with embedding for agent
-                agent_obs = np.concatenate((obs[:4], embedding))  # Assuming first 4 values are ego car state
-
-                # Get action from agent
-                action, _ = agent_model.predict(agent_obs, deterministic=True)
-
-                # Take step
-                obs, reward, done, truncated, info = env.step(action)
-                episode_reward += reward
-                actions.append(action[0])
-
-            eval_rewards.append(episode_reward)
-            eval_actions.append(actions)
-            print(f"Episode {episode + 1} reward: {episode_reward}")
-
-        print(f"Average evaluation reward: {np.mean(eval_rewards)}")
+        # Run evaluation episodes
+        eval_rewards, eval_actions = run_evaluation(experiment_config, wrapped_env, master_model, agent_model)
 
         # Close environments and loggers
-        env.close()
+        wrapped_env.close()
         agent_logger.close()
         master_logger.close()
 
@@ -114,10 +86,10 @@ def run_experiment(experiment_config, config):
     # Load previous weights if specified
     if experiment_config.LOAD_PREVIOUS_WEIGHT:
         try:
-            agent_model.load(f"{experiment_config.LOAD_WEIGHT_DIRECTORY}_agent.pth")
-            master_model.load(f"{experiment_config.LOAD_WEIGHT_DIRECTORY}_master.pth")
+            agent_model.load(f"{experiment_config.LOAD_MODEL_DIRECTORY}_agent.pth")
+            master_model.load(f"{experiment_config.LOAD_MODEL_DIRECTORY}_master.pth")
             print(
-                f"Loaded weights from {experiment_config.LOAD_WEIGHT_DIRECTORY}, models will be trained from this point!")
+                f"Loaded weights from {experiment_config.LOAD_MODEL_DIRECTORY}, models will be trained from this point!")
         except Exception as e:
             print(f"Failed to load weights: {e}")
             print("Starting training from scratch")
@@ -125,7 +97,7 @@ def run_experiment(experiment_config, config):
     # Run the training loop
     p_episode_counter, p_agent_loss, p_master_loss, agent_model, collision_counter, all_rewards, all_actions = \
         training_loop(p_agent_loss, p_master_loss, p_episode_counter,
-                      experiment_config, env, agent_model, master_model)
+                      experiment_config, wrapped_env, agent_model, master_model)
 
     # Save models
     agent_model.save(f"{experiment_config.SAVE_MODEL_DIRECTORY}_agent.pth")
@@ -143,14 +115,55 @@ def run_experiment(experiment_config, config):
     print("Total collisions:", collision_counter)
 
     # Close environment
-    env.close()
+    wrapped_env.close()
 
     return agent_model, master_model, collision_counter
 
 
+def run_evaluation(experiment_config, env, master_model, agent_model):
+    """Run evaluation episodes in inference mode"""
+    eval_rewards = []
+    eval_actions = []
+
+    eval_episodes = getattr(experiment_config, 'EVAL_EPISODES', 5)  # Default to 5 episodes if not specified
+
+    for episode in range(eval_episodes):
+        print(f"Evaluation episode {episode + 1}/{eval_episodes}")
+        obs, _ = env.reset()
+        done = False
+        truncated = False
+        episode_reward = 0
+        actions = []
+
+        while not done and not truncated:
+            # Get embedding from master
+            # In the intersection scenario, observation already includes agent_obs (car1_state + embedding)
+            # We need to extract car1_state for the agent
+            car1_state = obs[:4]  # First 4 dimensions for car1
+
+            # Get action from agent
+            action, _ = agent_model.predict(obs, deterministic=True)
+
+            # Take step
+            obs, reward, done, truncated, info = env.step(action)
+            episode_reward += reward
+            actions.append(action[0])
+
+            # Optionally render
+            env.render()
+
+        eval_rewards.append(episode_reward)
+        eval_actions.append(actions)
+        print(f"Episode {episode + 1} reward: {episode_reward}")
+        print(f"Success: {not info.get('crashed', False)}")
+
+    print(f"Average evaluation reward: {np.mean(eval_rewards)}")
+    return eval_rewards, eval_actions
+
+
 def training_loop(p_agent_loss, p_master_loss, p_episode_counter, experiment, env, agent_model, master_model):
     """
-    Runs the overall training loop over cycles and episodes for Highway environment.
+    Runs the overall training loop over cycles and episodes for the intersection environment.
     In cycle 0, both the master and agent are trained.
     In cycle 1, only the master is trained.
     In cycle 2, only the agent is trained.
@@ -166,7 +179,11 @@ def training_loop(p_agent_loss, p_master_loss, p_episode_counter, experiment, en
         # For cycle 2: (not train_both) and (cycle % 2 == 0) => agent training only
 
         # Set training modes for both networks
-        master_model.unfreeze() if train_both or training_master else master_model.freeze()
+        if train_both or training_master:
+            master_model.unfreeze()
+        else:
+            master_model.freeze()
+
         agent_model.policy.set_training_mode(train_both or (not training_master))
 
         for episode in range(experiment.EPISODES_PER_CYCLE):
@@ -200,17 +217,19 @@ def training_loop(p_agent_loss, p_master_loss, p_episode_counter, experiment, en
                 with torch.no_grad():
                     # Get current observation
                     current_obs, _ = env.reset()
-                    # Full observation for master
-                    full_obs = current_obs[:20]  # Adjust based on your observation structure
-                    last_master_tensor = torch.tensor(full_obs, dtype=torch.float32).unsqueeze(0)
+
+                    # The observation includes car1_state + embedding
+                    # We need to get the full state (all cars) for master training
+                    full_state = env.env.current_state
+                    last_master_tensor = torch.tensor(full_state, dtype=torch.float32).unsqueeze(0)
 
                 if train_both:
                     # In cycle 0: train both master and agent
-                    last_master_tensor = train_master_and_reset_buffer(env, master_model, full_obs)
+                    last_master_tensor = train_master_and_reset_buffer(env, master_model, full_state)
                     train_agent_and_reset_buffer(env, master_model, agent_model, last_master_tensor)
                 elif training_master:
                     # In cycle 1: train only the master
-                    train_master_and_reset_buffer(env, master_model, full_obs)
+                    train_master_and_reset_buffer(env, master_model, full_state)
                 else:
                     # In cycle 2: train only the agent
                     train_agent_and_reset_buffer(env, master_model, agent_model, last_master_tensor)
@@ -221,7 +240,7 @@ def training_loop(p_agent_loss, p_master_loss, p_episode_counter, experiment, en
 
 def run_episode(experiment, total_steps, env, master_model, agent_model, train_both, training_master):
     """
-    Runs a single episode in the Highway environment, collecting states, rewards, and actions.
+    Runs a single episode in the intersection environment, collecting states, rewards, and actions.
     """
     all_rewards, actions_per_episode = [], []
     steps_counter, episode_sum_of_rewards = 0, 0
@@ -235,10 +254,9 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
     while not done and not truncated:
         steps_counter += 1
 
-        # Extract full state (all cars) for master
-        full_obs = current_obs[:20]  # Adjust based on your observation structure
-
-        # Get master input
+        # The current_obs is already agent_obs (car1_state + embedding)
+        # For master input, we need the full state (all cars)
+        full_obs = env.env.current_state
         master_input = torch.tensor(full_obs, dtype=torch.float32).unsqueeze(0)
 
         # Get embedding from master network
@@ -249,19 +267,15 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
         else:
             embedding = master_model.get_proto_action(master_input)
 
-        # Combine ego car state with master's embedding for agent
-        ego_car_state = current_obs[:4]  # Assuming first 4 values are ego car state
-        agent_obs = np.concatenate((ego_car_state, embedding))
-
         # Get agent action
-        agent_action = Agent.get_action(agent_model, agent_obs, total_steps,
+        agent_action = Agent.get_action(agent_model, current_obs, total_steps,
                                         experiment.EXPLORATION_EXPLOTATION_THRESHOLD)
         scalar_action = agent_action[0]
 
         # For PPO buffer update
         if train_both or not training_master:
             with torch.no_grad():
-                obs_tensor = torch.tensor(agent_obs, dtype=torch.float32).unsqueeze(0)
+                obs_tensor = torch.tensor(current_obs, dtype=torch.float32).unsqueeze(0)
                 agent_value = agent_model.policy.predict_values(obs_tensor)
                 dist = agent_model.policy.get_distribution(obs_tensor)
                 action_array = np.array([[scalar_action]])
@@ -285,14 +299,14 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
         episode_start = (steps_counter == 1)
         if train_both:
             agent_model.rollout_buffer.add(
-                agent_obs, action_array, reward, episode_start, agent_value, log_prob_agent
+                current_obs, action_array, reward, episode_start, agent_value, log_prob_agent
             )
             master_model.rollout_buffer.add(full_obs, embedding, reward, episode_start, value, log_prob)
         elif training_master:
             master_model.rollout_buffer.add(full_obs, embedding, reward, episode_start, value, log_prob)
         else:
             agent_model.rollout_buffer.add(
-                agent_obs, action_array, reward, episode_start, agent_value, log_prob_agent
+                current_obs, action_array, reward, episode_start, agent_value, log_prob_agent
             )
 
         # Update current observation
@@ -320,8 +334,8 @@ def train_agent_and_reset_buffer(env, master_model, agent_model, last_master_ten
         # Get embedding from master
         embedding = master_model.get_proto_action(last_master_tensor)
 
-        # Combine with car state
-        car_state = last_master_tensor.cpu().numpy()[0][:4]  # Assuming first 4 values are ego car state
+        # Combine with car state - in intersection, car1 is the ego vehicle
+        car_state = last_master_tensor.cpu().numpy()[0][:4]  # First 4 values for car1
         agent_obs = np.concatenate((car_state, embedding))
 
         # Get value for advantage computation
@@ -336,7 +350,34 @@ def train_agent_and_reset_buffer(env, master_model, agent_model, last_master_ten
 
 def plot_results(experiment, all_rewards, all_actions):
     """Plot training results"""
-    PlottingUtils.plot_losses(experiment.EXPERIMENT_PATH, experiment.EXPERIMENT_ID)
-    PlottingUtils.plot_rewards(all_rewards, experiment.EXPERIMENT_ID)
-    PlottingUtils.plot_actions(all_actions, experiment.EXPERIMENT_ID)
-    PlottingUtils.show_plots()
+    # Ensure plotting utility exists or implement a basic version
+    try:
+        PlottingUtils.plot_losses(experiment.EXPERIMENT_PATH, experiment.EXPERIMENT_ID)
+        PlottingUtils.plot_rewards(all_rewards, experiment.EXPERIMENT_ID)
+        PlottingUtils.plot_actions(all_actions, experiment.EXPERIMENT_ID)
+        PlottingUtils.show_plots()
+    except Exception as e:
+        print(f"Error plotting results: {e}")
+        print("Implementing basic plotting...")
+
+        # Basic plotting implementation in case PlottingUtils is not available
+        import matplotlib.pyplot as plt
+
+        # Plot rewards
+        plt.figure(figsize=(10, 6))
+        plt.plot(all_rewards)
+        plt.title(f"Rewards - {experiment.EXPERIMENT_ID}")
+        plt.xlabel("Episode")
+        plt.ylabel("Reward")
+        plt.savefig(f"{experiment.EXPERIMENT_PATH}/rewards.png")
+
+        # Plot actions distribution
+        flat_actions = [a for episode_actions in all_actions for a in episode_actions]
+        plt.figure(figsize=(10, 6))
+        plt.hist(flat_actions, bins=experiment.ACTION_SPACE_SIZE)
+        plt.title(f"Action Distribution - {experiment.EXPERIMENT_ID}")
+        plt.xlabel("Action")
+        plt.ylabel("Count")
+        plt.savefig(f"{experiment.EXPERIMENT_PATH}/actions.png")
+
+        plt.close('all')
