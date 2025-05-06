@@ -9,10 +9,10 @@ from gym.envs.registration import register
 import gymnasium as gym
 
 
-def training_loop(experiment, env, model):
+def training_loop(experiment, env, agent_model):
     if experiment.ONLY_INFERENCE:
         print('Only Inference')
-        model.load(experiment.LOAD_WEIGHT_DIRECTORY)
+        agent_model.load(experiment.LOAD_WEIGHT_DIRECTORY)
         print(f"Loaded weights from {experiment.LOAD_MODEL_DIRECTORY} for inference.")
     else:
         if experiment.LOAD_PREVIOUS_WEIGHT:
@@ -32,13 +32,13 @@ def training_loop(experiment, env, model):
                 steps_counter += 1
                 total_steps += 1
                 ### need to fill action line here
-                action, _state = model.predict(current_state, deterministic=False)
+                action, _state = agent_model.predict(current_state, deterministic=False)
                 env.render()
                 print(f"Action: {action}")
                 current_state, reward, done, truncated, info = env.step(action)
-                print('current_state:',current_state)
-                print('reward:',reward)
-                print('done:',done)
+                # print('current_state:',current_state)
+                # print('reward:',reward)
+                # print('done:',done)
                 actions_per_episode.append(action)
                 episode_sum_of_rewards += reward
                 if done:
@@ -56,9 +56,9 @@ def training_loop(experiment, env, model):
             all_actions.append(actions_per_episode)
 
             if not experiment.ONLY_INFERENCE:
-                model.learn(total_timesteps=steps_counter)
+                agent_model.learn(total_timesteps=steps_counter)
                 print(f"Model learned on {steps_counter} steps")
-        return model, collision_counter, all_rewards, all_actions
+        return agent_model, collision_counter, all_rewards, all_actions
 
 
 def plot_results(experiment, all_rewards, all_actions):
@@ -70,12 +70,12 @@ def plot_results(experiment, all_rewards, all_actions):
 
 def run_experiment(experiment_config, config):
     env = gym.make('RELintersection-v0',render_mode="rgb_array", config=config)
-    model = Model(env, experiment_config).model
+    agent_model = Model(env, experiment_config).model
     logger = configure(experiment_config.EXPERIMENT_PATH, ["stdout", "csv", "tensorboard"])
-    model.set_logger(logger)
+    agent_model.set_logger(logger)
 
     model, collision_counter, all_rewards, all_actions = training_loop(experiment=experiment_config, env=env,
-                                                                       model=model)
+                                                                       model=agent_model)
     model.save(experiment_config.SAVE_MODEL_DIRECTORY)
     logger.close()
 
