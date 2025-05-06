@@ -24,8 +24,8 @@ if __name__ == "__main__":
         EPOCHS=4,
         # ROLE=Role.CAR1,
         # EXPLORATION_EXPLOTATION_THRESHOLD=1,
-        LOAD_PREVIOUS_WEIGHT=True,
-        BYPASS_RANDOM_INITIALIZATION=False
+        #LOAD_PREVIOUS_WEIGHT=True,
+        #BYPASS_RANDOM_INITIALIZATION=False
     )
 
     experiment1 = Experiment(
@@ -34,18 +34,18 @@ if __name__ == "__main__":
         EPOCHS=4,
         # ROLE=Role.CAR1,
         # EXPLORATION_EXPLOTATION_THRESHOLD=1,
-        LOAD_PREVIOUS_WEIGHT=True,
-        BYPASS_RANDOM_INITIALIZATION=False)
-
+        #LOAD_PREVIOUS_WEIGHT=True,
+        #BYPASS_RANDOM_INITIALIZATION=False
+        )
     experiment3 = Experiment(
         EXPERIMENT_ID='Experiment3',
         LOAD_MODEL_DIRECTORY='experiments/08_12_2024-13_56_13_Experiment1/trained_model.zip',
         EPOCHS=4,
         # ROLE=Role.CAR1,
         # EXPLORATION_EXPLOTATION_THRESHOLD=1,
-        LOAD_PREVIOUS_WEIGHT=True,
-        BYPASS_RANDOM_INITIALIZATION=False)
-
+        #LOAD_PREVIOUS_WEIGHT=True,
+        #BYPASS_RANDOM_INITIALIZATION=False
+    )
     custom_configs ={
         experiment1.EXPERIMENT_ID : full_config_exp1,
         experiment2.EXPERIMENT_ID : full_config_exp2,

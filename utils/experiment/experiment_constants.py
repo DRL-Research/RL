@@ -1,17 +1,17 @@
 from dataclasses import dataclass
 import random
 
-# @dataclass
-# class CarName:
-#     CAR1 = "Car1"
-#     CAR2 = "Car2"
-#
-#
-# @dataclass
-# class Role:
-#     CAR1 = CarName.CAR1
-#     CAR2 = CarName.CAR2
-#     BOTH = "Both"
+@dataclass
+class CarName:
+    CAR1 = "Car1"
+    CAR2 = "Car2"
+
+
+@dataclass
+class Role:
+    CAR1 = CarName.CAR1
+    CAR2 = CarName.CAR2
+    BOTH = "Both"
 
 
 @dataclass
@@ -21,7 +21,7 @@ class Speed:
 
 @dataclass
 class Lanes:
-    SOUTH_TO_NORTH = ("o0", "ir0", 0)
+    SOUTH_TO_NORTH = ("o0", "ir0", 0) # TODO: use Direction in Lanes
     EAST_TO_WEST = ("o1", "ir1", 0)
     WEST_TO_EAST = ("o3", "ir3", 0)
     NORTH_TO_SOUTH = ("o2", "ir2", 0)
@@ -30,6 +30,7 @@ class Lanes:
 @dataclass
 class Direction:
     """
+    destination
     (o:outer | i:inner +[r:right, l:left]) + (0:south | 1:west | 2:north | 3:east)
     """
     OUTER_SOUTH = "o0"

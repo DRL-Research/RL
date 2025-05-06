@@ -104,7 +104,6 @@ class MasterModel:
     """
     def __init__(self,
                  experiment,
-                 airsim_manager,
                  embedding_size=utils.experiment.experiment_config.Experiment.EMBEDDING_SIZE,
                  policy_kwargs=None,
                  learning_rate=0.0001,
@@ -112,13 +111,12 @@ class MasterModel:
                  batch_size=32,
                  total_timesteps=22):
         self.experiment = experiment
-        self.airsim_manager = airsim_manager
         self.embedding_size = embedding_size
         self.total_timesteps = total_timesteps
         self.is_frozen = False
 
         # Create the updated MasterEnv and wrap it in a DummyVecEnv.
-        self.master_env = MasterEnv(experiment=self.experiment, airsim_manager=self.airsim_manager)
+        self.master_env = MasterEnv(experiment=self.experiment)
         self.master_vec_env = DummyVecEnv([lambda: self.master_env])
 
         # Update network architecture to handle 20-dimensional input
