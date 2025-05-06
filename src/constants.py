@@ -17,6 +17,7 @@ class Role:
     CAR3 = CarName.CAR3
     CAR4 = CarName.CAR4
     CAR5 = CarName.CAR5
+    BOTH = "BOTH"  # Both cars use the DRL model
 
 
 

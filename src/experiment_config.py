@@ -21,7 +21,7 @@ class Experiment:
     # Model and Training Configuration
     EPISODE_AMOUNT_FOR_TRAIN: int = 1
     MODEL_TYPE: ModelType = None
-    ROLE: Role = CarName.CAR1  # Which car uses the DRL model: Car1, Car2, or Both
+    ROLE: Role = Role.BOTH  # Which car uses the DRL model: Car1, Car2,Car3 or Both
     EPOCHS: int = 10
     LEARNING_RATE: float = 0.05
     N_STEPS: int = 22
@@ -48,6 +48,13 @@ class Experiment:
     CAR2_DESIRED_POSITION_OPTION_1: np.ndarray = field(default_factory=lambda: np.array([0, -10]))
     CAR2_DESIRED_POSITION_OPTION_2: np.ndarray = field(default_factory=lambda: np.array([0, 10]))
     CAR3_NAME: CarName = CarName.CAR3
+    # Car 3 Settings (Perpendicular cars)
+    CAR3_INITIAL_POSITION_OPTION_1: List[int] = field(default_factory=lambda: [0, 45])
+    CAR3_INITIAL_YAW_OPTION_1: int = 270
+    CAR3_INITIAL_POSITION_OPTION_2: List[int] = field(default_factory=lambda: [0, -45])
+    CAR3_INITIAL_YAW_OPTION_2: int = 90
+    CAR3_DESIRED_POSITION_OPTION_1: np.ndarray = field(default_factory=lambda: np.array([0, -25]))
+    CAR3_DESIRED_POSITION_OPTION_2: np.ndarray = field(default_factory=lambda: np.array([0, 25]))
 
     # New Car 4 Settings (In front of Car1)
     CAR4_NAME: CarName = CarName.CAR4

@@ -9,7 +9,7 @@ if __name__ == "__main__":
         ONLY_INFERENCE=False,
         EPISODE_AMOUNT_FOR_TRAIN=4,
         MODEL_TYPE=ModelType.PPO,
-        ROLE=CarName.CAR1,
+        ROLE=Role.BOTH,
         EPOCHS=10,
         LEARNING_RATE=0.075,
         N_STEPS=22,

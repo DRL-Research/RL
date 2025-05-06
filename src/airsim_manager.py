@@ -259,20 +259,28 @@ class AirsimManager:
         else:
             return environment_embedding.cpu().numpy()
 
-    def has_reached_target(self, car_state):
+    def has_reached_target(self, car_state, car_name=None):
         """
         Checks if the vehicle has reached the target using its relative state.
-        For Car1: compares relative x; for Car2: compares relative y.
-        (You may need to extend this logic to include Car3 if desired.)
+        When car_name is provided, checks for that specific car.
         """
-        if self.experiment.ROLE == self.experiment.CAR1_NAME:
+        car_role = car_name if car_name is not None else self.experiment.ROLE
+
+        if car_role == self.experiment.CAR1_NAME:
             init_pos = self.get_car1_initial_position()
             desired_global = (self.experiment.CAR1_DESIRED_POSITION_OPTION_1[0]
                               if init_pos[0] > 0
                               else self.experiment.CAR1_DESIRED_POSITION_OPTION_2[0])
             required_distance = abs(desired_global - init_pos[0])
             return abs(car_state[0]) >= required_distance
-        elif self.experiment.ROLE == self.experiment.CAR2_NAME:
+        elif car_role == self.experiment.CAR3_NAME:
+            init_pos = self.get_car3_initial_position()
+            desired_global = (self.experiment.CAR3_DESIRED_POSITION_OPTION_1[1]
+                              if init_pos[1] > 0
+                              else self.experiment.CAR3_DESIRED_POSITION_OPTION_2[1])
+            required_distance = abs(desired_global - init_pos[1])
+            return abs(car_state[1]) >= required_distance
+        elif car_role == self.experiment.CAR2_NAME:
             init_pos = self.get_car2_initial_position()
             desired_global = (self.experiment.CAR2_DESIRED_POSITION_OPTION_1[1]
                               if init_pos[1] > 0
@@ -283,7 +291,7 @@ class AirsimManager:
 
     def collision_occurred(self, car_name=None):
         """
-        Checks whether a collision has occurred for the given car (default: Car1).
+        Checks whether a collision has occurred for the given car.
         """
         car = car_name if car_name is not None else self.experiment.CAR1_NAME
         collision_info = self.airsim_client.simGetCollisionInfo(car)
@@ -404,3 +412,31 @@ class AirsimManager:
 
         except Exception as e:
             print(f"Failed to reset Car2: {str(e)}")
+
+    def has_reached_target(self, car_state):
+        """
+        Checks if the vehicle has reached the target using its relative state.
+        For Car1: compares relative x; for Car2/Car3: compares relative y.
+        """
+        if self.experiment.ROLE == self.experiment.CAR1_NAME:
+            init_pos = self.get_car1_initial_position()
+            desired_global = (self.experiment.CAR1_DESIRED_POSITION_OPTION_1[0]
+                              if init_pos[0] > 0
+                              else self.experiment.CAR1_DESIRED_POSITION_OPTION_2[0])
+            required_distance = abs(desired_global - init_pos[0])
+            return abs(car_state[0]) >= required_distance
+        elif self.experiment.ROLE == self.experiment.CAR2_NAME:
+            init_pos = self.get_car2_initial_position()
+            desired_global = (self.experiment.CAR2_DESIRED_POSITION_OPTION_1[1]
+                              if init_pos[1] > 0
+                              else self.experiment.CAR2_DESIRED_POSITION_OPTION_2[1])
+            required_distance = abs(desired_global - init_pos[1])
+            return abs(car_state[1]) >= required_distance
+        elif self.experiment.ROLE == self.experiment.CAR3_NAME:
+            init_pos = self.get_car3_initial_position()
+            desired_global = (self.experiment.CAR3_DESIRED_POSITION_OPTION_1[1]
+                              if init_pos[1] > 0
+                              else self.experiment.CAR3_DESIRED_POSITION_OPTION_2[1])
+            required_distance = abs(desired_global - init_pos[1])
+            return abs(car_state[1]) >= required_distance
+        return False
