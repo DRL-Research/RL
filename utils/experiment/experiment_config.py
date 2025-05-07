@@ -23,9 +23,10 @@ class Experiment:
 
     # Model and Training Configuration
     EPISODE_AMOUNT_FOR_TRAIN: int = 1
-    EPOCHS: int = 10
+    EPOCHS: int = None
     LEARNING_RATE: float = 0.05
     N_STEPS: int = 22
+    #
     BATCH_SIZE: int = 32
     EPISODE_MAX_TIME = 13 #s
     LOSS_FUNCTION: str = "mse"
@@ -62,7 +63,7 @@ class Experiment:
 
     # Path Configuration
     LOAD_MODEL_DIRECTORY: str = ""  # Directory for loading weights
-
+    MODEL_TYPE: str = "PPO"  # Model type (e.g., PPO, DQN)
     # Computed fields (not passed via __init__)
     EXPERIMENT_PATH: str = field(init=False)
     SAVE_MODEL_DIRECTORY: str = field(init=False)
@@ -83,21 +84,12 @@ class Experiment:
     INNER_NORTH = "i2"
     INNER_EAST = "i3"
 
-    # Car Names
-    CAR1 = "car1"
-    CAR2 = "car2"
-    CAR3 = "car3"
-    CAR4 = "car4"
-    CAR5 = "car5"
 
     #Simulations Graphics
     SCREEN_WIDTH: int = 600
     SCREEN_HEIGHT: int = 600
     CENTERING_POSITION: List[float] = field(default_factory=lambda: [0.5, 0.6])  # Do not change, this centers the simulation
     SCALING: float = 5.5 * 1.3
-
-    LOAD_PREVIOUS_WEIGHT = True
-    BYPASS_RANDOM_INITIALIZATION = False
 
     def __post_init__(self):
         self.EXPERIMENT_PATH = f"experiments/{self.EXPERIMENT_DATE_TIME}_{self.EXPERIMENT_ID}"

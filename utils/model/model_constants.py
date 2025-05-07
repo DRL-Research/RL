@@ -63,6 +63,8 @@ def create_full_environment_config(env_config):
         "screen_height": Experiment.SCREEN_HEIGHT,
         "centering_position": [0.5, 0.6],  # Do not change, this centers the simulation
         "scaling": Experiment.SCALING,
+        "reward_speed_range": [7.0, 9.0],  # range of speed for which you get rewarded the high_speed_reward
+        "high_speed_reward": 2,  # reward for obtaining high speed
     }
     default_config.update(env_config)  # Update with values from updates
     return default_config

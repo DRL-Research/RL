@@ -1,11 +1,40 @@
 from utils.experiment.experiment_config import Experiment
-from utils.experiment.experiment_constants import full_env_config_exp1, full_env_config_exp2, full_env_config_exp3, \
+from utils.experiment.scenarios_config import full_env_config_exp1, full_env_config_exp2, full_env_config_exp3, \
     full_env_config_exp4, full_env_config_exp5
 from utils.training_loop import run_experiment
 from gymnasium.envs.registration import registry, register
 
 
 if __name__ == "__main__":
+    # Add this code at the beginning of your main script, before any environment is created
+
+    def patch_intersection_env():
+        """
+        Monkey-patch the IntersectionEnv class to handle missing reward_speed_range.
+        This function modifies the _agent_rewards method at runtime to add a default value
+        for reward_speed_range if it's missing from the configuration.
+        """
+        from highwayenv.intersection_class import IntersectionEnv
+
+        # Store the original method
+        original_agent_rewards = IntersectionEnv._agent_rewards
+
+        # Define the patched method
+        def patched_agent_rewards(self, vehicle):
+            # Add reward_speed_range if missing
+            if "reward_speed_range" not in self.config:
+                print("Adding missing reward_speed_range parameter to environment config")
+                self.config["reward_speed_range"] = [7.0, 9.0]
+            return original_agent_rewards(self, vehicle)
+
+        # Replace the original method with our patched version
+        IntersectionEnv._agent_rewards = patched_agent_rewards
+        print("Successfully patched IntersectionEnv._agent_rewards method")
+
+
+    # Execute the patch
+    patch_intersection_env()
+
     if "RELintersection-v0" not in registry:
         register(
             id="RELintersection-v0",
@@ -44,7 +73,7 @@ if __name__ == "__main__":
         LOAD_MODEL_DIRECTORY='experiments/08_12_2024-13_56_13_Experiment1/trained_model.zip',
         EPOCHS=2)
 
-    # dictionary were the keys are EXPERIMENT_ID (experiment name) and the values are environment configurations defined in experiment_constants.py
+    # dictionary were the keys are EXPERIMENT_ID (experiment name) and the values are environment configurations defined in scenarios_config.py
     custom_env_configs ={
         experiment1_config.EXPERIMENT_ID : full_env_config_exp1,
         experiment2_config.EXPERIMENT_ID : full_env_config_exp2,

@@ -1,7 +1,4 @@
-from dataclasses import dataclass
 import random
-
-from experiment.experiment_config import Experiment
 from utils.experiment.experiment_config import Experiment
 
 
@@ -102,7 +99,7 @@ CONFIG_EXP1 = {
         "car1": {
             "start_lane": Experiment.SOUTH_TO_NORTH,
             "destination": Experiment.OUTER_NORTH,
-            "speed": Experiment.THROTTLE_SLOW,  # Initial speed is FAST
+            "speed": Experiment.THROTTLE_SLOW,
             "init_location": {
                 "longitudinal": Experiment.LONGITUDINAL,
                 "lateral": Experiment.LATERAL
