@@ -61,38 +61,6 @@ class Agent(gym.Env):
             # Model prediction
             action, _ = model.predict(observation, deterministic=True)
             return action
-
-    def step(self, action):
-        """
-        Execute action in the environment.
-        """
-        self.episode_step += 1
-
-        # Take action in Highway environment
-        next_state, reward, done, truncated, info = self.highway_env.step(action)
-
-        # Get embedding from master if available
-        if self.master_model is not None:
-            # Create master input from full observation
-            # The observation includes all cars in the environment
-            master_input = torch.tensor(next_state, dtype=torch.float32).unsqueeze(0)
-            embedding = self.master_model.get_proto_action(master_input)
-            self.current_embedding = embedding
-        else:
-            # Use zeros if master not available (for debugging/testing)
-            self.current_embedding = np.zeros(4)
-
-        # Combine car1 state with embedding for agent observation
-        car1_state = next_state[:4]  # First 4 values are the ego car state
-        agent_observation = np.concatenate((car1_state, self.current_embedding))
-
-        # Update internal state
-        self.current_state = next_state
-        self.total_episode_reward += reward
-
-        # Return the standard Gym interface
-        return agent_observation, reward, done, truncated, info
-
     def reset(self, **kwargs):
         """
         Reset the environment for a new episode.
@@ -106,7 +74,11 @@ class Agent(gym.Env):
 
         # Get initial embedding from master if available
         if self.master_model is not None:
-            master_input = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
+            if len(state.shape) == 2 and state.shape[0] == 5 and state.shape[1] == 4:
+                master_input = torch.tensor(state.reshape(1, -1), dtype=torch.float32)
+            else:
+                master_input = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
+
             embedding = self.master_model.get_proto_action(master_input)
             self.current_embedding = embedding
         else:
@@ -114,10 +86,44 @@ class Agent(gym.Env):
             self.current_embedding = np.zeros(4)
 
         # Combine highway state with embedding for agent observation
-        car1_state = state[:4]  # First 4 values are the ego car state
+        car1_state = state[:4] if len(state.shape) == 1 else state[0]  # First 4 values are the ego car state
         agent_observation = np.concatenate((car1_state, self.current_embedding))
 
         return agent_observation, info
+
+    def step(self, action):
+        """
+        Execute action in the environment.
+        """
+        self.episode_step += 1
+
+        # Take action in Highway environment
+        next_state, reward, done, truncated, info = self.highway_env.step(action)
+
+        # Get embedding from master if available
+        if self.master_model is not None:
+            if len(next_state.shape) == 2 and next_state.shape[0] == 5 and next_state.shape[1] == 4:
+                master_input = torch.tensor(next_state.reshape(1, -1), dtype=torch.float32)
+            else:
+                master_input = torch.tensor(next_state, dtype=torch.float32).unsqueeze(0)
+
+            embedding = self.master_model.get_proto_action(master_input)
+            self.current_embedding = embedding
+        else:
+            # Use zeros if master not available
+            self.current_embedding = np.zeros(4)
+
+        # Combine car1 state with embedding for agent observation
+        car1_state = next_state[:4] if len(next_state.shape) == 1 else next_state[
+            0]  # First 4 values are the ego car state
+        agent_observation = np.concatenate((car1_state, self.current_embedding))
+
+        # Update internal state
+        self.current_state = next_state
+        self.total_episode_reward += reward
+
+        # Return the standard Gym interface
+        return agent_observation, reward, done, truncated, info
 
     def render(self, mode='human'):
         """

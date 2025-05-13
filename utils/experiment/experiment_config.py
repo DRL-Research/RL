@@ -10,9 +10,9 @@ class Experiment:
     BYPASS_RANDOM_INITIALIZATION = False
 
     # General Experiment Settings
-    EPISODES_PER_CYCLE: int = 100
+    EPISODES_PER_CYCLE: int = 50
     CYCLES: int = 3
-    EXPERIMENT_ID: str = ""
+    EXPERIMENT_ID: str = "fixed_training"
     ONLY_INFERENCE: bool = False
     EXPERIMENT_DATE_TIME: str = field(default_factory=lambda: datetime.now().strftime("%d_%m_%Y-%H_%M_%S"))
     SELF_PLAY_MODE: bool = False
@@ -22,13 +22,12 @@ class Experiment:
     SPAWN_PROBABILITY: float = 0
 
     # Model and Training Configuration
-    EPISODE_AMOUNT_FOR_TRAIN: int = 1
+    EPISODE_AMOUNT_FOR_TRAIN: int = 3  # Train after 3 episodes instead of 1
     EPOCHS: int = None
-    LEARNING_RATE: float = 0.05
-    N_STEPS: int = 22
-    #
+    LEARNING_RATE: float = 0.005  # Reduced from 0.05
+    N_STEPS: int = 64  # Increased from 30 to accommodate more steps
     BATCH_SIZE: int = 32
-    EPISODE_MAX_TIME = 13 #s
+    EPISODE_MAX_TIME = 50  # seconds
     LOSS_FUNCTION: str = "mse"
     EXPLORATION_EXPLOTATION_THRESHOLD: int = 50
 

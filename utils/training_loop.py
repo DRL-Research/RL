@@ -8,25 +8,13 @@ from agent_handler import Agent, DummyVecEnv
 from master_model import MasterModel
 from utils.model.model_handler import Model
 from utils.plotting_utils import PlottingUtils
-
-
+import traceback
 def run_experiment(experiment_config, env_config):
     """
     Main function to run a complete experiment with master-agent architecture
-    in the Highway intersection environment.
-
-    Args:
-        experiment_config: Configuration for experiment parameters
-        env_config: Configuration for the Highway environment
-
-    Returns:
-        agent_model: Trained agent model
-        master_model: Trained master model
-        collision_counter: Number of collisions during training
     """
     print("Starting experiment:", experiment_config.EXPERIMENT_ID)
-    print(
-        f"Environment configuration: {len(env_config['controlled_cars'])} controlled cars, {len(env_config['static_cars'])} static cars")
+    print(f"Environment configuration: {len(env_config['controlled_cars'])} controlled cars, {len(env_config['static_cars'])} static cars")
 
     # Create experiment directory if it doesn't exist
     os.makedirs(experiment_config.EXPERIMENT_PATH, exist_ok=True)
@@ -61,7 +49,7 @@ def run_experiment(experiment_config, env_config):
     if experiment_config.ONLY_INFERENCE:
         print("Running in inference-only mode")
 
-        # Load pre-trained models
+        # Load pre-trained models only in inference mode
         try:
             agent_model.load(f"{experiment_config.LOAD_MODEL_DIRECTORY}_agent.pth")
             master_model.load(f"{experiment_config.LOAD_MODEL_DIRECTORY}_master.pth")
@@ -83,16 +71,57 @@ def run_experiment(experiment_config, env_config):
     # Regular training run
     print("Running full training")
 
-    # Load previous weights if specified
-    if experiment_config.LOAD_PREVIOUS_WEIGHT:
+    # Only load previous weights if explicitly enabled and specified
+    if experiment_config.LOAD_PREVIOUS_WEIGHT and experiment_config.LOAD_MODEL_DIRECTORY:
         try:
             agent_model.load(f"{experiment_config.LOAD_MODEL_DIRECTORY}_agent.pth")
             master_model.load(f"{experiment_config.LOAD_MODEL_DIRECTORY}_master.pth")
-            print(
-                f"Loaded weights from {experiment_config.LOAD_MODEL_DIRECTORY}, models will be trained from this point!")
+            print(f"Loaded weights from {experiment_config.LOAD_MODEL_DIRECTORY}, models will be trained from this point!")
         except Exception as e:
             print(f"Failed to load weights: {e}")
             print("Starting training from scratch")
+    else:
+        print("Starting training from scratch (No previous weights loaded)")
+
+    # Run the training loop
+    p_episode_counter, p_agent_loss, p_master_loss, agent_model, collision_counter, all_rewards, all_actions, training_results = \
+        training_loop(p_agent_loss, p_master_loss, p_episode_counter,
+                      experiment_config, wrapped_env, agent_model, master_model)
+
+    # Save models
+    agent_model.save(f"{experiment_config.SAVE_MODEL_DIRECTORY}_agent.pth")
+    master_model.save(f"{experiment_config.SAVE_MODEL_DIRECTORY}_master.pth")
+    print("Models saved")
+
+    # Close loggers
+    agent_logger.close()
+    master_logger.close()
+
+    # Plot results with training metrics - הוספנו show_plots=True כדי להציג את הגרפים
+    plot_training_results(experiment_config, training_results, show_plots=True)
+
+    print("Training completed.")
+    print("Total collisions:", collision_counter)
+
+    # Close environment
+    wrapped_env.close()
+
+    return agent_model, master_model, collision_counter
+
+    # Regular training run - don't try to load weights unless explicitly requested
+    print("Running full training")
+
+    # Only load previous weights if explicitly enabled and specified
+    if experiment_config.LOAD_PREVIOUS_WEIGHT and experiment_config.LOAD_MODEL_DIRECTORY:
+        try:
+            agent_model.load(f"{experiment_config.LOAD_MODEL_DIRECTORY}_agent.pth")
+            master_model.load(f"{experiment_config.LOAD_MODEL_DIRECTORY}_master.pth")
+            print(f"Loaded weights from {experiment_config.LOAD_MODEL_DIRECTORY}, models will be trained from this point!")
+        except Exception as e:
+            print(f"Failed to load weights: {e}")
+            print("Starting training from scratch")
+    else:
+        print("Starting training from scratch (No previous weights loaded)")
 
     # Run the training loop
     p_episode_counter, p_agent_loss, p_master_loss, agent_model, collision_counter, all_rewards, all_actions = \
@@ -163,34 +192,48 @@ def run_evaluation(experiment_config, env, master_model, agent_model):
 
 def training_loop(p_agent_loss, p_master_loss, p_episode_counter, experiment, env, agent_model, master_model):
     """
-    Runs the overall training loop over cycles and episodes for the intersection environment.
-    In cycle 0, both the master and agent are trained.
-    In cycle 1, only the master is trained.
-    In cycle 2, only the agent is trained.
+    Main training loop with improved loss tracking
     """
     collision_counter, episode_counter, total_steps = 0, 0, 0
     all_rewards, all_actions = [], []
 
+    # מעקב אחר ערכי loss
+    master_value_losses = []
+    master_policy_losses = []
+    master_total_losses = []
+
+    agent_value_losses = []
+    agent_policy_losses = []
+    agent_total_losses = []
+
+    episode_rewards = []
+
     for cycle in range(experiment.CYCLES):
         print(f"@ Cycle {cycle + 1}/{experiment.CYCLES} @")
-        # Determine training mode based on the cycle:
+
+        # Set training mode based on cycle
         train_both = (cycle == 0)
         training_master = (not train_both) and (cycle % 2 == 1)
-        # For cycle 2: (not train_both) and (cycle % 2 == 0) => agent training only
+        training_agent = (not train_both) and (cycle % 2 == 0)
 
-        # Set training modes for both networks
+        # Set models' training states
         if train_both or training_master:
             master_model.unfreeze()
         else:
             master_model.freeze()
 
-        agent_model.policy.set_training_mode(train_both or (not training_master))
+        agent_model.policy.set_training_mode(train_both or training_agent)
 
         for episode in range(experiment.EPISODES_PER_CYCLE):
             episode_counter += 1
             p_episode_counter.append(episode_counter)
             print(f"  @ Episode {episode_counter} @")
 
+            # Reset buffers at start of episode
+            master_model.rollout_buffer.reset()
+            agent_model.rollout_buffer.reset()
+
+            # Run episode and collect data
             episode_sum_of_rewards, actions_per_episode, steps_counter, crashed = run_episode(
                 experiment, total_steps, env, master_model, agent_model,
                 train_both=train_both, training_master=training_master
@@ -198,44 +241,641 @@ def training_loop(p_agent_loss, p_master_loss, p_episode_counter, experiment, en
 
             if crashed:
                 collision_counter += 1
-                print('Collision!')
+                print('Episode result: Collision')
             else:
-                print('Success!')
+                print('Episode result: Success')
 
             total_steps += steps_counter
             all_rewards.append(episode_sum_of_rewards)
             all_actions.append(actions_per_episode)
+            episode_rewards.append(episode_sum_of_rewards)
 
-            print(f"  Episode {episode_counter} finished with reward: {episode_sum_of_rewards}")
-            print(f"  Total Steps: {total_steps}, Episode steps: {steps_counter}")
+            print(f"Episode summary - Reward: {episode_sum_of_rewards}, Steps: {steps_counter}")
+            print(
+                f"Buffer content - Master: {master_model.rollout_buffer.pos} steps, Agent: {agent_model.rollout_buffer.pos} steps")
 
-            # Train models when rollout buffers are full or at designated interval
-            if (master_model.rollout_buffer.full or agent_model.rollout_buffer.full or
-                    episode_counter % experiment.EPISODE_AMOUNT_FOR_TRAIN == 0):
+            # Train on episode data
+            with torch.no_grad():
+                current_obs, _ = env.reset()
+                full_state = env.env.current_state
+                last_master_tensor = torch.tensor(full_state, dtype=torch.float32).unsqueeze(0)
 
-                # Get last state for training updates
-                with torch.no_grad():
-                    # Get current observation
-                    current_obs, _ = env.reset()
+            # Train based on cycle
+            if train_both:
+                print("Training both networks...")
+                master_losses = train_master_and_reset_buffer(env, master_model, full_state)
+                if master_losses:
+                    master_policy_losses.append(master_losses[0])
+                    master_value_losses.append(master_losses[1])
+                    master_total_losses.append(master_losses[2])
 
-                    # The observation includes car1_state + embedding
-                    # We need to get the full state (all cars) for master training
-                    full_state = env.env.current_state
-                    last_master_tensor = torch.tensor(full_state, dtype=torch.float32).unsqueeze(0)
+                agent_losses = train_agent_and_reset_buffer(env, master_model, agent_model, last_master_tensor)
+                if agent_losses:
+                    agent_policy_losses.append(agent_losses[0])
+                    agent_value_losses.append(agent_losses[1])
+                    agent_total_losses.append(agent_losses[2])
 
-                if train_both:
-                    # In cycle 0: train both master and agent
-                    last_master_tensor = train_master_and_reset_buffer(env, master_model, full_state)
-                    train_agent_and_reset_buffer(env, master_model, agent_model, last_master_tensor)
-                elif training_master:
-                    # In cycle 1: train only the master
-                    train_master_and_reset_buffer(env, master_model, full_state)
-                else:
-                    # In cycle 2: train only the agent
-                    train_agent_and_reset_buffer(env, master_model, agent_model, last_master_tensor)
+            elif training_master:
+                print("Training master only...")
+                master_losses = train_master_and_reset_buffer(env, master_model, full_state)
+                if master_losses:
+                    master_policy_losses.append(master_losses[0])
+                    master_value_losses.append(master_losses[1])
+                    master_total_losses.append(master_losses[2])
+
+                # Add None for agent losses to maintain alignment
+                agent_policy_losses.append(None)
+                agent_value_losses.append(None)
+                agent_total_losses.append(None)
+
+            elif training_agent:
+                print("Training agent only...")
+                agent_losses = train_agent_and_reset_buffer(env, master_model, agent_model, last_master_tensor)
+                if agent_losses:
+                    agent_policy_losses.append(agent_losses[0])
+                    agent_value_losses.append(agent_losses[1])
+                    agent_total_losses.append(agent_losses[2])
+
+                # Add None for master losses to maintain alignment
+                master_policy_losses.append(None)
+                master_value_losses.append(None)
+                master_total_losses.append(None)
+
+    # שמירת כל תוצאות האימון למבנה נתונים אחד
+    training_results = {
+        "episode_rewards": episode_rewards,
+        "master_policy_losses": master_policy_losses,
+        "master_value_losses": master_value_losses,
+        "master_total_losses": master_total_losses,
+        "agent_policy_losses": agent_policy_losses,
+        "agent_value_losses": agent_value_losses,
+        "agent_total_losses": agent_total_losses,
+        "all_actions": all_actions
+    }
 
     print("Training completed.")
-    return p_episode_counter, p_agent_loss, p_master_loss, agent_model, collision_counter, all_rewards, all_actions
+
+    return p_episode_counter, p_agent_loss, p_master_loss, agent_model, collision_counter, all_rewards, all_actions, training_results
+
+
+def monitor_episode_results(master_model, agent_model):
+    """Prints minimal statistics about the rollout buffers"""
+    master_buffer_size = master_model.rollout_buffer.pos
+    agent_buffer_size = agent_model.rollout_buffer.pos
+
+    print(f"Current buffer sizes - Master: {master_buffer_size}, Agent: {agent_buffer_size}")
+
+    if master_buffer_size > 0 and hasattr(master_model.rollout_buffer, 'rewards'):
+        rewards = master_model.rollout_buffer.rewards[:master_buffer_size]
+        print(f"Episode rewards - Min: {rewards.min():.2f}, Max: {rewards.max():.2f}, Avg: {rewards.mean():.2f}")
+
+
+def plot_training_results(experiment, results, show_plots=True):
+    """
+    Generate improved training visualization with loss curves
+    Args:
+        experiment: the experiment configuration
+        results: dictionary with training results
+        show_plots: if True, displays the plots interactively
+    """
+    print("Generating detailed training plots...")
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import os
+
+    # Create directory for saving plots
+    plots_dir = os.path.join(experiment.EXPERIMENT_PATH, "plots")
+    os.makedirs(plots_dir, exist_ok=True)
+
+    # Unpack the results
+    episode_rewards = results["episode_rewards"]
+    master_policy_losses = results["master_policy_losses"]
+    master_value_losses = results["master_value_losses"]
+    master_total_losses = results["master_total_losses"]
+    agent_policy_losses = results["agent_policy_losses"]
+    agent_value_losses = results["agent_value_losses"]
+    agent_total_losses = results["agent_total_losses"]
+
+    # Create x-axis for episodes
+    episodes = np.arange(1, len(episode_rewards) + 1)
+
+    # Set up the figure style
+    plt.style.use('ggplot')
+
+    # 1. Plot episode rewards
+    plt.figure(figsize=(10, 6))
+    plt.plot(episodes, episode_rewards, 'o-', color='#2C7BB6', linewidth=2, markersize=6)
+    plt.axhline(y=0, color='gray', linestyle='--', alpha=0.7)
+    plt.grid(True, alpha=0.3)
+    plt.title('Episode Rewards', fontsize=16)
+    plt.xlabel('Episode', fontsize=14)
+    plt.ylabel('Reward', fontsize=14)
+    plt.tight_layout()
+    plt.savefig(os.path.join(plots_dir, 'episode_rewards.png'))
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()
+
+    # 2. Plot Master value loss
+    plt.figure(figsize=(10, 6))
+    valid_indices = [i for i, val in enumerate(master_value_losses) if val is not None]
+    valid_episodes = [episodes[i] for i in valid_indices]
+    valid_losses = [master_value_losses[i] for i in valid_indices]
+
+    if valid_losses:
+        plt.plot(valid_episodes, valid_losses, 'o-', color='#D95F02', linewidth=2, markersize=6)
+        plt.grid(True, alpha=0.3)
+        plt.title('Master Value Loss', fontsize=16)
+        plt.xlabel('Episode', fontsize=14)
+        plt.ylabel('Loss', fontsize=14)
+        plt.yscale('log')  # Use log scale since losses can vary greatly
+        plt.tight_layout()
+        plt.savefig(os.path.join(plots_dir, 'master_value_loss.png'))
+        if show_plots:
+            plt.show()
+        else:
+            plt.close()
+
+    # 3. Plot Master total loss
+    plt.figure(figsize=(10, 6))
+    valid_indices = [i for i, val in enumerate(master_total_losses) if val is not None]
+    valid_episodes = [episodes[i] for i in valid_indices]
+    valid_losses = [master_total_losses[i] for i in valid_indices]
+
+    if valid_losses:
+        plt.plot(valid_episodes, valid_losses, 'o-', color='#7570B3', linewidth=2, markersize=6)
+        plt.grid(True, alpha=0.3)
+        plt.title('Master Total Loss', fontsize=16)
+        plt.xlabel('Episode', fontsize=14)
+        plt.ylabel('Loss', fontsize=14)
+        plt.yscale('log')  # Use log scale since losses can vary greatly
+        plt.tight_layout()
+        plt.savefig(os.path.join(plots_dir, 'master_total_loss.png'))
+        if show_plots:
+            plt.show()
+        else:
+            plt.close()
+
+    # 4. Plot Agent value loss
+    plt.figure(figsize=(10, 6))
+    valid_indices = [i for i, val in enumerate(agent_value_losses) if val is not None]
+    valid_episodes = [episodes[i] for i in valid_indices]
+    valid_losses = [agent_value_losses[i] for i in valid_indices]
+
+    if valid_losses:
+        plt.plot(valid_episodes, valid_losses, 'o-', color='#1B9E77', linewidth=2, markersize=6)
+        plt.grid(True, alpha=0.3)
+        plt.title('Agent Value Loss', fontsize=16)
+        plt.xlabel('Episode', fontsize=14)
+        plt.ylabel('Loss', fontsize=14)
+        plt.yscale('log')  # Use log scale since losses can vary greatly
+        plt.tight_layout()
+        plt.savefig(os.path.join(plots_dir, 'agent_value_loss.png'))
+        if show_plots:
+            plt.show()
+        else:
+            plt.close()
+
+    # 5. Plot Agent total loss
+    plt.figure(figsize=(10, 6))
+    valid_indices = [i for i, val in enumerate(agent_total_losses) if val is not None]
+    valid_episodes = [episodes[i] for i in valid_indices]
+    valid_losses = [agent_total_losses[i] for i in valid_indices]
+
+    if valid_losses:
+        plt.plot(valid_episodes, valid_losses, 'o-', color='#E7298A', linewidth=2, markersize=6)
+        plt.grid(True, alpha=0.3)
+        plt.title('Agent Total Loss', fontsize=16)
+        plt.xlabel('Episode', fontsize=14)
+        plt.ylabel('Loss', fontsize=14)
+        plt.yscale('log')  # Use log scale since losses can vary greatly
+        plt.tight_layout()
+        plt.savefig(os.path.join(plots_dir, 'agent_total_loss.png'))
+        if show_plots:
+            plt.show()
+        else:
+            plt.close()
+
+    # 6. Combined plot for losses
+    plt.figure(figsize=(12, 8))
+
+    # Master losses
+    master_valid_indices = [i for i, val in enumerate(master_total_losses) if val is not None]
+    master_valid_episodes = [episodes[i] for i in master_valid_indices]
+    master_valid_total_losses = [master_total_losses[i] for i in master_valid_indices]
+    master_valid_value_losses = [master_value_losses[i] for i in master_valid_indices]
+
+    # Agent losses
+    agent_valid_indices = [i for i, val in enumerate(agent_total_losses) if val is not None]
+    agent_valid_episodes = [episodes[i] for i in agent_valid_indices]
+    agent_valid_total_losses = [agent_total_losses[i] for i in agent_valid_indices]
+    agent_valid_value_losses = [agent_value_losses[i] for i in agent_valid_indices]
+
+    if master_valid_total_losses:
+        plt.plot(master_valid_episodes, master_valid_total_losses, 'o-', label='Master Total Loss',
+                 color='#7570B3', linewidth=2, markersize=6)
+        plt.plot(master_valid_episodes, master_valid_value_losses, 's-', label='Master Value Loss',
+                 color='#D95F02', linewidth=2, markersize=6)
+
+    if agent_valid_total_losses:
+        plt.plot(agent_valid_episodes, agent_valid_total_losses, 'o-', label='Agent Total Loss',
+                 color='#E7298A', linewidth=2, markersize=6)
+        plt.plot(agent_valid_episodes, agent_valid_value_losses, 's-', label='Agent Value Loss',
+                 color='#1B9E77', linewidth=2, markersize=6)
+
+    plt.grid(True, alpha=0.3)
+    plt.title('Training Losses', fontsize=16)
+    plt.xlabel('Episode', fontsize=14)
+    plt.ylabel('Loss (log scale)', fontsize=14)
+    plt.yscale('log')
+    plt.legend(fontsize=12)
+    plt.tight_layout()
+    plt.savefig(os.path.join(plots_dir, 'combined_losses.png'))
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()
+
+    # 7. Plot combined training metrics
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
+
+    # Plot rewards
+    ax1.plot(episodes, episode_rewards, 'o-', color='#2C7BB6', linewidth=2, markersize=6)
+    ax1.axhline(y=0, color='gray', linestyle='--', alpha=0.7)
+    ax1.set_title('Episode Rewards', fontsize=16)
+    ax1.set_ylabel('Reward', fontsize=14)
+    ax1.grid(True, alpha=0.3)
+
+    # Plot losses on second axis
+    if master_valid_total_losses:
+        ax2.plot(master_valid_episodes, master_valid_total_losses, 'o-', label='Master Loss',
+                 color='#7570B3', linewidth=2, markersize=6)
+
+    if agent_valid_total_losses:
+        ax2.plot(agent_valid_episodes, agent_valid_total_losses, 'o-', label='Agent Loss',
+                 color='#E7298A', linewidth=2, markersize=6)
+
+    ax2.set_title('Training Losses', fontsize=16)
+    ax2.set_xlabel('Episode', fontsize=14)
+    ax2.set_ylabel('Loss (log scale)', fontsize=14)
+    ax2.set_yscale('log')
+    ax2.grid(True, alpha=0.3)
+    ax2.legend(fontsize=12)
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(plots_dir, 'training_summary.png'))
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()
+
+    # אם נבחר להציג את כל הפלוטים, המתן לסיום בלחיצת X על כל חלון
+    if show_plots:
+        print("Plots displayed. Close all plot windows to continue.")
+
+    print(f"All plots saved to: {plots_dir}")
+
+
+# Add this function to monitor buffer content after each episode
+def monitor_rollout_buffers(master_model, agent_model):
+    """Prints statistics about the rollout buffers for debugging"""
+    print("\n--- Rollout Buffer Statistics ---")
+
+    # Master buffer stats
+    print("Master rollout buffer:")
+    print(f"  Buffer size: {master_model.rollout_buffer.buffer_size}")
+    print(f"  Current position: {master_model.rollout_buffer.pos}")
+    print(f"  Is full: {master_model.rollout_buffer.full}")
+
+    if hasattr(master_model.rollout_buffer, 'observations') and master_model.rollout_buffer.observations is not None:
+        print(f"  Observations shape: {master_model.rollout_buffer.observations.shape}")
+
+    if hasattr(master_model.rollout_buffer, 'actions') and master_model.rollout_buffer.actions is not None:
+        print(f"  Actions shape: {master_model.rollout_buffer.actions.shape}")
+
+    if hasattr(master_model.rollout_buffer, 'rewards') and master_model.rollout_buffer.rewards is not None:
+        rewards = master_model.rollout_buffer.rewards[:master_model.rollout_buffer.pos]
+        if len(rewards) > 0:
+            print(f"  Rewards stats: min={rewards.min():.4f}, max={rewards.max():.4f}, mean={rewards.mean():.4f}")
+            print(f"  Rewards: {rewards}")
+
+    # Agent buffer stats
+    print("\nAgent rollout buffer:")
+    print(f"  Buffer size: {agent_model.rollout_buffer.buffer_size}")
+    print(f"  Current position: {agent_model.rollout_buffer.pos}")
+    print(f"  Is full: {agent_model.rollout_buffer.full}")
+
+    if hasattr(agent_model.rollout_buffer, 'observations') and agent_model.rollout_buffer.observations is not None:
+        print(f"  Observations shape: {agent_model.rollout_buffer.observations.shape}")
+
+    if hasattr(agent_model.rollout_buffer, 'actions') and agent_model.rollout_buffer.actions is not None:
+        print(f"  Actions shape: {agent_model.rollout_buffer.actions.shape}")
+
+    if hasattr(agent_model.rollout_buffer, 'rewards') and agent_model.rollout_buffer.rewards is not None:
+        rewards = agent_model.rollout_buffer.rewards[:agent_model.rollout_buffer.pos]
+        if len(rewards) > 0:
+            print(f"  Rewards stats: min={rewards.min():.4f}, max={rewards.max():.4f}, mean={rewards.mean():.4f}")
+            print(f"  Rewards: {rewards}")
+
+    print("-------------------------------\n")
+
+
+def train_master_and_reset_buffer(env, master_model, full_obs):
+    """Trains the master model and resets its buffer - Returns loss values"""
+    import traceback
+
+    policy_loss_val = None
+    value_loss_val = None
+    total_loss_val = None
+
+    try:
+        # Prepare tensor for last value prediction
+        with torch.no_grad():
+            if isinstance(full_obs, np.ndarray):
+                if len(full_obs.shape) == 3:
+                    last_master_tensor = torch.tensor(full_obs.reshape(1, -1), dtype=torch.float32)
+                elif len(full_obs.shape) == 2 and full_obs.shape[0] > 1:
+                    last_master_tensor = torch.tensor(full_obs.reshape(1, -1), dtype=torch.float32)
+                else:
+                    last_master_tensor = torch.tensor(full_obs, dtype=torch.float32).unsqueeze(0)
+            elif isinstance(full_obs, torch.Tensor):
+                if len(full_obs.shape) == 3:
+                    last_master_tensor = full_obs.reshape(1, -1)
+                elif len(full_obs.shape) == 2 and full_obs.shape[0] > 1:  # שגיאה הייתה כאן
+                    last_master_tensor = full_obs.reshape(1, -1)
+                else:
+                    last_master_tensor = full_obs.unsqueeze(0) if len(full_obs.shape) == 1 else full_obs
+            else:
+                try:
+                    last_master_tensor = torch.tensor(full_obs, dtype=torch.float32).unsqueeze(0)
+                except:
+                    last_master_tensor = torch.zeros((1, master_model.observation_dim), dtype=torch.float32)
+
+            # Get last value for returns computation
+            last_value = master_model.model.policy.predict_values(last_master_tensor)
+
+        # Skip training if buffer is empty
+        if master_model.rollout_buffer.pos == 0:
+            print("Master model: No data to train on")
+            return None
+
+        # Compute returns and advantage
+        master_model.rollout_buffer.compute_returns_and_advantage(last_value, np.array([True]))
+
+        # Override the get method to allow partial buffer
+        orig_get = master_model.rollout_buffer.get
+
+        def modified_get(batch_size):
+            if not master_model.rollout_buffer.full:
+                orig_full = master_model.rollout_buffer.full
+                master_model.rollout_buffer.full = True
+                try:
+                    indices = np.arange(master_model.rollout_buffer.pos)
+                    if len(indices) > 0:
+                        return master_model.rollout_buffer._get_samples(indices)
+                    else:
+                        return None
+                finally:
+                    master_model.rollout_buffer.full = orig_full
+            else:
+                return next(orig_get(batch_size))
+
+        try:
+            # Apply the monkey patch
+            master_model.rollout_buffer.get = modified_get
+
+            # Get data from buffer
+            rollout_data = master_model.rollout_buffer.get(batch_size=None)
+
+            if rollout_data is not None:
+                steps_trained = len(rollout_data.observations)
+                print(f"Master model trained on {steps_trained} steps")
+
+                # Training process
+                observations = rollout_data.observations
+                actions = rollout_data.actions
+
+                # Convert to tensors
+                observations_tensor = torch.FloatTensor(observations)
+                actions_tensor = torch.FloatTensor(actions)
+
+                # Get policy and optimizer
+                policy = master_model.model.policy
+                optimizer = policy.optimizer
+
+                # Forward pass
+                values, log_probs, entropy = policy.evaluate_actions(observations_tensor, actions_tensor)
+
+                # Calculate value loss
+                value_loss = ((values - torch.FloatTensor(rollout_data.returns)) ** 2).mean()
+
+                # Calculate policy loss - FIXED to use a simple policy gradient approach
+                policy_loss = -log_probs.mean()  # Simplified policy loss
+
+                # Calculate entropy loss
+                entropy_loss = -entropy.mean()
+
+                # Total loss
+                loss = policy_loss + 0.5 * value_loss + 0.01 * entropy_loss
+
+                # Optimization step
+                optimizer.zero_grad()
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(policy.parameters(), 0.5)
+                optimizer.step()
+
+                # Save loss values for plotting
+                policy_loss_val = policy_loss.item()
+                value_loss_val = value_loss.item()
+                total_loss_val = loss.item()
+
+                print(
+                    f"Master loss - Policy: {policy_loss_val:.4f}, Value: {value_loss_val:.4f}, Total: {total_loss_val:.4f}")
+            else:
+                print("Master model: No valid data for training")
+        finally:
+            # Restore original method
+            master_model.rollout_buffer.get = orig_get
+
+    except Exception as e:
+        print(f"Error during master training: {str(e)}")
+        traceback.print_exc()
+
+    # Reset buffer
+    master_model.rollout_buffer.reset()
+    print("Master buffer reset")
+
+    # Return loss values if training occurred
+    if policy_loss_val is not None:
+        return [policy_loss_val, value_loss_val, total_loss_val]
+    return None
+
+def train_agent_and_reset_buffer(env, master_model, agent_model, last_master_tensor):
+    """Trains the agent model and resets its buffer - Returns loss values"""
+    import traceback
+
+    policy_loss_val = None
+    value_loss_val = None
+    total_loss_val = None
+
+    try:
+        with torch.no_grad():
+            # Prepare tensor for embedding calculation
+            if isinstance(last_master_tensor, np.ndarray):
+                if len(last_master_tensor.shape) == 3:
+                    shaped_tensor = torch.tensor(last_master_tensor.reshape(1, -1), dtype=torch.float32)
+                elif len(last_master_tensor.shape) == 2 and last_master_tensor.shape[0] > 1:
+                    shaped_tensor = torch.tensor(last_master_tensor.reshape(1, -1), dtype=torch.float32)
+                else:
+                    shaped_tensor = torch.tensor(last_master_tensor, dtype=torch.float32).unsqueeze(0)
+            elif isinstance(last_master_tensor, torch.Tensor):
+                if len(last_master_tensor.shape) == 3:
+                    shaped_tensor = last_master_tensor.reshape(1, -1)
+                elif len(last_master_tensor.shape) == 2 and last_master_tensor.shape[0] > 1:
+                    shaped_tensor = last_master_tensor.reshape(1, -1)
+                else:
+                    shaped_tensor = last_master_tensor.unsqueeze(0) if len(
+                        last_master_tensor.shape) == 1 else last_master_tensor
+
+            # Get embedding
+            embedding = master_model.get_proto_action(shaped_tensor)
+
+            # Extract car1 state
+            if isinstance(last_master_tensor, np.ndarray):
+                if len(last_master_tensor.shape) == 3:
+                    car_state = last_master_tensor[0, 0].flatten()
+                elif len(last_master_tensor.shape) == 2 and last_master_tensor.shape[0] > 1:
+                    car_state = last_master_tensor[0].flatten()
+                else:
+                    car_state = last_master_tensor[:4].flatten()
+            elif isinstance(last_master_tensor, torch.Tensor):
+                if len(last_master_tensor.shape) == 3:
+                    car_state = last_master_tensor[0, 0].cpu().numpy().flatten()
+                elif len(last_master_tensor.shape) == 2 and last_master_tensor.shape[0] > 1:
+                    car_state = last_master_tensor[0].cpu().numpy().flatten()
+                else:
+                    car_state = last_master_tensor[:4].cpu().numpy().flatten()
+
+            # Ensure 1D arrays
+            car_state = np.array(car_state).flatten()
+            embedding = np.array(embedding).flatten()
+
+            # Create agent observation
+            agent_obs = np.concatenate((car_state, embedding))
+
+            # Predict last value - FIX for dimension mismatch
+            agent_obs_tensor = torch.tensor(agent_obs, dtype=torch.float32).unsqueeze(0)
+
+            # Ensure dimensions match the network
+            expected_dim = agent_model.policy.observation_space.shape[0]
+            if agent_obs_tensor.shape[1] != expected_dim:
+                # Reshape or pad to match expected dimensions
+                if agent_obs_tensor.shape[1] > expected_dim:
+                    agent_obs_tensor = agent_obs_tensor[:, :expected_dim]
+                else:
+                    padding = torch.zeros((1, expected_dim - agent_obs_tensor.shape[1]), dtype=torch.float32)
+                    agent_obs_tensor = torch.cat([agent_obs_tensor, padding], dim=1)
+
+            last_value = agent_model.policy.predict_values(agent_obs_tensor)
+
+        # Skip training if buffer is empty
+        if agent_model.rollout_buffer.pos == 0:
+            print("Agent model: No data to train on")
+            return None
+
+        # Compute returns and advantage
+        agent_model.rollout_buffer.compute_returns_and_advantage(last_value, np.array([True]))
+
+        # Override the get method to allow partial buffer
+        orig_get = agent_model.rollout_buffer.get
+
+        def modified_get(batch_size):
+            if not agent_model.rollout_buffer.full:
+                orig_full = agent_model.rollout_buffer.full
+                agent_model.rollout_buffer.full = True
+                try:
+                    indices = np.arange(agent_model.rollout_buffer.pos)
+                    if len(indices) > 0:
+                        return agent_model.rollout_buffer._get_samples(indices)
+                    else:
+                        return None
+                finally:
+                    agent_model.rollout_buffer.full = orig_full
+            else:
+                return next(orig_get(batch_size))
+
+        try:
+            # Apply the monkey patch
+            agent_model.rollout_buffer.get = modified_get
+
+            # Get data from buffer
+            rollout_data = agent_model.rollout_buffer.get(batch_size=None)
+
+            if rollout_data is not None:
+                steps_trained = len(rollout_data.observations)
+                print(f"Agent model trained on {steps_trained} steps")
+
+                # Training process
+                observations = rollout_data.observations
+                actions = rollout_data.actions
+
+                # Convert to tensors
+                observations_tensor = torch.FloatTensor(observations)
+                actions_tensor = torch.FloatTensor(actions)
+
+                # Forward pass
+                policy = agent_model.policy
+                optimizer = policy.optimizer
+
+                values, log_probs, entropy = policy.evaluate_actions(observations_tensor, actions_tensor)
+
+                # Calculate value loss
+                value_loss = ((values - torch.FloatTensor(rollout_data.returns)) ** 2).mean()
+
+                # Calculate policy loss - Using advantages
+                advantages = rollout_data.advantages
+                advantages_tensor = torch.FloatTensor(advantages)
+                policy_loss = -(log_probs * advantages_tensor).mean()
+
+                # Calculate entropy loss
+                entropy_loss = -entropy.mean()
+
+                # Total loss
+                loss = policy_loss + 0.5 * value_loss + 0.01 * entropy_loss
+
+                # Optimization step
+                optimizer.zero_grad()
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(policy.parameters(), 0.5)
+                optimizer.step()
+
+                # Save loss values for plotting
+                policy_loss_val = policy_loss.item()
+                value_loss_val = value_loss.item()
+                total_loss_val = loss.item()
+
+                print(
+                    f"Agent loss - Policy: {policy_loss_val:.4f}, Value: {value_loss_val:.4f}, Total: {total_loss_val:.4f}")
+            else:
+                print("Agent model: No valid data for training")
+        finally:
+            # Restore original method
+            agent_model.rollout_buffer.get = orig_get
+
+    except Exception as e:
+        print(f"Error during agent training: {str(e)}")
+        traceback.print_exc()
+
+    # Reset buffer
+    agent_model.rollout_buffer.reset()
+    print("Agent buffer reset")
+
+    # Return loss values if training occurred
+    if policy_loss_val is not None:
+        return [policy_loss_val, value_loss_val, total_loss_val]
+    return None
 
 
 def run_episode(experiment, total_steps, env, master_model, agent_model, train_both, training_master):
@@ -254,10 +894,22 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
     while not done and not truncated:
         steps_counter += 1
 
-        # The current_obs is already agent_obs (car1_state + embedding)
-        # For master input, we need the full state (all cars)
+        # Get the full state from environment
         full_obs = env.env.current_state
-        master_input = torch.tensor(full_obs, dtype=torch.float32).unsqueeze(0)
+
+        # Ensure the input has the correct shape for the master model
+        if isinstance(full_obs, np.ndarray):
+            if len(full_obs.shape) == 2 and full_obs.shape[0] > 1:
+                master_input = torch.tensor(full_obs.reshape(1, -1), dtype=torch.float32)
+            else:
+                master_input = torch.tensor(full_obs, dtype=torch.float32).unsqueeze(0)
+        elif isinstance(full_obs, torch.Tensor):
+            if len(full_obs.shape) == 2 and full_obs.shape[0] > 1:
+                master_input = full_obs.reshape(1, -1)
+            else:
+                master_input = full_obs.unsqueeze(0) if len(full_obs.shape) == 1 else full_obs
+        else:
+            raise ValueError(f"Unexpected type for observation: {type(full_obs)}")
 
         # Get embedding from master network
         if train_both or training_master:
@@ -267,15 +919,48 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
         else:
             embedding = master_model.get_proto_action(master_input)
 
+        # Combine car1 state with master's embedding for agent
+        if isinstance(full_obs, np.ndarray):
+            if len(full_obs.shape) == 2 and full_obs.shape[0] > 1:
+                car1_state = full_obs[0].flatten()  # First car's state
+            else:
+                car1_state = full_obs[:4].flatten()  # First 4 elements
+        elif isinstance(full_obs, torch.Tensor):
+            if len(full_obs.shape) == 2 and full_obs.shape[0] > 1:
+                car1_state = full_obs[0].cpu().numpy().flatten()
+            else:
+                car1_state = full_obs[:4].cpu().numpy().flatten()
+        else:
+            car1_state = np.zeros(4)
+
+        # Make sure embedding is flattened
+        if hasattr(embedding, 'shape') and len(embedding.shape) > 1:
+            embedding = embedding.flatten()
+
+        # Create agent observation
+        try:
+            agent_obs = np.concatenate((car1_state, embedding))
+        except ValueError as e:
+            # Fallback to zeros
+            agent_obs = np.zeros(8)  # 4 for car + 4 for embedding
+            agent_obs[:len(car1_state)] = car1_state.flatten()[:4]
+            if hasattr(embedding, 'shape'):
+                agent_obs[4:4 + len(embedding.flatten())] = embedding.flatten()[:4]
+
         # Get agent action
         agent_action = Agent.get_action(agent_model, current_obs, total_steps,
                                         experiment.EXPLORATION_EXPLOTATION_THRESHOLD)
-        scalar_action = agent_action[0]
+        if hasattr(agent_action, 'shape') and len(agent_action.shape) > 0:
+            scalar_action = agent_action[0]
+        elif isinstance(agent_action, list) and len(agent_action) > 0:
+            scalar_action = agent_action[0]
+        else:
+            scalar_action = agent_action
 
         # For PPO buffer update
         if train_both or not training_master:
             with torch.no_grad():
-                obs_tensor = torch.tensor(current_obs, dtype=torch.float32).unsqueeze(0)
+                obs_tensor = torch.tensor(agent_obs, dtype=torch.float32).unsqueeze(0)
                 agent_value = agent_model.policy.predict_values(obs_tensor)
                 dist = agent_model.policy.get_distribution(obs_tensor)
                 action_array = np.array([[scalar_action]])
@@ -284,8 +969,7 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
 
         # Take step in environment
         env.render()
-        print(f"Action: {agent_action}")
-        next_obs, reward, done, truncated, info = env.step(agent_action)
+        next_obs, reward, done, truncated, info = env.step(scalar_action)
 
         episode_sum_of_rewards += reward
         all_rewards.append(reward)
@@ -297,16 +981,30 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
 
         # Add to rollout buffers
         episode_start = (steps_counter == 1)
+
         if train_both:
+            # For master buffer, ensure full_obs is flattened
+            full_obs_flat = full_obs.reshape(-1) if isinstance(full_obs, np.ndarray) and len(
+                full_obs.shape) == 2 else full_obs
+
+            # Add to agent buffer
             agent_model.rollout_buffer.add(
-                current_obs, action_array, reward, episode_start, agent_value, log_prob_agent
+                agent_obs, action_array, reward, episode_start, agent_value, log_prob_agent
             )
-            master_model.rollout_buffer.add(full_obs, embedding, reward, episode_start, value, log_prob)
+
+            # Add to master buffer
+            master_model.rollout_buffer.add(
+                full_obs_flat, embedding, reward, episode_start, value, log_prob)
         elif training_master:
-            master_model.rollout_buffer.add(full_obs, embedding, reward, episode_start, value, log_prob)
+            # For master buffer, ensure full_obs is flattened
+            full_obs_flat = full_obs.reshape(-1) if isinstance(full_obs, np.ndarray) and len(
+                full_obs.shape) == 2 else full_obs
+
+            master_model.rollout_buffer.add(
+                full_obs_flat, embedding, reward, episode_start, value, log_prob)
         else:
             agent_model.rollout_buffer.add(
-                current_obs, action_array, reward, episode_start, agent_value, log_prob_agent
+                agent_obs, action_array, reward, episode_start, agent_value, log_prob_agent
             )
 
         # Update current observation
@@ -314,70 +1012,45 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
 
     return episode_sum_of_rewards, actions_per_episode, steps_counter, crashed
 
+# Add this monitor function to your code
+def monitor_rollout_buffers(master_model, agent_model):
+    """Prints statistics about the rollout buffers for debugging"""
+    print("\n--- Rollout Buffer Statistics ---")
 
-def train_master_and_reset_buffer(env, master_model, full_obs):
-    """Trains the master model and resets its buffer"""
-    with torch.no_grad():
-        last_master_tensor = torch.tensor(full_obs, dtype=torch.float32).unsqueeze(0)
-        last_value = master_model.model.policy.predict_values(last_master_tensor)
+    # Master buffer stats
+    print("Master rollout buffer:")
+    print(f"  Buffer size: {master_model.rollout_buffer.buffer_size}")
+    print(f"  Current position: {master_model.rollout_buffer.pos}")
+    print(f"  Is full: {master_model.rollout_buffer.full}")
 
-    master_model.rollout_buffer.compute_returns_and_advantage(last_value, np.array([True]))
-    print("Training Master...")
-    master_model.model.learn(total_timesteps=25, reset_num_timesteps=False, log_interval=1)
-    master_model.rollout_buffer.reset()
-    return last_master_tensor
+    if hasattr(master_model.rollout_buffer, 'observations') and master_model.rollout_buffer.observations is not None:
+        print(f"  Observations shape: {master_model.rollout_buffer.observations.shape}")
 
+    if hasattr(master_model.rollout_buffer, 'actions') and master_model.rollout_buffer.actions is not None:
+        print(f"  Actions shape: {master_model.rollout_buffer.actions.shape}")
 
-def train_agent_and_reset_buffer(env, master_model, agent_model, last_master_tensor):
-    """Trains the agent model and resets its buffer"""
-    with torch.no_grad():
-        # Get embedding from master
-        embedding = master_model.get_proto_action(last_master_tensor)
+    if hasattr(master_model.rollout_buffer, 'rewards') and master_model.rollout_buffer.rewards is not None:
+        rewards = master_model.rollout_buffer.rewards[:master_model.rollout_buffer.pos]
+        if len(rewards) > 0:
+            print(f"  Rewards stats: min={rewards.min():.4f}, max={rewards.max():.4f}, mean={rewards.mean():.4f}")
+            print(f"  Rewards: {rewards}")
 
-        # Combine with car state - in intersection, car1 is the ego vehicle
-        car_state = last_master_tensor.cpu().numpy()[0][:4]  # First 4 values for car1
-        agent_obs = np.concatenate((car_state, embedding))
+    # Agent buffer stats
+    print("\nAgent rollout buffer:")
+    print(f"  Buffer size: {agent_model.rollout_buffer.buffer_size}")
+    print(f"  Current position: {agent_model.rollout_buffer.pos}")
+    print(f"  Is full: {agent_model.rollout_buffer.full}")
 
-        # Get value for advantage computation
-        agent_obs_tensor = torch.tensor(agent_obs, dtype=torch.float32).unsqueeze(0)
-        last_value = agent_model.policy.predict_values(agent_obs_tensor)
+    if hasattr(agent_model.rollout_buffer, 'observations') and agent_model.rollout_buffer.observations is not None:
+        print(f"  Observations shape: {agent_model.rollout_buffer.observations.shape}")
 
-    agent_model.rollout_buffer.compute_returns_and_advantage(last_value, np.array([True]))
-    print("Training Agent...")
-    agent_model.learn(total_timesteps=25, reset_num_timesteps=False, log_interval=1)
-    agent_model.rollout_buffer.reset()
+    if hasattr(agent_model.rollout_buffer, 'actions') and agent_model.rollout_buffer.actions is not None:
+        print(f"  Actions shape: {agent_model.rollout_buffer.actions.shape}")
 
+    if hasattr(agent_model.rollout_buffer, 'rewards') and agent_model.rollout_buffer.rewards is not None:
+        rewards = agent_model.rollout_buffer.rewards[:agent_model.rollout_buffer.pos]
+        if len(rewards) > 0:
+            print(f"  Rewards stats: min={rewards.min():.4f}, max={rewards.max():.4f}, mean={rewards.mean():.4f}")
+            print(f"  Rewards: {rewards}")
 
-def plot_results(experiment, all_rewards, all_actions):
-    """Plot training results"""
-    # Ensure plotting utility exists or implement a basic version
-    try:
-        PlottingUtils.plot_losses(experiment.EXPERIMENT_PATH, experiment.EXPERIMENT_ID)
-        PlottingUtils.plot_rewards(all_rewards, experiment.EXPERIMENT_ID)
-        PlottingUtils.plot_actions(all_actions, experiment.EXPERIMENT_ID)
-        PlottingUtils.show_plots()
-    except Exception as e:
-        print(f"Error plotting results: {e}")
-        print("Implementing basic plotting...")
-
-        # Basic plotting implementation in case PlottingUtils is not available
-        import matplotlib.pyplot as plt
-
-        # Plot rewards
-        plt.figure(figsize=(10, 6))
-        plt.plot(all_rewards)
-        plt.title(f"Rewards - {experiment.EXPERIMENT_ID}")
-        plt.xlabel("Episode")
-        plt.ylabel("Reward")
-        plt.savefig(f"{experiment.EXPERIMENT_PATH}/rewards.png")
-
-        # Plot actions distribution
-        flat_actions = [a for episode_actions in all_actions for a in episode_actions]
-        plt.figure(figsize=(10, 6))
-        plt.hist(flat_actions, bins=experiment.ACTION_SPACE_SIZE)
-        plt.title(f"Action Distribution - {experiment.EXPERIMENT_ID}")
-        plt.xlabel("Action")
-        plt.ylabel("Count")
-        plt.savefig(f"{experiment.EXPERIMENT_PATH}/actions.png")
-
-        plt.close('all')
+    print("-------------------------------\n")

@@ -8,25 +8,21 @@ class ModelType:
     A2C = "A2C"
 
 
-class Policy:
-    MlpPolicy = "MlpPolicy"
-
 class Model:
     def __init__(self, env, experiment_config):
         self.env = env
         self.experiment_config = experiment_config
         self.model = self.init_model()
-
     def init_model(self):
         model_params = self.define_model_params(self.experiment_config)
         match self.experiment_config.MODEL_TYPE:
             case ModelType.PPO:
-                return PPO(policy=Policy, env=self.env, verbose=1, **model_params)
+                return PPO(policy="MlpPolicy", env=self.env, verbose=1, **model_params)
                 # return CustomPPO(policy=Policy, env=self.env, verbose=1, **model_params)
             case ModelType.DQN:
-                return DQN(policy=Policy, env=self.env, verbose=1, **model_params)
+                return DQN(policy="MlpPolicy", env=self.env, verbose=1, **model_params)
             case ModelType.A2C:
-                return A2C(policy=Policy, env=self.env, verbose=1, **model_params)
+                return A2C(policy="MlpPolicy", env=self.env, verbose=1, **model_params)
             case _:
                 raise ValueError(f"{self.experiment_config.MODEL_TYPE} Unsupported model type")
 

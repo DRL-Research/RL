@@ -49,6 +49,15 @@ class CustomMasterNetwork(nn.Module):
         """
         Forward pass through the network
         """
+        # Ensure input has the correct shape - flatten if necessary
+        if len(obs.shape) > 1 and obs.shape[0] == 1 and obs.shape[1] % 4 == 0:
+            # Already correctly shaped - single batch, flattened features
+            pass
+        elif len(obs.shape) == 2 and obs.shape[0] > 1 and obs.shape[1] == 4:
+            # Multi-car input with shape (num_cars, features_per_car)
+            # Reshape to (batch_size=1, num_cars * features_per_car)
+            obs = obs.reshape(1, -1)
+
         shared_features = self.shared_net(obs)
         embedding = self.embedding_head(shared_features)
         value = self.value_head(shared_features)
@@ -95,6 +104,15 @@ class CustomMasterPolicy(ActorCriticPolicy):
         Forward pass in the neural network
         Returns embedding, value, and log probability
         """
+        # Ensure tensor format
+        if isinstance(obs, np.ndarray):
+            obs = torch.tensor(obs, dtype=torch.float32)
+
+        # Handle 2D input for multiple cars by reshaping
+        if len(obs.shape) == 2 and obs.shape[0] > 1 and obs.shape[1] == 4:
+            # Reshape from (num_cars, features_per_car) to (batch=1, num_cars * features_per_car)
+            obs = obs.reshape(1, -1)
+
         embedding, value = self.custom_network(obs)
 
         # For PPO compatibility: we need to return a "log_prob"
@@ -113,6 +131,12 @@ class CustomMasterPolicy(ActorCriticPolicy):
         Evaluate actions according to the current policy,
         given the observations.
         """
+        # Handle 2D input for multiple cars by reshaping
+        if len(obs.shape) == 2 and obs.shape[1] == 4 * (obs.shape[0] // 4):
+            # Reshape from (batch, cars * features) to (batch, cars * features)
+            # Where number of features must be divisible by 4
+            obs = obs.reshape(obs.shape[0], -1)
+
         embedding, values = self.custom_network(obs)
         log_prob = -0.5 * torch.sum(torch.ones_like(embedding), dim=-1)
         entropy = torch.sum(torch.ones_like(embedding) * 1.0, dim=-1)
@@ -135,6 +159,11 @@ class CustomMasterPolicy(ActorCriticPolicy):
             def entropy(self):
                 return torch.sum(torch.ones_like(self.embedding) * 1.0, dim=-1)
 
+        # Handle 2D input for multiple cars by reshaping
+        if len(obs.shape) == 2 and obs.shape[0] > 1 and obs.shape[1] == 4:
+            # Reshape from (num_cars, features_per_car) to (batch=1, num_cars * features_per_car)
+            obs = obs.reshape(1, -1)
+
         embedding, _ = self.custom_network(obs)
         return DummyDistribution(embedding)
 
@@ -142,6 +171,11 @@ class CustomMasterPolicy(ActorCriticPolicy):
         """
         Predict the values for the given observations
         """
+        # Handle 2D input for multiple cars by reshaping
+        if len(obs.shape) == 2 and obs.shape[0] > 1 and obs.shape[1] == 4:
+            # Reshape from (num_cars, features_per_car) to (batch=1, num_cars * features_per_car)
+            obs = obs.reshape(1, -1)
+
         _, values = self.custom_network(obs)
         return values
 
@@ -235,11 +269,80 @@ class MasterModel:
         """
         Get embedding from master network.
         Used during inference or when master is frozen.
+
+        Ensures the input is properly reshaped before passing to the model.
         """
         with torch.no_grad():
-            embedding, _, _ = self.model.policy.forward(state_tensor)
-            return embedding.cpu().numpy()[0]
+            # Debug print to see the input shape
+            #print(f"Input to get_proto_action has shape: {state_tensor.shape if hasattr(state_tensor, 'shape') else 'No shape'}")
 
+            # Handle input in both tensor and numpy array formats
+            if isinstance(state_tensor, np.ndarray):
+                # If it's a numpy array with shape (5, 4)
+                if len(state_tensor.shape) == 2 and state_tensor.shape[0] > 1:
+                    # Reshape to (1, 20)
+                    reshaped_tensor = torch.tensor(state_tensor.reshape(1, -1), dtype=torch.float32)
+                    #print(f"Reshaped numpy array from {state_tensor.shape} to {reshaped_tensor.shape}")
+                elif len(state_tensor.shape) == 3:
+                    # If it's a 3D array with shape like (1, 5, 4)
+                    # Reshape to (batch, num_cars*features_per_car)
+                    batch_size = state_tensor.shape[0]
+                    flattened = state_tensor.reshape(batch_size, -1)
+                    reshaped_tensor = torch.tensor(flattened, dtype=torch.float32)
+                    #print(f"Reshaped 3D numpy array from {state_tensor.shape} to {reshaped_tensor.shape}")
+                else:
+                    # Already flat or single dimension
+                    reshaped_tensor = torch.tensor(state_tensor, dtype=torch.float32)
+                    if len(reshaped_tensor.shape) == 1:
+                        reshaped_tensor = reshaped_tensor.unsqueeze(0)
+            elif isinstance(state_tensor, torch.Tensor):
+                # If it's a 3D tensor with shape (batch, num_cars, features_per_car)
+                if len(state_tensor.shape) == 3:
+                    # Reshape to (batch, num_cars*features_per_car)
+                    batch_size = state_tensor.shape[0]
+                    reshaped_tensor = state_tensor.reshape(batch_size, -1)
+                    #print(f"Reshaped 3D tensor from {state_tensor.shape} to {reshaped_tensor.shape}")
+                # If it's a tensor with shape (5, 4)
+                elif len(state_tensor.shape) == 2 and state_tensor.shape[0] > 1 and state_tensor.shape[1] == 4:
+                    # Reshape to (1, 20)
+                    reshaped_tensor = state_tensor.reshape(1, -1)
+                    #print(f"Reshaped tensor from {state_tensor.shape} to {reshaped_tensor.shape}")
+                elif len(state_tensor.shape) == 2 and state_tensor.shape[0] == 1:
+                    # Already in correct shape (1, X)
+                    reshaped_tensor = state_tensor
+                elif len(state_tensor.shape) == 1:
+                    # Add batch dimension if needed
+                    reshaped_tensor = state_tensor.unsqueeze(0)
+                else:
+                    # Pass through for other cases
+                    reshaped_tensor = state_tensor
+            else:
+                # Handle unexpected types
+
+                #print(f"Warning: Unexpected input type: {type(state_tensor)}")
+                # Try to convert to tensor as a fallback
+                try:
+                    reshaped_tensor = torch.tensor(state_tensor, dtype=torch.float32).unsqueeze(0)
+                except:
+                    raise TypeError(f"Cannot handle input of type {type(state_tensor)}")
+
+            # Make sure we have the right dimension for the model
+            if len(reshaped_tensor.shape) == 2 and reshaped_tensor.shape[1] != self.observation_dim:
+                #print(f"Warning: Expected input dimension {self.observation_dim}, got {reshaped_tensor.shape[1]}")
+                # Try to interpolate or pad if needed
+                if reshaped_tensor.shape[1] < self.observation_dim:
+                    # Pad with zeros if too small
+                    padding = torch.zeros(reshaped_tensor.shape[0], self.observation_dim - reshaped_tensor.shape[1])
+                    reshaped_tensor = torch.cat([reshaped_tensor, padding], dim=1)
+                    #print(f"Padded tensor to shape {reshaped_tensor.shape}")
+                elif reshaped_tensor.shape[1] > self.observation_dim:
+                    # Truncate if too large
+                    reshaped_tensor = reshaped_tensor[:, :self.observation_dim]
+                    print(f"Truncated tensor to shape {reshaped_tensor.shape}")
+
+            # Now it should be safe to pass to the model
+            embedding, _, _ = self.model.policy.forward(reshaped_tensor)
+            return embedding.cpu().numpy()[0]
     def set_logger(self, logger):
         """Set logger for master network"""
         self.model.set_logger(logger)
