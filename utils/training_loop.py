@@ -48,7 +48,17 @@ def run_experiment(experiment_config, env_config):
     # Inference or training mode
     if experiment_config.ONLY_INFERENCE:
         print("Running in inference-only mode")
-
+        if experiment_config.LOAD_PREVIOUS_WEIGHT and experiment_config.LOAD_MODEL_DIRECTORY:
+            try:
+                agent_model.load(f"{experiment_config.LOAD_MODEL_DIRECTORY}_agent.pth")
+                master_model.load(f"{experiment_config.LOAD_MODEL_DIRECTORY}_master.pth")
+                print(
+                    f"Loaded weights from {experiment_config.LOAD_MODEL_DIRECTORY}, models will be trained from this point!")
+            except Exception as e:
+                print(f"Failed to load weights: {e}")
+                print("Starting training from scratch")
+        else:
+            print("Starting training from scratch (No previous weights loaded)")
         # Load pre-trained models only in inference mode
         try:
             agent_model.load(f"{experiment_config.LOAD_MODEL_DIRECTORY}_agent.pth")
@@ -60,8 +70,6 @@ def run_experiment(experiment_config, env_config):
 
         # Run evaluation episodes
         eval_rewards, eval_actions = run_evaluation(experiment_config, wrapped_env, master_model, agent_model)
-
-        # Close environments and loggers
         wrapped_env.close()
         agent_logger.close()
         master_logger.close()
@@ -70,18 +78,6 @@ def run_experiment(experiment_config, env_config):
 
     # Regular training run
     print("Running full training")
-
-    # Only load previous weights if explicitly enabled and specified
-    if experiment_config.LOAD_PREVIOUS_WEIGHT and experiment_config.LOAD_MODEL_DIRECTORY:
-        try:
-            agent_model.load(f"{experiment_config.LOAD_MODEL_DIRECTORY}_agent.pth")
-            master_model.load(f"{experiment_config.LOAD_MODEL_DIRECTORY}_master.pth")
-            print(f"Loaded weights from {experiment_config.LOAD_MODEL_DIRECTORY}, models will be trained from this point!")
-        except Exception as e:
-            print(f"Failed to load weights: {e}")
-            print("Starting training from scratch")
-    else:
-        print("Starting training from scratch (No previous weights loaded)")
 
     # Run the training loop
     p_episode_counter, p_agent_loss, p_master_loss, agent_model, collision_counter, all_rewards, all_actions, training_results = \
@@ -165,20 +161,10 @@ def run_evaluation(experiment_config, env, master_model, agent_model):
         actions = []
 
         while not done and not truncated:
-            # Get embedding from master
-            # In the intersection scenario, observation already includes agent_obs (car1_state + embedding)
-            # We need to extract car1_state for the agent
-            car1_state = obs[:4]  # First 4 dimensions for car1
-
-            # Get action from agent
             action, _ = agent_model.predict(obs, deterministic=True)
-
-            # Take step
             obs, reward, done, truncated, info = env.step(action)
             episode_reward += reward
             actions.append(action[0])
-
-            # Optionally render
             env.render()
 
         eval_rewards.append(episode_reward)
@@ -192,12 +178,11 @@ def run_evaluation(experiment_config, env, master_model, agent_model):
 
 def training_loop(p_agent_loss, p_master_loss, p_episode_counter, experiment, env, agent_model, master_model):
     """
-    Main training loop with improved loss tracking
+    Main training loop
     """
     collision_counter, episode_counter, total_steps = 0, 0, 0
     all_rewards, all_actions = [], []
 
-    # מעקב אחר ערכי loss
     master_value_losses = []
     master_policy_losses = []
     master_total_losses = []
@@ -238,7 +223,6 @@ def training_loop(p_agent_loss, p_master_loss, p_episode_counter, experiment, en
                 experiment, total_steps, env, master_model, agent_model,
                 train_both=train_both, training_master=training_master
             )
-
             if crashed:
                 collision_counter += 1
                 print('Episode result: Collision')
@@ -264,6 +248,7 @@ def training_loop(p_agent_loss, p_master_loss, p_episode_counter, experiment, en
             if train_both:
                 print("Training both networks...")
                 master_losses = train_master_and_reset_buffer(env, master_model, full_state)
+                # 0,1,2 are value,policy adn total loss
                 if master_losses:
                     master_policy_losses.append(master_losses[0])
                     master_value_losses.append(master_losses[1])
@@ -301,7 +286,7 @@ def training_loop(p_agent_loss, p_master_loss, p_episode_counter, experiment, en
                 master_value_losses.append(None)
                 master_total_losses.append(None)
 
-    # שמירת כל תוצאות האימון למבנה נתונים אחד
+    # save results as dict
     training_results = {
         "episode_rewards": episode_rewards,
         "master_policy_losses": master_policy_losses,
@@ -458,7 +443,6 @@ def plot_training_results(experiment, results, show_plots=True):
         else:
             plt.close()
 
-    # 6. Combined plot for losses
     plt.figure(figsize=(12, 8))
 
     # Master losses
@@ -530,8 +514,6 @@ def plot_training_results(experiment, results, show_plots=True):
         plt.show()
     else:
         plt.close()
-
-    # אם נבחר להציג את כל הפלוטים, המתן לסיום בלחיצת X על כל חלון
     if show_plots:
         print("Plots displayed. Close all plot windows to continue.")
 
@@ -643,10 +625,7 @@ def train_master_and_reset_buffer(env, master_model, full_obs):
                 return next(orig_get(batch_size))
 
         try:
-            # Apply the monkey patch
             master_model.rollout_buffer.get = modified_get
-
-            # Get data from buffer
             rollout_data = master_model.rollout_buffer.get(batch_size=None)
 
             if rollout_data is not None:
@@ -764,14 +743,11 @@ def train_agent_and_reset_buffer(env, master_model, agent_model, last_master_ten
 
             # Create agent observation
             agent_obs = np.concatenate((car_state, embedding))
-
-            # Predict last value - FIX for dimension mismatch
             agent_obs_tensor = torch.tensor(agent_obs, dtype=torch.float32).unsqueeze(0)
 
             # Ensure dimensions match the network
             expected_dim = agent_model.policy.observation_space.shape[0]
             if agent_obs_tensor.shape[1] != expected_dim:
-                # Reshape or pad to match expected dimensions
                 if agent_obs_tensor.shape[1] > expected_dim:
                     agent_obs_tensor = agent_obs_tensor[:, :expected_dim]
                 else:
@@ -787,8 +763,6 @@ def train_agent_and_reset_buffer(env, master_model, agent_model, last_master_ten
 
         # Compute returns and advantage
         agent_model.rollout_buffer.compute_returns_and_advantage(last_value, np.array([True]))
-
-        # Override the get method to allow partial buffer
         orig_get = agent_model.rollout_buffer.get
 
         def modified_get(batch_size):
@@ -807,10 +781,7 @@ def train_agent_and_reset_buffer(env, master_model, agent_model, last_master_ten
                 return next(orig_get(batch_size))
 
         try:
-            # Apply the monkey patch
             agent_model.rollout_buffer.get = modified_get
-
-            # Get data from buffer
             rollout_data = agent_model.rollout_buffer.get(batch_size=None)
 
             if rollout_data is not None:
@@ -897,7 +868,6 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
         # Get the full state from environment
         full_obs = env.env.current_state
 
-        # Ensure the input has the correct shape for the master model
         if isinstance(full_obs, np.ndarray):
             if len(full_obs.shape) == 2 and full_obs.shape[0] > 1:
                 master_input = torch.tensor(full_obs.reshape(1, -1), dtype=torch.float32)
@@ -932,8 +902,6 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
                 car1_state = full_obs[:4].cpu().numpy().flatten()
         else:
             car1_state = np.zeros(4)
-
-        # Make sure embedding is flattened
         if hasattr(embedding, 'shape') and len(embedding.shape) > 1:
             embedding = embedding.flatten()
 

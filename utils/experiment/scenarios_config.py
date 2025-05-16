@@ -166,7 +166,7 @@ CONFIG_EXP4 = {
         "car2": {
             "start_lane": Experiment.WEST_TO_EAST,
             "destination": Experiment.OUTER_EAST,
-            "speed": Experiment.THROTTLE_SLOW,  # **Low speed for first case**
+            "speed": Experiment.THROTTLE_SLOW,
             "init_location": {
                 "longitudinal": Experiment.LONGITUDINAL,
                 "lateral": Experiment.LATERAL
@@ -199,7 +199,7 @@ CONFIG_EXP5 = {
         "car1": {
             "start_lane": Experiment.SOUTH_TO_NORTH,
             "destination": Experiment.OUTER_NORTH,
-            "speed": Experiment.THROTTLE_SLOW,  # Initial speed is FAST
+            "speed": Experiment.THROTTLE_SLOW,
             "init_location": {
                 "longitudinal": Experiment.LONGITUDINAL,
                 "lateral": Experiment.LATERAL
@@ -211,7 +211,7 @@ CONFIG_EXP5 = {
         "car2": {
             "start_lane": Experiment.WEST_TO_EAST,
             "destination": Experiment.OUTER_EAST,
-            "speed": Experiment.THROTTLE_SLOW,  # **Low speed for first case**
+            "speed": Experiment.THROTTLE_SLOW,
             "init_location": {
                 "longitudinal": Experiment.LONGITUDINAL,
                 "lateral": Experiment.LATERAL
@@ -220,7 +220,7 @@ CONFIG_EXP5 = {
         "car3": {
             "start_lane": Experiment.EAST_TO_WEST,
             "destination": Experiment.OUTER_SOUTH,
-            "speed": Experiment.THROTTLE_SLOW,  # **Low speed for first case**
+            "speed": Experiment.THROTTLE_SLOW,
             "init_location": {
                 "longitudinal": Experiment.LONGITUDINAL - 20,
                 "lateral": Experiment.LATERAL
@@ -229,7 +229,7 @@ CONFIG_EXP5 = {
         "car4": {
             "start_lane": Experiment.EAST_TO_WEST,
             "destination": Experiment.OUTER_NORTH,
-            "speed": Experiment.THROTTLE_FAST,  # **Low speed for first case**
+            "speed": Experiment.THROTTLE_FAST,
             "init_location": {
                 "longitudinal": Experiment.LONGITUDINAL + 10,
                 "lateral": Experiment.LATERAL
@@ -238,7 +238,7 @@ CONFIG_EXP5 = {
         "car5": {
             "start_lane": Experiment.NORTH_TO_SOUTH,
             "destination": Experiment.OUTER_WEST,
-            "speed": Experiment.THROTTLE_FAST,  # **Low speed for first case**
+            "speed": Experiment.THROTTLE_FAST,
             "init_location": {
                 "longitudinal": Experiment.LONGITUDINAL - 10,
                 "lateral": Experiment.LATERAL

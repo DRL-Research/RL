@@ -8,7 +8,6 @@ from stable_baselines3.common.buffers import RolloutBuffer
 from stable_baselines3.common.policies import ActorCriticPolicy
 import torch.nn as nn
 
-
 ###############################################
 # Master Network Components
 ###############################################
@@ -22,15 +21,14 @@ class CustomMasterNetwork(nn.Module):
         super().__init__()
         self.embedding_dim = embedding_dim
 
-        # Network architecture - adjust as needed
+        # Network architecture
         self.shared_net = nn.Sequential(
             nn.Linear(observation_dim, 128),
             nn.ReLU(),
             nn.Linear(128, 64),
             nn.ReLU()
         )
-
-        # Actor head (outputs embedding)
+        #outputs embedding
         self.embedding_head = nn.Sequential(
             nn.Linear(64, 32),
             nn.ReLU(),
@@ -38,7 +36,7 @@ class CustomMasterNetwork(nn.Module):
             nn.Tanh()  # Normalized embedding in [-1, 1]
         )
 
-        # Critic head (outputs value)
+        # outputs value
         self.value_head = nn.Sequential(
             nn.Linear(64, 32),
             nn.ReLU(),
@@ -49,13 +47,9 @@ class CustomMasterNetwork(nn.Module):
         """
         Forward pass through the network
         """
-        # Ensure input has the correct shape - flatten if necessary
         if len(obs.shape) > 1 and obs.shape[0] == 1 and obs.shape[1] % 4 == 0:
-            # Already correctly shaped - single batch, flattened features
             pass
         elif len(obs.shape) == 2 and obs.shape[0] > 1 and obs.shape[1] == 4:
-            # Multi-car input with shape (num_cars, features_per_car)
-            # Reshape to (batch_size=1, num_cars * features_per_car)
             obs = obs.reshape(1, -1)
 
         shared_features = self.shared_net(obs)
@@ -87,8 +81,6 @@ class CustomMasterPolicy(ActorCriticPolicy):
             *args,
             **kwargs
         )
-
-        # Override the default network with our custom one
         obs_dim = observation_space.shape[0]
         self.custom_network = CustomMasterNetwork(obs_dim, embedding_dim)
 
@@ -104,7 +96,7 @@ class CustomMasterPolicy(ActorCriticPolicy):
         Forward pass in the neural network
         Returns embedding, value, and log probability
         """
-        # Ensure tensor format
+        #  tensor format
         if isinstance(obs, np.ndarray):
             obs = torch.tensor(obs, dtype=torch.float32)
 
@@ -112,12 +104,8 @@ class CustomMasterPolicy(ActorCriticPolicy):
         if len(obs.shape) == 2 and obs.shape[0] > 1 and obs.shape[1] == 4:
             # Reshape from (num_cars, features_per_car) to (batch=1, num_cars * features_per_car)
             obs = obs.reshape(1, -1)
-
         embedding, value = self.custom_network(obs)
-
         # For PPO compatibility: we need to return a "log_prob"
-        # Since the embedding is continuous, we'll use a normal distribution
-        # with fixed variance and mean = embedding
         log_prob = -0.5 * torch.sum(torch.ones_like(embedding), dim=-1)
 
         return embedding, value, log_prob
@@ -134,9 +122,7 @@ class CustomMasterPolicy(ActorCriticPolicy):
         # Handle 2D input for multiple cars by reshaping
         if len(obs.shape) == 2 and obs.shape[1] == 4 * (obs.shape[0] // 4):
             # Reshape from (batch, cars * features) to (batch, cars * features)
-            # Where number of features must be divisible by 4
             obs = obs.reshape(obs.shape[0], -1)
-
         embedding, values = self.custom_network(obs)
         log_prob = -0.5 * torch.sum(torch.ones_like(embedding), dim=-1)
         entropy = torch.sum(torch.ones_like(embedding) * 1.0, dim=-1)
@@ -196,20 +182,15 @@ class MasterModel:
         self.experiment = experiment
         self.is_frozen = False
 
-        # Determine observation space based on experiment configuration
         # Each car has 4 dimensions (x, y, vx, vy)
         max_cars = self.experiment.CARS_AMOUNT if experiment else 5
         self.observation_dim = max_cars * 4
-
-        # Create a dummy environment for PPO initialization
-        import gymnasium as gym
-        from gymnasium import spaces
 
         dummy_env = gym.Env()
         dummy_env.observation_space = spaces.Box(
             low=-np.inf, high=np.inf, shape=(self.observation_dim,)
         )
-        # The action space is the embedding size (continuous)
+        # The action space is the embedding size
         dummy_env.action_space = spaces.Box(
             low=-1.0, high=1.0, shape=(embedding_size,), dtype=np.float32
         )
@@ -238,7 +219,7 @@ class MasterModel:
             ent_coef=0.01,
             vf_coef=0.5,
             max_grad_norm=0.5,
-            device="cpu"  # Change to "cuda" if you have GPU
+            device="cpu"
         )
 
         # Create a rollout buffer
@@ -273,9 +254,6 @@ class MasterModel:
         Ensures the input is properly reshaped before passing to the model.
         """
         with torch.no_grad():
-            # Debug print to see the input shape
-            #print(f"Input to get_proto_action has shape: {state_tensor.shape if hasattr(state_tensor, 'shape') else 'No shape'}")
-
             # Handle input in both tensor and numpy array formats
             if isinstance(state_tensor, np.ndarray):
                 # If it's a numpy array with shape (5, 4)
@@ -301,7 +279,6 @@ class MasterModel:
                     # Reshape to (batch, num_cars*features_per_car)
                     batch_size = state_tensor.shape[0]
                     reshaped_tensor = state_tensor.reshape(batch_size, -1)
-                    #print(f"Reshaped 3D tensor from {state_tensor.shape} to {reshaped_tensor.shape}")
                 # If it's a tensor with shape (5, 4)
                 elif len(state_tensor.shape) == 2 and state_tensor.shape[0] > 1 and state_tensor.shape[1] == 4:
                     # Reshape to (1, 20)
@@ -314,13 +291,8 @@ class MasterModel:
                     # Add batch dimension if needed
                     reshaped_tensor = state_tensor.unsqueeze(0)
                 else:
-                    # Pass through for other cases
                     reshaped_tensor = state_tensor
             else:
-                # Handle unexpected types
-
-                #print(f"Warning: Unexpected input type: {type(state_tensor)}")
-                # Try to convert to tensor as a fallback
                 try:
                     reshaped_tensor = torch.tensor(state_tensor, dtype=torch.float32).unsqueeze(0)
                 except:
@@ -328,19 +300,14 @@ class MasterModel:
 
             # Make sure we have the right dimension for the model
             if len(reshaped_tensor.shape) == 2 and reshaped_tensor.shape[1] != self.observation_dim:
-                #print(f"Warning: Expected input dimension {self.observation_dim}, got {reshaped_tensor.shape[1]}")
-                # Try to interpolate or pad if needed
                 if reshaped_tensor.shape[1] < self.observation_dim:
                     # Pad with zeros if too small
                     padding = torch.zeros(reshaped_tensor.shape[0], self.observation_dim - reshaped_tensor.shape[1])
                     reshaped_tensor = torch.cat([reshaped_tensor, padding], dim=1)
-                    #print(f"Padded tensor to shape {reshaped_tensor.shape}")
                 elif reshaped_tensor.shape[1] > self.observation_dim:
                     # Truncate if too large
                     reshaped_tensor = reshaped_tensor[:, :self.observation_dim]
                     print(f"Truncated tensor to shape {reshaped_tensor.shape}")
-
-            # Now it should be safe to pass to the model
             embedding, _, _ = self.model.policy.forward(reshaped_tensor)
             return embedding.cpu().numpy()[0]
     def set_logger(self, logger):
@@ -351,20 +318,14 @@ class MasterModel:
         """Save master network"""
         # Save the PPO model
         self.model.save(path)
-
-        # If we need to save additional parameters not covered by PPO save
         custom_params = {
             "embedding_size": self.embedding_size,
-            # Add any other custom parameters here
         }
         torch.save(custom_params, f"{path}_custom_params.pt")
 
     def load(self, path):
         """Load master network"""
-        # Load the PPO model
         self.model = PPO.load(path)
-
-        # Load additional custom parameters if needed
         if os.path.exists(f"{path}_custom_params.pt"):
             custom_params = torch.load(f"{path}_custom_params.pt")
             self.embedding_size = custom_params["embedding_size"]
