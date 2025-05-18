@@ -47,26 +47,26 @@ if __name__ == "__main__":
     Rewards and loss (during training): Success reward: +10 Collision reward: -20 Starvation reward: -0.1
     Hence, negative cumulative reward even if success due to (starvation reward*steps) + success reward.
     """
-    experiment1_config = Experiment(
-        EXPERIMENT_ID='Experiment1',
-        LOAD_MODEL_DIRECTORY='experiments/08_12_2024-13_56_13_Experiment1/trained_model.zip',
-        EPOCHS=4,)
-
-    experiment2_config = Experiment(
-        EXPERIMENT_ID='Experiment2',
-        LOAD_MODEL_DIRECTORY='experiments/08_12_2024-13_56_13_Experiment1/trained_model.zip',
-        EPOCHS=4
-    )
-
-    experiment3_config = Experiment(
-        EXPERIMENT_ID='Experiment3',
-        LOAD_MODEL_DIRECTORY='experiments/08_12_2024-13_56_13_Experiment1/trained_model.zip',
-        EPOCHS=4)
-
-    experiment4_config = Experiment(
-        EXPERIMENT_ID='Experiment4',
-        LOAD_MODEL_DIRECTORY='experiments/08_12_2024-13_56_13_Experiment1/trained_model.zip',
-        EPOCHS=2)
+    # experiment1_config = Experiment(
+    #     EXPERIMENT_ID='Experiment1',
+    #     LOAD_MODEL_DIRECTORY='experiments/08_12_2024-13_56_13_Experiment1/trained_model.zip',
+    #     EPOCHS=4,)
+    #
+    # experiment2_config = Experiment(
+    #     EXPERIMENT_ID='Experiment2',
+    #     LOAD_MODEL_DIRECTORY='experiments/08_12_2024-13_56_13_Experiment1/trained_model.zip',
+    #     EPOCHS=4
+    # )
+    #
+    # experiment3_config = Experiment(
+    #     EXPERIMENT_ID='Experiment3',
+    #     LOAD_MODEL_DIRECTORY='experiments/08_12_2024-13_56_13_Experiment1/trained_model.zip',
+    #     EPOCHS=4)
+    #
+    # experiment4_config = Experiment(
+    #     EXPERIMENT_ID='Experiment4',
+    #     LOAD_MODEL_DIRECTORY='experiments/08_12_2024-13_56_13_Experiment1/trained_model.zip',
+    #     EPOCHS=2)
 
     experiment5_config = Experiment(
         EXPERIMENT_ID='Experiment5',
