@@ -4,8 +4,8 @@ import torch
 import numpy as np
 import gymnasium as gym
 from stable_baselines3.common.logger import configure
-from agent_handler import Agent, DummyVecEnv
-from master_model import MasterModel
+from utils.agent_handler import Agent, DummyVecEnv
+from utils.master_model import MasterModel
 from utils.model.model_handler import Model
 from utils.plotting_utils import PlottingUtils
 import traceback
