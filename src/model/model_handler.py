@@ -18,7 +18,6 @@ class Model:
         match self.experiment_config.MODEL_TYPE:
             case ModelType.PPO:
                 return PPO(policy="MlpPolicy", env=self.env, verbose=1, **model_params)
-                # return CustomPPO(policy=Policy, env=self.env, verbose=1, **model_params)
             case ModelType.DQN:
                 return DQN(policy="MlpPolicy", env=self.env, verbose=1, **model_params)
             case ModelType.A2C:

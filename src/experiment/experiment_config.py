@@ -2,9 +2,8 @@ import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Dict
-import numpy as np
 
-from utils.logger.neptune_logger import NeptuneLogger
+from logger.neptune_logger import NeptuneLogger
 
 
 @dataclass
@@ -32,9 +31,9 @@ class Experiment:
     BATCH_SIZE: int = 32
     EPISODE_MAX_TIME = 50  # seconds
     LOSS_FUNCTION: str = "mse"
-    EXPLORATION_EXPLOTATION_THRESHOLD: int = 50
+    EXPLORATION_EXPLOITATION_THRESHOLD: int = 50
 
-    #Cars Configuration - distance from intersection
+    # Cars Configuration - distance from intersection
     LONGITUDINAL: int = 40
     LATERAL: int = 0
 
@@ -87,7 +86,7 @@ class Experiment:
     INNER_EAST = "i3"
 
 
-    #Simulations Graphics
+    # Simulations Graphics
     SCREEN_WIDTH: int = 600
     SCREEN_HEIGHT: int = 600
     CENTERING_POSITION: List[float] = field(default_factory=lambda: [0.5, 0.6])  # Do not change, this centers the simulation
@@ -100,7 +99,7 @@ class Experiment:
 
         # Load API token from external JSON file
         try:
-            with open("utils/logger/token.json", "r") as f:
+            with open("logger/token.json", "r") as f:
                 config = json.load(f)
                 api_token = config["api_token"]
         except (FileNotFoundError, KeyError) as e:

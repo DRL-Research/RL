@@ -99,7 +99,7 @@ class NeptuneLogger:
             "loss_function": experiment_config.LOSS_FUNCTION,
             "random_init": experiment_config.RANDOM_INIT,
             "time_between_steps": experiment_config.TIME_BETWEEN_STEPS,
-            "exploration_threshold": experiment_config.EXPLORATION_EXPLOTATION_THRESHOLD,
+            "exploration_threshold": experiment_config.EXPLORATION_EXPLOITATION_THRESHOLD,
             "success_reward": experiment_config.REACHED_TARGET_REWARD,
             "starvation_reward": experiment_config.STARVATION_REWARD,
             "collision_reward": experiment_config.COLLISION_REWARD,

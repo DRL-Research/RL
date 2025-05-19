@@ -1,20 +1,22 @@
 import os
-import time
-import torch
-import numpy as np
-import gymnasium as gym
-from stable_baselines3.common.logger import configure
-from utils.agent_handler import Agent, DummyVecEnv
-from utils.master_model import MasterModel
-from utils.model.model_handler import Model
-from utils.plotting_utils import PlottingUtils
 import traceback
+
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+from stable_baselines3.common.logger import configure
+
+from src.model.agent_handler import Agent, DummyVecEnv
+from src.model.master_model import MasterModel
+from src.model.model_handler import Model
+
+
 def run_experiment(experiment_config, env_config):
     """
     Main function to run a complete experiment with master-agent architecture
     """
-    print("Starting experiment:", experiment_config.EXPERIMENT_ID)
-    print(f"Environment configuration: {len(env_config['controlled_cars'])} controlled cars, {len(env_config['static_cars'])} static cars")
+    print(
+        f"Environment configuration: {len(env_config['controlled_cars'])} controlled cars, {len(env_config['static_cars'])} static cars")
 
     # Create experiment directory if it doesn't exist
     os.makedirs(experiment_config.EXPERIMENT_PATH, exist_ok=True)
@@ -69,7 +71,7 @@ def run_experiment(experiment_config, env_config):
             print("Using untrained models for inference.")
 
         # Run evaluation episodes
-        eval_rewards, eval_actions = run_evaluation(experiment_config, wrapped_env, master_model, agent_model)
+        eval_rewards, eval_actions = run_evaluation(experiment_config, wrapped_env, agent_model)
         wrapped_env.close()
         agent_logger.close()
         master_logger.close()
@@ -104,48 +106,8 @@ def run_experiment(experiment_config, env_config):
 
     return agent_model, master_model, collision_counter
 
-    # Regular training run - don't try to load weights unless explicitly requested
-    print("Running full training")
 
-    # Only load previous weights if explicitly enabled and specified
-    if experiment_config.LOAD_PREVIOUS_WEIGHT and experiment_config.LOAD_MODEL_DIRECTORY:
-        try:
-            agent_model.load(f"{experiment_config.LOAD_MODEL_DIRECTORY}_agent.pth")
-            master_model.load(f"{experiment_config.LOAD_MODEL_DIRECTORY}_master.pth")
-            print(f"Loaded weights from {experiment_config.LOAD_MODEL_DIRECTORY}, models will be trained from this point!")
-        except Exception as e:
-            print(f"Failed to load weights: {e}")
-            print("Starting training from scratch")
-    else:
-        print("Starting training from scratch (No previous weights loaded)")
-
-    # Run the training loop
-    p_episode_counter, p_agent_loss, p_master_loss, agent_model, collision_counter, all_rewards, all_actions = \
-        training_loop(p_agent_loss, p_master_loss, p_episode_counter,
-                      experiment_config, wrapped_env, agent_model, master_model)
-
-    # Save models
-    agent_model.save(f"{experiment_config.SAVE_MODEL_DIRECTORY}_agent.pth")
-    master_model.save(f"{experiment_config.SAVE_MODEL_DIRECTORY}_master.pth")
-    print("Models saved")
-
-    # Close loggers
-    agent_logger.close()
-    master_logger.close()
-
-    # Plot results
-    plot_results(experiment_config, all_rewards, all_actions)
-
-    print("Training completed.")
-    print("Total collisions:", collision_counter)
-
-    # Close environment
-    wrapped_env.close()
-
-    return agent_model, master_model, collision_counter
-
-
-def run_evaluation(experiment_config, env, master_model, agent_model):
+def run_evaluation(experiment_config, env, agent_model):
     """Run evaluation episodes in inference mode"""
     eval_rewards = []
     eval_actions = []
@@ -247,14 +209,14 @@ def training_loop(p_agent_loss, p_master_loss, p_episode_counter, experiment, en
             # Train based on cycle
             if train_both:
                 print("Training both networks...")
-                master_losses = train_master_and_reset_buffer(env, master_model, full_state)
+                master_losses = train_master_and_reset_buffer(master_model, full_state)
                 # 0,1,2 are value,policy adn total loss
                 if master_losses:
                     master_policy_losses.append(master_losses[0])
                     master_value_losses.append(master_losses[1])
                     master_total_losses.append(master_losses[2])
 
-                agent_losses = train_agent_and_reset_buffer(env, master_model, agent_model, last_master_tensor)
+                agent_losses = train_agent_and_reset_buffer(master_model, agent_model, last_master_tensor)
                 if agent_losses:
                     agent_policy_losses.append(agent_losses[0])
                     agent_value_losses.append(agent_losses[1])
@@ -262,7 +224,7 @@ def training_loop(p_agent_loss, p_master_loss, p_episode_counter, experiment, en
 
             elif training_master:
                 print("Training master only...")
-                master_losses = train_master_and_reset_buffer(env, master_model, full_state)
+                master_losses = train_master_and_reset_buffer(master_model, full_state)
                 if master_losses:
                     master_policy_losses.append(master_losses[0])
                     master_value_losses.append(master_losses[1])
@@ -302,6 +264,7 @@ def training_loop(p_agent_loss, p_master_loss, p_episode_counter, experiment, en
 
     return p_episode_counter, p_agent_loss, p_master_loss, agent_model, collision_counter, all_rewards, all_actions, training_results
 
+
 def log_training_results_to_neptune(logger, training_results):
     """
     Logs training results (reward/losses per episode) to Neptune.
@@ -325,6 +288,7 @@ def log_training_results_to_neptune(logger, training_results):
             logger.log_metric("agent/value_loss", agent_value_losses[i])
             logger.log_metric("agent/total_loss", agent_total_losses[i])
 
+
 def monitor_episode_results(master_model, agent_model):
     """Prints minimal statistics about the rollout buffers"""
     master_buffer_size = master_model.rollout_buffer.pos
@@ -346,10 +310,6 @@ def plot_training_results(experiment, results, show_plots=True):
         show_plots: if True, displays the plots interactively
     """
     print("Generating detailed training plots...")
-
-    import matplotlib.pyplot as plt
-    import numpy as np
-    import os
 
     # Create directory for saving plots
     plots_dir = os.path.join(experiment.EXPERIMENT_PATH, "plots")
@@ -542,53 +502,8 @@ def plot_training_results(experiment, results, show_plots=True):
     print(f"All plots saved to: {plots_dir}")
 
 
-# Add this function to monitor buffer content after each episode
-def monitor_rollout_buffers(master_model, agent_model):
-    """Prints statistics about the rollout buffers for debugging"""
-    print("\n--- Rollout Buffer Statistics ---")
-
-    # Master buffer stats
-    print("Master rollout buffer:")
-    print(f"  Buffer size: {master_model.rollout_buffer.buffer_size}")
-    print(f"  Current position: {master_model.rollout_buffer.pos}")
-    print(f"  Is full: {master_model.rollout_buffer.full}")
-
-    if hasattr(master_model.rollout_buffer, 'observations') and master_model.rollout_buffer.observations is not None:
-        print(f"  Observations shape: {master_model.rollout_buffer.observations.shape}")
-
-    if hasattr(master_model.rollout_buffer, 'actions') and master_model.rollout_buffer.actions is not None:
-        print(f"  Actions shape: {master_model.rollout_buffer.actions.shape}")
-
-    if hasattr(master_model.rollout_buffer, 'rewards') and master_model.rollout_buffer.rewards is not None:
-        rewards = master_model.rollout_buffer.rewards[:master_model.rollout_buffer.pos]
-        if len(rewards) > 0:
-            print(f"  Rewards stats: min={rewards.min():.4f}, max={rewards.max():.4f}, mean={rewards.mean():.4f}")
-            print(f"  Rewards: {rewards}")
-
-    # Agent buffer stats
-    print("\nAgent rollout buffer:")
-    print(f"  Buffer size: {agent_model.rollout_buffer.buffer_size}")
-    print(f"  Current position: {agent_model.rollout_buffer.pos}")
-    print(f"  Is full: {agent_model.rollout_buffer.full}")
-
-    if hasattr(agent_model.rollout_buffer, 'observations') and agent_model.rollout_buffer.observations is not None:
-        print(f"  Observations shape: {agent_model.rollout_buffer.observations.shape}")
-
-    if hasattr(agent_model.rollout_buffer, 'actions') and agent_model.rollout_buffer.actions is not None:
-        print(f"  Actions shape: {agent_model.rollout_buffer.actions.shape}")
-
-    if hasattr(agent_model.rollout_buffer, 'rewards') and agent_model.rollout_buffer.rewards is not None:
-        rewards = agent_model.rollout_buffer.rewards[:agent_model.rollout_buffer.pos]
-        if len(rewards) > 0:
-            print(f"  Rewards stats: min={rewards.min():.4f}, max={rewards.max():.4f}, mean={rewards.mean():.4f}")
-            print(f"  Rewards: {rewards}")
-
-    print("-------------------------------\n")
-
-
-def train_master_and_reset_buffer(env, master_model, full_obs):
+def train_master_and_reset_buffer(master_model, full_obs):
     """Trains the master model and resets its buffer - Returns loss values"""
-    import traceback
 
     policy_loss_val = None
     value_loss_val = None
@@ -713,9 +628,9 @@ def train_master_and_reset_buffer(env, master_model, full_obs):
         return [policy_loss_val, value_loss_val, total_loss_val]
     return None
 
-def train_agent_and_reset_buffer(env, master_model, agent_model, last_master_tensor):
+
+def train_agent_and_reset_buffer(master_model, agent_model, last_master_tensor):
     """Trains the agent model and resets its buffer - Returns loss values"""
-    import traceback
 
     policy_loss_val = None
     value_loss_val = None
@@ -939,7 +854,7 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
 
         # Get agent action
         agent_action = Agent.get_action(agent_model, current_obs, total_steps,
-                                        experiment.EXPLORATION_EXPLOTATION_THRESHOLD)
+                                        experiment.EXPLORATION_EXPLOITATION_THRESHOLD)
         if hasattr(agent_action, 'shape') and len(agent_action.shape) > 0:
             scalar_action = agent_action[0]
         elif isinstance(agent_action, list) and len(agent_action) > 0:
@@ -1002,7 +917,7 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
 
     return episode_sum_of_rewards, actions_per_episode, steps_counter, crashed
 
-# Add this monitor function to your code
+
 def monitor_rollout_buffers(master_model, agent_model):
     """Prints statistics about the rollout buffers for debugging"""
     print("\n--- Rollout Buffer Statistics ---")

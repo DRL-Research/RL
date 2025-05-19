@@ -1,5 +1,5 @@
 import random
-from utils.experiment.experiment_config import Experiment
+from src.experiment.experiment_config import Experiment
 
 
 

@@ -70,7 +70,8 @@ class IntersectionEnv(AbstractEnv):
         )
         return {
             "collision_reward": vehicle.crashed,
-            "high_speed_reward": np.clip(scaled_speed, 0, 1),
+            # "high_speed_reward": np.clip(scaled_speed, 0, 1),
+            "high_speed_reward": 0,
             "arrived_reward": self.has_arrived(vehicle),
             "starvation_reward": True
             # "on_road_reward": vehicle.on_road,

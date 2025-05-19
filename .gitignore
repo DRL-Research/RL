@@ -3,4 +3,5 @@ __pycache__/
 venv/
 env/
 experiments/
-utils/logger/token.json
+logger/token.json
+.neptune/
