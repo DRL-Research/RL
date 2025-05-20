@@ -1,110 +1,70 @@
-import os
 import traceback
 
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from stable_baselines3.common.logger import configure
 
-from src.model.agent_handler import Agent, DummyVecEnv
-from src.model.master_model import MasterModel
-from src.model.model_handler import Model
+from logger.utils import log_training_results_to_neptune
+from src.model.agent_handler import Agent
+from src.model.model_handler import load_models, save_models
+from src.plotting_utils.plotting_utils import plot_training_results
+from src.training_loop.utils import setup_experiment_dirs, initialize_models, setup_loggers, close_everything
 
 
-def run_experiment(experiment_config, env_config):
-    """
-    Main function to run a complete experiment with master-agent architecture
-    """
-    print(
-        f"Environment configuration: {len(env_config['controlled_cars'])} controlled cars, {len(env_config['static_cars'])} static cars")
-
-    # Create experiment directory if it doesn't exist
-    os.makedirs(experiment_config.EXPERIMENT_PATH, exist_ok=True)
-
-    # Initialize tracking variables
-    p_agent_loss, p_master_loss, p_episode_counter = [], [], []
-
-    # Attach environment configuration to experiment_config for easy access
-    experiment_config.CONFIG = env_config
-
-    # Create master model
-    master_model = MasterModel(
-        embedding_size=experiment_config.EMBEDDING_SIZE,
-        experiment=experiment_config
-    )
-
-    # Create environment wrapper with Agent handler
-    env_fn = lambda: Agent(experiment_config, master_model=master_model)
-    wrapped_env = DummyVecEnv([env_fn])
-
-    # Create agent model
-    agent_model = Model(wrapped_env, experiment_config).model
-
-    # Configure loggers
-    base_path = experiment_config.EXPERIMENT_PATH
-    agent_logger = configure(os.path.join(base_path, "agent_logs"), ["stdout", "csv", "tensorboard"])
-    master_logger = configure(os.path.join(base_path, "master_logs"), ["stdout", "csv", "tensorboard"])
-    agent_model.set_logger(agent_logger)
-    master_model.set_logger(master_logger)
-
-    # Inference or training mode
-    if experiment_config.ONLY_INFERENCE:
-        print("Running in inference-only mode")
-        if experiment_config.LOAD_PREVIOUS_WEIGHT and experiment_config.LOAD_MODEL_DIRECTORY:
-            try:
-                agent_model.load(f"{experiment_config.LOAD_MODEL_DIRECTORY}_agent.pth")
-                master_model.load(f"{experiment_config.LOAD_MODEL_DIRECTORY}_master.pth")
-                print(
-                    f"Loaded weights from {experiment_config.LOAD_MODEL_DIRECTORY}, models will be trained from this point!")
-            except Exception as e:
-                print(f"Failed to load weights: {e}")
-                print("Starting training from scratch")
+def run_inference_mode(experiment_config, wrapped_env, agent_model, master_model, agent_logger, master_logger):
+    """Run inference episodes only."""
+    if experiment_config.LOAD_PREVIOUS_WEIGHT and experiment_config.LOAD_MODEL_DIRECTORY:
+        loaded = load_models(agent_model, master_model, experiment_config.LOAD_MODEL_DIRECTORY)
+        if loaded:
+            print("Models will be trained from loaded weights!")
         else:
-            print("Starting training from scratch (No previous weights loaded)")
-        # Load pre-trained models only in inference mode
-        try:
-            agent_model.load(f"{experiment_config.LOAD_MODEL_DIRECTORY}_agent.pth")
-            master_model.load(f"{experiment_config.LOAD_MODEL_DIRECTORY}_master.pth")
-            print(f"Loaded weights from {experiment_config.LOAD_MODEL_DIRECTORY} for inference.")
-        except Exception as e:
-            print(f"Failed to load inference models: {e}")
-            print("Using untrained models for inference.")
+            print("Starting inference with untrained models.")
+    else:
+        print("Starting inference with untrained models (No previous weights loaded)")
 
-        # Run evaluation episodes
-        eval_rewards, eval_actions = run_evaluation(experiment_config, wrapped_env, agent_model)
-        wrapped_env.close()
-        agent_logger.close()
-        master_logger.close()
+    eval_rewards, eval_actions = run_evaluation(experiment_config, wrapped_env, agent_model)
+    close_everything(wrapped_env, agent_logger, master_logger)
+    return agent_model, master_model, 0
 
-        return agent_model, master_model, 0
 
-    # Regular training run
+def run_training_mode(experiment_config, wrapped_env, agent_model, master_model, agent_logger, master_logger):
+    """Run the training loop and handle saving/logging."""
     print("Running full training")
-
-    # Run the training loop
+    # Tracking variables
+    p_agent_loss, p_master_loss, p_episode_counter = [], [], []
+    # Training
     p_episode_counter, p_agent_loss, p_master_loss, agent_model, collision_counter, all_rewards, all_actions, training_results = \
         training_loop(p_agent_loss, p_master_loss, p_episode_counter,
                       experiment_config, wrapped_env, agent_model, master_model)
-
     # Save models
-    agent_model.save(f"{experiment_config.SAVE_MODEL_DIRECTORY}_agent.pth")
-    master_model.save(f"{experiment_config.SAVE_MODEL_DIRECTORY}_master.pth")
-    print("Models saved")
-
-    # Close loggers
-    agent_logger.close()
-    master_logger.close()
-
+    save_models(agent_model, master_model, experiment_config.SAVE_MODEL_DIRECTORY)
+    # Log and plot
     plot_training_results(experiment_config, training_results, show_plots=True)
     log_training_results_to_neptune(experiment_config.logger, training_results)
-
     print("Training completed.")
     print("Total collisions:", collision_counter)
-
-    # Close environment
-    wrapped_env.close()
-
+    close_everything(wrapped_env, agent_logger, master_logger)
     return agent_model, master_model, collision_counter
+
+
+def run_experiment(experiment_config, env_config):
+    print(
+        f"Environment configuration: {len(env_config['controlled_cars'])} controlled cars, {len(env_config['static_cars'])} static cars"
+    )
+    setup_experiment_dirs(experiment_config.EXPERIMENT_PATH)
+    master_model, agent_model, wrapped_env = initialize_models(experiment_config, env_config)
+    agent_logger, master_logger = setup_loggers(experiment_config.EXPERIMENT_PATH)
+    agent_model.set_logger(agent_logger)
+    master_model.set_logger(master_logger)
+
+    if experiment_config.ONLY_INFERENCE:
+        print("Running in inference-only mode")
+        return run_inference_mode(
+            experiment_config, wrapped_env, agent_model, master_model, agent_logger, master_logger
+        )
+    else:
+        return run_training_mode(
+            experiment_config, wrapped_env, agent_model, master_model, agent_logger, master_logger
+        )
 
 
 def run_evaluation(experiment_config, env, agent_model):
@@ -237,7 +197,7 @@ def training_loop(p_agent_loss, p_master_loss, p_episode_counter, experiment, en
 
             elif training_agent:
                 print("Training agent only...")
-                agent_losses = train_agent_and_reset_buffer(env, master_model, agent_model, last_master_tensor)
+                agent_losses = train_agent_and_reset_buffer(master_model, agent_model, last_master_tensor)
                 if agent_losses:
                     agent_policy_losses.append(agent_losses[0])
                     agent_value_losses.append(agent_losses[1])
@@ -263,243 +223,6 @@ def training_loop(p_agent_loss, p_master_loss, p_episode_counter, experiment, en
     print("Training completed.")
 
     return p_episode_counter, p_agent_loss, p_master_loss, agent_model, collision_counter, all_rewards, all_actions, training_results
-
-
-def log_training_results_to_neptune(logger, training_results):
-    """
-    Logs training results (reward/losses per episode) to Neptune.
-    """
-    episode_rewards = training_results["episode_rewards"]
-    master_policy_losses = training_results["master_policy_losses"]
-    master_value_losses = training_results["master_value_losses"]
-    master_total_losses = training_results["master_total_losses"]
-    agent_policy_losses = training_results["agent_policy_losses"]
-    agent_value_losses = training_results["agent_value_losses"]
-    agent_total_losses = training_results["agent_total_losses"]
-
-    for i in range(len(episode_rewards)):
-        logger.log_metric("episode/reward", episode_rewards[i])
-        if master_policy_losses[i] is not None:
-            logger.log_metric("master/policy_loss", master_policy_losses[i])
-            logger.log_metric("master/value_loss", master_value_losses[i])
-            logger.log_metric("master/total_loss", master_total_losses[i])
-        if agent_policy_losses[i] is not None:
-            logger.log_metric("agent/policy_loss", agent_policy_losses[i])
-            logger.log_metric("agent/value_loss", agent_value_losses[i])
-            logger.log_metric("agent/total_loss", agent_total_losses[i])
-
-
-def monitor_episode_results(master_model, agent_model):
-    """Prints minimal statistics about the rollout buffers"""
-    master_buffer_size = master_model.rollout_buffer.pos
-    agent_buffer_size = agent_model.rollout_buffer.pos
-
-    print(f"Current buffer sizes - Master: {master_buffer_size}, Agent: {agent_buffer_size}")
-
-    if master_buffer_size > 0 and hasattr(master_model.rollout_buffer, 'rewards'):
-        rewards = master_model.rollout_buffer.rewards[:master_buffer_size]
-        print(f"Episode rewards - Min: {rewards.min():.2f}, Max: {rewards.max():.2f}, Avg: {rewards.mean():.2f}")
-
-
-def plot_training_results(experiment, results, show_plots=True):
-    """
-    Generate improved training visualization with loss curves
-    Args:
-        experiment: the experiment configuration
-        results: dictionary with training results
-        show_plots: if True, displays the plots interactively
-    """
-    print("Generating detailed training plots...")
-
-    # Create directory for saving plots
-    plots_dir = os.path.join(experiment.EXPERIMENT_PATH, "plots")
-    os.makedirs(plots_dir, exist_ok=True)
-
-    # Unpack the results
-    episode_rewards = results["episode_rewards"]
-    master_policy_losses = results["master_policy_losses"]
-    master_value_losses = results["master_value_losses"]
-    master_total_losses = results["master_total_losses"]
-    agent_policy_losses = results["agent_policy_losses"]
-    agent_value_losses = results["agent_value_losses"]
-    agent_total_losses = results["agent_total_losses"]
-
-    # Create x-axis for episodes
-    episodes = np.arange(1, len(episode_rewards) + 1)
-
-    # Set up the figure style
-    plt.style.use('ggplot')
-
-    # 1. Plot episode rewards
-    plt.figure(figsize=(10, 6))
-    plt.plot(episodes, episode_rewards, 'o-', color='#2C7BB6', linewidth=2, markersize=6)
-    plt.axhline(y=0, color='gray', linestyle='--', alpha=0.7)
-    plt.grid(True, alpha=0.3)
-    plt.title('Episode Rewards', fontsize=16)
-    plt.xlabel('Episode', fontsize=14)
-    plt.ylabel('Reward', fontsize=14)
-    plt.tight_layout()
-    plt.savefig(os.path.join(plots_dir, 'episode_rewards.png'))
-    if show_plots:
-        plt.show()
-    else:
-        plt.close()
-
-    # 2. Plot Master value loss
-    plt.figure(figsize=(10, 6))
-    valid_indices = [i for i, val in enumerate(master_value_losses) if val is not None]
-    valid_episodes = [episodes[i] for i in valid_indices]
-    valid_losses = [master_value_losses[i] for i in valid_indices]
-
-    if valid_losses:
-        plt.plot(valid_episodes, valid_losses, 'o-', color='#D95F02', linewidth=2, markersize=6)
-        plt.grid(True, alpha=0.3)
-        plt.title('Master Value Loss', fontsize=16)
-        plt.xlabel('Episode', fontsize=14)
-        plt.ylabel('Loss', fontsize=14)
-        plt.yscale('log')  # Use log scale since losses can vary greatly
-        plt.tight_layout()
-        plt.savefig(os.path.join(plots_dir, 'master_value_loss.png'))
-        if show_plots:
-            plt.show()
-        else:
-            plt.close()
-
-    # 3. Plot Master total loss
-    plt.figure(figsize=(10, 6))
-    valid_indices = [i for i, val in enumerate(master_total_losses) if val is not None]
-    valid_episodes = [episodes[i] for i in valid_indices]
-    valid_losses = [master_total_losses[i] for i in valid_indices]
-
-    if valid_losses:
-        plt.plot(valid_episodes, valid_losses, 'o-', color='#7570B3', linewidth=2, markersize=6)
-        plt.grid(True, alpha=0.3)
-        plt.title('Master Total Loss', fontsize=16)
-        plt.xlabel('Episode', fontsize=14)
-        plt.ylabel('Loss', fontsize=14)
-        plt.yscale('log')  # Use log scale since losses can vary greatly
-        plt.tight_layout()
-        plt.savefig(os.path.join(plots_dir, 'master_total_loss.png'))
-        if show_plots:
-            plt.show()
-        else:
-            plt.close()
-
-    # 4. Plot Agent value loss
-    plt.figure(figsize=(10, 6))
-    valid_indices = [i for i, val in enumerate(agent_value_losses) if val is not None]
-    valid_episodes = [episodes[i] for i in valid_indices]
-    valid_losses = [agent_value_losses[i] for i in valid_indices]
-
-    if valid_losses:
-        plt.plot(valid_episodes, valid_losses, 'o-', color='#1B9E77', linewidth=2, markersize=6)
-        plt.grid(True, alpha=0.3)
-        plt.title('Agent Value Loss', fontsize=16)
-        plt.xlabel('Episode', fontsize=14)
-        plt.ylabel('Loss', fontsize=14)
-        plt.yscale('log')  # Use log scale since losses can vary greatly
-        plt.tight_layout()
-        plt.savefig(os.path.join(plots_dir, 'agent_value_loss.png'))
-        if show_plots:
-            plt.show()
-        else:
-            plt.close()
-
-    # 5. Plot Agent total loss
-    plt.figure(figsize=(10, 6))
-    valid_indices = [i for i, val in enumerate(agent_total_losses) if val is not None]
-    valid_episodes = [episodes[i] for i in valid_indices]
-    valid_losses = [agent_total_losses[i] for i in valid_indices]
-
-    if valid_losses:
-        plt.plot(valid_episodes, valid_losses, 'o-', color='#E7298A', linewidth=2, markersize=6)
-        plt.grid(True, alpha=0.3)
-        plt.title('Agent Total Loss', fontsize=16)
-        plt.xlabel('Episode', fontsize=14)
-        plt.ylabel('Loss', fontsize=14)
-        plt.yscale('log')  # Use log scale since losses can vary greatly
-        plt.tight_layout()
-        plt.savefig(os.path.join(plots_dir, 'agent_total_loss.png'))
-        if show_plots:
-            plt.show()
-        else:
-            plt.close()
-
-    plt.figure(figsize=(12, 8))
-
-    # Master losses
-    master_valid_indices = [i for i, val in enumerate(master_total_losses) if val is not None]
-    master_valid_episodes = [episodes[i] for i in master_valid_indices]
-    master_valid_total_losses = [master_total_losses[i] for i in master_valid_indices]
-    master_valid_value_losses = [master_value_losses[i] for i in master_valid_indices]
-
-    # Agent losses
-    agent_valid_indices = [i for i, val in enumerate(agent_total_losses) if val is not None]
-    agent_valid_episodes = [episodes[i] for i in agent_valid_indices]
-    agent_valid_total_losses = [agent_total_losses[i] for i in agent_valid_indices]
-    agent_valid_value_losses = [agent_value_losses[i] for i in agent_valid_indices]
-
-    if master_valid_total_losses:
-        plt.plot(master_valid_episodes, master_valid_total_losses, 'o-', label='Master Total Loss',
-                 color='#7570B3', linewidth=2, markersize=6)
-        plt.plot(master_valid_episodes, master_valid_value_losses, 's-', label='Master Value Loss',
-                 color='#D95F02', linewidth=2, markersize=6)
-
-    if agent_valid_total_losses:
-        plt.plot(agent_valid_episodes, agent_valid_total_losses, 'o-', label='Agent Total Loss',
-                 color='#E7298A', linewidth=2, markersize=6)
-        plt.plot(agent_valid_episodes, agent_valid_value_losses, 's-', label='Agent Value Loss',
-                 color='#1B9E77', linewidth=2, markersize=6)
-
-    plt.grid(True, alpha=0.3)
-    plt.title('Training Losses', fontsize=16)
-    plt.xlabel('Episode', fontsize=14)
-    plt.ylabel('Loss (log scale)', fontsize=14)
-    plt.yscale('log')
-    plt.legend(fontsize=12)
-    plt.tight_layout()
-    plt.savefig(os.path.join(plots_dir, 'combined_losses.png'))
-    if show_plots:
-        plt.show()
-    else:
-        plt.close()
-
-    # 7. Plot combined training metrics
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
-
-    # Plot rewards
-    ax1.plot(episodes, episode_rewards, 'o-', color='#2C7BB6', linewidth=2, markersize=6)
-    ax1.axhline(y=0, color='gray', linestyle='--', alpha=0.7)
-    ax1.set_title('Episode Rewards', fontsize=16)
-    ax1.set_ylabel('Reward', fontsize=14)
-    ax1.grid(True, alpha=0.3)
-
-    # Plot losses on second axis
-    if master_valid_total_losses:
-        ax2.plot(master_valid_episodes, master_valid_total_losses, 'o-', label='Master Loss',
-                 color='#7570B3', linewidth=2, markersize=6)
-
-    if agent_valid_total_losses:
-        ax2.plot(agent_valid_episodes, agent_valid_total_losses, 'o-', label='Agent Loss',
-                 color='#E7298A', linewidth=2, markersize=6)
-
-    ax2.set_title('Training Losses', fontsize=16)
-    ax2.set_xlabel('Episode', fontsize=14)
-    ax2.set_ylabel('Loss (log scale)', fontsize=14)
-    ax2.set_yscale('log')
-    ax2.grid(True, alpha=0.3)
-    ax2.legend(fontsize=12)
-
-    plt.tight_layout()
-    plt.savefig(os.path.join(plots_dir, 'training_summary.png'))
-    if show_plots:
-        plt.show()
-    else:
-        plt.close()
-    if show_plots:
-        print("Plots displayed. Close all plot windows to continue.")
-
-    print(f"All plots saved to: {plots_dir}")
 
 
 def train_master_and_reset_buffer(master_model, full_obs):
@@ -916,46 +639,3 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
         current_obs = next_obs
 
     return episode_sum_of_rewards, actions_per_episode, steps_counter, crashed
-
-
-def monitor_rollout_buffers(master_model, agent_model):
-    """Prints statistics about the rollout buffers for debugging"""
-    print("\n--- Rollout Buffer Statistics ---")
-
-    # Master buffer stats
-    print("Master rollout buffer:")
-    print(f"  Buffer size: {master_model.rollout_buffer.buffer_size}")
-    print(f"  Current position: {master_model.rollout_buffer.pos}")
-    print(f"  Is full: {master_model.rollout_buffer.full}")
-
-    if hasattr(master_model.rollout_buffer, 'observations') and master_model.rollout_buffer.observations is not None:
-        print(f"  Observations shape: {master_model.rollout_buffer.observations.shape}")
-
-    if hasattr(master_model.rollout_buffer, 'actions') and master_model.rollout_buffer.actions is not None:
-        print(f"  Actions shape: {master_model.rollout_buffer.actions.shape}")
-
-    if hasattr(master_model.rollout_buffer, 'rewards') and master_model.rollout_buffer.rewards is not None:
-        rewards = master_model.rollout_buffer.rewards[:master_model.rollout_buffer.pos]
-        if len(rewards) > 0:
-            print(f"  Rewards stats: min={rewards.min():.4f}, max={rewards.max():.4f}, mean={rewards.mean():.4f}")
-            print(f"  Rewards: {rewards}")
-
-    # Agent buffer stats
-    print("\nAgent rollout buffer:")
-    print(f"  Buffer size: {agent_model.rollout_buffer.buffer_size}")
-    print(f"  Current position: {agent_model.rollout_buffer.pos}")
-    print(f"  Is full: {agent_model.rollout_buffer.full}")
-
-    if hasattr(agent_model.rollout_buffer, 'observations') and agent_model.rollout_buffer.observations is not None:
-        print(f"  Observations shape: {agent_model.rollout_buffer.observations.shape}")
-
-    if hasattr(agent_model.rollout_buffer, 'actions') and agent_model.rollout_buffer.actions is not None:
-        print(f"  Actions shape: {agent_model.rollout_buffer.actions.shape}")
-
-    if hasattr(agent_model.rollout_buffer, 'rewards') and agent_model.rollout_buffer.rewards is not None:
-        rewards = agent_model.rollout_buffer.rewards[:agent_model.rollout_buffer.pos]
-        if len(rewards) > 0:
-            print(f"  Rewards stats: min={rewards.min():.4f}, max={rewards.max():.4f}, mean={rewards.mean():.4f}")
-            print(f"  Rewards: {rewards}")
-
-    print("-------------------------------\n")

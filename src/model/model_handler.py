@@ -71,3 +71,22 @@ class Model:
         for file in os.listdir(relevant_directory):
             if file.endswith(".zip"):
                 return file
+
+
+
+def load_models(agent_model, master_model, load_dir):
+    """Try loading agent and master model weights."""
+    try:
+        agent_model.load(f"{load_dir}_agent.pth")
+        master_model.load(f"{load_dir}_master.pth")
+        print(f"Loaded weights from {load_dir}.")
+        return True
+    except Exception as e:
+        print(f"Failed to load weights: {e}")
+        return False
+
+def save_models(agent_model, master_model, save_dir):
+    """Save agent and master model weights."""
+    agent_model.save(f"{save_dir}_agent.pth")
+    master_model.save(f"{save_dir}_master.pth")
+    print("Models saved.")

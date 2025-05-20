@@ -1,7 +1,7 @@
 from highwayenv.utils import patch_intersection_env, register_intersection_env
 from src.experiment import scenarios_config as sc
 from src.experiment.experiment_config import Experiment
-from src.training_loop import run_experiment
+from src.training_loop.training_loop import run_experiment
 
 if __name__ == "__main__":
 
