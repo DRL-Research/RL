@@ -1,0 +1,65 @@
+{
+    "SettingsVersion": 1.2,
+    "SimMode": "Car",
+    "ClockSpeed": 1.0,
+    "TerrainRandomSeed": 12345,
+    "ShadowMapSize": 256,
+    "CameraDefaults": {
+        "CaptureSettings": [
+            {
+                "ImageType": 0,
+                "Width": 640,
+                "Height": 480,
+                "FOV_Degrees": 90,
+                "TargetGamma": 2.2
+            }
+        ],
+        "ImageType": 1,
+        "X": 0.7,
+        "Y": 0,
+        "Z": 1.6,
+        "Pitch": 0,
+        "Roll": 0,
+        "Yaw": 0
+    },
+    "Vehicles": {
+        "Car1": {
+            "VehicleType": "PhysXCar",
+            "X": 0,
+            "Y": 0,
+            "Z": 0,
+            "Yaw": 0,
+            "Sensors": {
+                "RadarSim": {
+                    "SensorType": 6,
+                    "Enabled": true,
+                    "NumberOfChannels": 1,
+                    "RotationsPerSecond": 10,
+                    "PointsPerSecond": 1000,
+                    "X": 0, "Y": 0, "Z": -1,
+                    "Roll": 0, "Pitch": 0, "Yaw": 0,
+                    "VerticalFOVUpper": 0.0,
+                    "VerticalFOVLower": 0.0,
+                    "HorizontalFOVStart": -180.0,
+                    "HorizontalFOVEnd": 180.0,
+                    "DrawDebugPoints": true,
+                    "DataFrame": "SensorLocalFrame"
+                }
+            }
+        },
+        "Car2": {
+            "VehicleType": "PhysXCar",
+            "X": 0,
+            "Y": 5,
+            "Z": 0,
+            "Yaw": -90
+        }
+    },
+    "UseNvidiaHardwareEncoder": true,
+    "SegmentationSettings": {
+        "Mode": "None",
+        "Cameras": [
+            "CameraDefaults"
+        ]
+    }
+}
