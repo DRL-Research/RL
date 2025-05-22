@@ -38,10 +38,13 @@ def main(follow, learn):
     client = airsim.CarClient()
     client.confirmConnection()
     client.enableApiControl(True, learn)
+    client.enableApiControl(True, follow)
     controls = airsim.CarControls()
     controls.throttle = 0.2 # Range: 0 to 1
     controls.steering = 0.0  # Range: -1 (left) to 1 (right)
     controls.brake = 0.0
+    client.setCarControls(controls, vehicle_name=follow)
+    time.sleep(2.0)
     client.setCarControls(controls, vehicle_name=learn)
     time.sleep(2.0)
 
@@ -85,16 +88,12 @@ def main(follow, learn):
         # EKF box (red)
         est_box = compute_box_corners(x_est[0], x_est[1], x_est[3], x_est[5], x_est[6])
         est_box_airsim = [airsim.Vector3r(pt[0], pt[1], 0.1) for pt in est_box]
-        client.simPlotLineStrip(est_box_airsim, color_rgba=[1, 0, 0, 1], thickness=8.0, is_persistent=False)
+        client.simPlotLineStrip(est_box_airsim, color_rgba=[1, 0, 0, 1], thickness=10.0, is_persistent=False)
 
         # Ground truth box (blue)
         gt_box = compute_box_corners(true_state[0], true_state[1], true_state[3], car_length, car_width)
         gt_box_airsim = [airsim.Vector3r(pt[0], pt[1], 0.1) for pt in gt_box]
         client.simPlotLineStrip(gt_box_airsim, color_rgba=[0, 0, 1, 1], thickness=6.0, is_persistent=False)
-
-        # EKF center dot (green)
-        client.simPlotPoints([airsim.Vector3r(float(x_est[0]), float(x_est[1]), 0.1)],
-                             color_rgba=[0, 1, 0, 1], size=15.0, is_persistent=False)
 
         print(f"[{step:02d}] Tracker: x={x_est[0]:.2f}, y={x_est[1]:.2f}, yaw={np.degrees(x_est[3]):.1f}°, "
               f"a={x_est[5]:.2f}, b={x_est[6]:.2f}")
@@ -105,6 +104,7 @@ def main(follow, learn):
     controls.steering = 0.0
     controls.brake = 1.0
     client.setCarControls(controls, vehicle_name=learn)
+    client.setCarControls(controls, vehicle_name=follow)
 
     # --- 1. Distance between EKF and Ground Truth box centers ---
     distances = [
@@ -155,9 +155,6 @@ def main(follow, learn):
     plt.show()
 
     # === 3. Center Distance Over Time ===
-    plt.plot(distances)
-    plt.axhline(5.0, color='gray', linestyle='--', label='5 meters reference')
-    plt.legend()
     plt.figure(figsize=(10, 4))
     plt.plot(distances, label="Tracking Error (EKF vs GT)", color='blue')
     plt.axhline(5.0, color='gray', linestyle='--', label='5 meters reference')
@@ -170,5 +167,5 @@ def main(follow, learn):
     plt.show()
 
 if __name__ == "__main__":
-    # the learning car is moving, the following car is standing still
+    # both cars move
     main(follow="Car2", learn="Car1")
