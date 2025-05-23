@@ -197,11 +197,11 @@ CONFIG_EXP4 = {
 CONFIG_EXP5 = {
     "controlled_cars": {
         "car1": {
-            "start_lane": Experiment.SOUTH_TO_NORTH,
-            "destination": Experiment.OUTER_NORTH,
+            "start_lane": ("o0_2", "ir0_2", 0),
+            "destination": "o1_1",
             "speed": Experiment.THROTTLE_SLOW,
             "init_location": {
-                "longitudinal": Experiment.LONGITUDINAL,
+                "longitudinal": 40,
                 "lateral": Experiment.LATERAL
             },
             "color": (0, 204, 0)  # Green car
@@ -209,8 +209,8 @@ CONFIG_EXP5 = {
     },
     "static_cars": {
         "car2": {
-            "start_lane": Experiment.WEST_TO_EAST,
-            "destination": Experiment.OUTER_EAST,
+            "start_lane": ("o3_2", "ir3_2", 0),
+            "destination": "o1_2",
             "speed": Experiment.THROTTLE_SLOW,
             "init_location": {
                 "longitudinal": Experiment.LONGITUDINAL,
@@ -218,7 +218,7 @@ CONFIG_EXP5 = {
             }
         },
         "car3": {
-            "start_lane": Experiment.EAST_TO_WEST,
+            "start_lane": ("o3_1", "ir3_1", 0),
             "destination": Experiment.OUTER_SOUTH,
             "speed": Experiment.THROTTLE_SLOW,
             "init_location": {
@@ -227,7 +227,7 @@ CONFIG_EXP5 = {
             }
         },
         "car4": {
-            "start_lane": Experiment.EAST_TO_WEST,
+            "start_lane": ("o3_1", "ir3_1", 0),
             "destination": Experiment.OUTER_NORTH,
             "speed": Experiment.THROTTLE_FAST,
             "init_location": {
@@ -236,7 +236,7 @@ CONFIG_EXP5 = {
             }
         },
         "car5": {
-            "start_lane": Experiment.NORTH_TO_SOUTH,
+            "start_lane": ("o2_1", "ir2_1", 0),
             "destination": Experiment.OUTER_WEST,
             "speed": Experiment.THROTTLE_FAST,
             "init_location": {

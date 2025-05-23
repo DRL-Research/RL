@@ -34,3 +34,8 @@ def register_intersection_env():
             id="RELintersection-v0",
             entry_point="highwayenv.intersection_class:IntersectionEnv",
         )
+    if "TwoIntersection-v0" not in registry:
+        register(
+            id="TwoIntersection-v0",
+            entry_point="highwayenv.intersection_class:TwoIntersectionEnv",
+        )

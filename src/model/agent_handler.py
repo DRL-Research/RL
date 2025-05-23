@@ -46,7 +46,8 @@ class Agent(gym.Env):
         self.current_embedding = None
 
         # Create the underlying Highway environment
-        self.highway_env = gym.make('RELintersection-v0', render_mode="rgb_array", config=self.config)
+        # self.highway_env = gym.make('RELintersection-v0', render_mode="rgb_array", config=self.config)
+        self.highway_env = gym.make('TwoIntersection-v0', render_mode="rgb_array", config=self.config)
 
     @staticmethod
     def get_action(model, observation, step_counter, exploration_threshold):

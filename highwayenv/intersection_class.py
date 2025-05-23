@@ -6,6 +6,7 @@ from highway_env.envs.common.observation import observation_factory
 from highway_env.road.lane import AbstractLane, CircularLane, LineType, StraightLane
 from highway_env.road.regulation import RegulatedRoad
 from highway_env.road.road import RoadNetwork
+from highway_env.vehicle.behavior import IDMVehicle
 from highway_env.vehicle.kinematics import Vehicle
 import gym
 
@@ -262,18 +263,53 @@ class IntersectionEnv(AbstractEnv):
             )
             controlled_vehicle.color = other_car["color"]   # Set color to green (RGB format)
             controlled_vehicle.plan_route_to(other_car["destination"])
+
+            # controlled_vehicle.route = [
+            #     ("o0_1", "ir0_1", 0),  # כניסה לצומת 1 מדרום
+            #     ("ir0_1", "il2_1", 0),  # ישר צפונה בצומת 1
+            #     ("il2_1", "o2_1", 0),  # יציאה צפונה
+            #
+            #     ("o2_1", "ir0_2", 0),  # כניסה לצומת 2 מדרום
+            #     ("ir0_2", "il1_2", 0),  # שמאלה לצומת 2 (למערב)
+            #     ("il1_2", "o1_2", 0)  # יציאה מערבה ✅
+            # ]
+
+            # controlled_vehicle.route = [
+            #     ("o0_2", "ir0_2", 0),  # כניסה לצומת 2 מדרום
+            #     ("ir0_2", "il2_1", 0),  # ישר צפונה דרך צומת 2 לכיוון צומת 1
+            #     ("il2_1", "o0_1", 0),  # יציאה מצומת 1 (המשך צפונה)
+            #
+            #     ("o0_1", "ir0_1", 0),  # כניסה לצומת 1 מדרום
+            #     ("ir0_1", "il1_2", 0),  # שמאלה בצומת 1 (למערב)
+            #     ("il1_2", "o1_2", 0)  # יציאה מערבה
+            # ]
+            # controlled_vehicle.lane_index = controlled_vehicle.route[0]
+            # controlled_vehicle.position = 0 # התחלת בתחילת הנתיב
+            controlled_vehicle.target_lane_index = controlled_vehicle.route[0]
+            print("Starting lane_index:", controlled_vehicle.lane_index)
+            print("Route:", controlled_vehicle.route)
+            print("Starting position:", controlled_vehicle.position)
+
+            print("From ir0_2:", self.road.network.graph.get("ir0_2", {}))
+            print("Route to", other_car["destination"], ":", controlled_vehicle.route)
+
             self.road.vehicles.append(controlled_vehicle)
             self.controlled_vehicles.append(controlled_vehicle)
 
         # Regular Vehicle: Constant speed
         for other_car in other_conf.values():
             lane = self.road.network.get_lane(other_car["start_lane"])
-            other_vehicle = Vehicle(
+            other_vehicle = IDMVehicle(
                 self.road,
                 lane.position(other_car["init_location"]["longitudinal"], other_car["init_location"]["lateral"]),
                 speed=other_car["speed"],
                 heading=lane.heading_at(other_car["init_location"]["longitudinal"]),
             )
+            other_vehicle.plan_route_to(other_car["destination"])
+            # print(f"Creating vehicle on lane: {other_car['start_lane']} with destination: {other_car['destination']}")
+            # print(f"Vehicle position: {other_vehicle.position}")
+            # print(f"Vehicle destination: {other_vehicle.destination}")
+            # print(f"Vehicle planned route: {other_car.route}")
             self.road.vehicles.append(other_vehicle)
 
         for v in self.road.vehicles:  # Prevent early collisions
@@ -389,3 +425,171 @@ class ContinuousIntersectionEnv(IntersectionEnv):
             }
         )
         return config
+
+from highway_env.road.road import Road, RoadNetwork
+from highway_env.road.lane import StraightLane
+from highway_env.vehicle.behavior import IDMVehicle
+from highway_env.envs.common.abstract import AbstractEnv
+
+# class TwoIntersectionEnv(AbstractEnv):
+#     def define_spaces(self) -> None:
+#         """
+#         Set the types and spaces of observation and action from config.
+#         This function overrides the define_spaces function of the base class AbstractEnv, in order to allow calling our
+#         own "action_factory" function from custom_action.py instead of the built-in action.py.
+#         """
+#         self.observation_type = observation_factory(self, self.config["observation"])
+#         self.action_type = action_factory(self, self.config["action"])
+#         self.observation_space = self.observation_type.space()
+#         self.action_space = self.action_type.space()
+#
+#     def _make_road(self):
+#         """
+#         Create a road network with two intersections connected by a straight road segment.
+#         """
+#         net = RoadNetwork()
+#
+#         # Intersection 1: A → B ← C
+#         net.add_lane("A", "B", StraightLane([0, 0], [50, 0], line_types=["continuous", "continuous"]))
+#         net.add_lane("C", "B", StraightLane([25, -25], [25, 0], line_types=["continuous", "continuous"]))
+#
+#         # Segment between Intersection 1 and Intersection 2: B → D
+#         net.add_lane("B", "D", StraightLane([25, 0], [25, 25], line_types=["continuous", "continuous"]))
+#
+#         # Intersection 2: D → E ← F
+#         net.add_lane("D", "E", StraightLane([25, 25], [75, 25], line_types=["continuous", "continuous"]))
+#         net.add_lane("F", "E", StraightLane([25, 50], [25, 25], line_types=["continuous", "continuous"]))
+#
+#         self.road = Road(network=net)
+#
+#     def _make_vehicles(self, n_vehicles=1):
+#         """
+#         Populate the road with vehicles and define their routes through the intersections.
+#         """
+#         vehicle = IDMVehicle(self.road,
+#                              position=[5, 0],
+#                              heading=0,
+#                              speed=10)
+#
+#         # Route through both intersections: A → B → D → E
+#         vehicle.route = [("A", "B"), ("B", "D"), ("D", "E")]
+#
+#         self.road.vehicles.append(vehicle)
+#
+#     def reset(self):
+#         """
+#         Reset the environment by creating the road and vehicles.
+#         """
+#         self._make_road()
+#         self._make_vehicles()
+#         return super().reset()
+#
+#     def _reset(self) -> None:
+#         self._make_road()
+#         self._make_vehicles(self.config["initial_vehicle_count"])
+
+
+class TwoIntersectionEnv(IntersectionEnv):
+    def _make_road(self) -> None:
+        lane_width = AbstractLane.DEFAULT_WIDTH
+        right_turn_radius = lane_width + 5  # [m]
+        left_turn_radius = right_turn_radius + lane_width  # [m]
+        outer_distance = right_turn_radius + lane_width / 2
+        access_length = 100  # [m]
+
+        net = RoadNetwork()
+        n, c, s = LineType.NONE, LineType.CONTINUOUS, LineType.STRIPED
+
+        def add_intersection(net, shift=np.array([0, 0]), suffix=""):
+            for corner in range(4):
+                angle = np.radians(90 * corner)
+                is_horizontal = corner % 2
+                priority = 3 if is_horizontal else 1
+                rotation = np.array([
+                    [np.cos(angle), -np.sin(angle)],
+                    [np.sin(angle), np.cos(angle)]
+                ])
+
+                # Incoming
+                start = rotation @ np.array([lane_width / 2, access_length + outer_distance]) + shift
+                end = rotation @ np.array([lane_width / 2, outer_distance]) + shift
+                net.add_lane("o" + str(corner) + suffix, "ir" + str(corner) + suffix,
+                             StraightLane(start, end, line_types=[s, c], priority=priority, speed_limit=10))
+
+                # Right turn
+                r_center = rotation @ np.array([outer_distance, outer_distance]) + shift
+                net.add_lane("ir" + str(corner) + suffix, "il" + str((corner - 1) % 4) + suffix,
+                             CircularLane(r_center, right_turn_radius, angle + np.pi, angle + 1.5 * np.pi,
+                                          line_types=[n, c], priority=priority, speed_limit=10))
+
+                # Left turn
+                l_center = rotation @ np.array([
+                    -left_turn_radius + lane_width / 2,
+                    left_turn_radius - lane_width / 2
+                ]) + shift
+                net.add_lane("ir" + str(corner) + suffix, "il" + str((corner + 1) % 4) + suffix,
+                             CircularLane(l_center, left_turn_radius, angle, angle - np.pi / 2,
+                                          clockwise=False, line_types=[n, n], priority=priority - 1, speed_limit=10))
+
+                # Straight
+                start = rotation @ np.array([lane_width / 2, outer_distance]) + shift
+                end = rotation @ np.array([lane_width / 2, -outer_distance]) + shift
+                net.add_lane("ir" + str(corner) + suffix, "il" + str((corner + 2) % 4) + suffix,
+                             StraightLane(start, end, line_types=[s, n], priority=priority, speed_limit=10))
+
+                # Exit
+                start = rotation @ np.flip([lane_width / 2, access_length + outer_distance]) + shift
+                end = rotation @ np.flip([lane_width / 2, outer_distance]) + shift
+                net.add_lane("il" + str((corner - 1) % 4) + suffix, "o" + str((corner - 1) % 4) + suffix,
+                             StraightLane(end, start, line_types=[n, c], priority=priority, speed_limit=10))
+
+        # Add first intersection
+        add_intersection(net, shift=np.array([0, 0]), suffix="_1")
+
+        # Add second intersection shifted north (along Y)
+        add_intersection(net, shift=np.array([0, 150]), suffix="_2")
+
+        # Add connector lane between first and second intersections
+        # Exit of northbound from first → entry to southbound of second
+        # net.add_lane("o1_1", "ir3_2", StraightLane([lane_width / 2, outer_distance + access_length],
+        #                                            [lane_width / 2, 150 + access_length + outer_distance],
+        #                                            line_types=[s, c], priority=3, speed_limit=10))
+        # net.add_lane("o2_1", "ir0_2", StraightLane(
+        #     [0, access_length + outer_distance],  # נקודת יציאה מצפון של צומת תחתונה
+        #     [0, 15 + access_length + outer_distance],  # נקודת כניסה לדרום של הצומת העליונה
+        #     line_types=[s, c],
+        #     priority=3,
+        #     speed_limit=10
+        # ))
+
+        # Create the road object
+        road = RegulatedRoad(
+            network=net,
+            np_random=self.np_random,
+            record_history=self.config.get("show_trajectories", False)
+        )
+        self.road = road
+
+    # def _make_vehicles(self, n_vehicles: int = 10) -> None:
+    #     """
+    #     Populate the road with vehicles and define their routes through both intersections.
+    #     """
+    #     self.controlled_vehicles = []
+    #     controlled_conf = self.config["controlled_cars"]
+    #
+    #     # Controlled vehicles
+    #     for other_car in controlled_conf.values():
+    #         lane = self.road.network.get_lane(other_car["start_lane"])
+    #         controlled_vehicle = CustomControlledVehicle(
+    #             self.road,
+    #             lane.position(other_car["init_location"]["longitudinal"], other_car["init_location"]["lateral"]),
+    #             speed=other_car["speed"],
+    #             heading=lane.heading_at(other_car["init_location"]["longitudinal"]),
+    #         )
+    #         controlled_vehicle.color = other_car["color"]
+    #         # controlled_vehicle.route = [("o0", "ir0"), ("ir0", "il0"), ("il0", "o4"), ("o4", "ir4"), ("ir4", "il4")]
+    #         controlled_vehicle.route = [("o0", "ir0", 0), ("ir0", "il0", 0), ("il0", "o4", 0), ("o4", "ir4", 0),
+    #                                     ("ir4", "il4", 0)]
+    #         print(f"Route: {controlled_vehicle.route}")
+    #         self.road.vehicles.append(controlled_vehicle)
+    #         self.controlled_vehicles.append(controlled_vehicle)
