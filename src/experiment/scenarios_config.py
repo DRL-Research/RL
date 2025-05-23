@@ -1,9 +1,20 @@
 import random
 from src.experiment.experiment_config import Experiment
 
+import importlib.util
+import os
+
+def load_config_from_path(path: str):
+    path = os.path.abspath(path)
+    module_name = os.path.splitext(os.path.basename(path))[0]
+
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.CONFIG
 
 
-def create_full_environment_config(env_config):
+def create_full_environment_config(json_path):
     """
     Creates a full experiment configuration by combining a default configuration
     with user-specified experiment configurations. If a key in the experiment_configs
@@ -30,6 +41,8 @@ def create_full_environment_config(env_config):
     vy - Velocity on the y axis of vehicle.
     cos_h, sin_h - Trigonometric heading of vehicle.
     """
+    env_config = load_config_from_path(json_path)
+
     default_config = {
         "observation": {
             "type": "Kinematics",
@@ -66,15 +79,35 @@ def create_full_environment_config(env_config):
     return default_config
 
 
+CONFIG_EXP1 = {
+    "controlled_cars": {
+        "controlled_car1": {
+            "start_lane": Experiment.SOUT_FACING_NORTH,
+            "destination": Experiment.OUTER_NORTH,
+            "speed": Experiment.THROTTLE_SLOW,
+            "init_location": {"longitudinal": Experiment.LONGITUDINAL, "lateral": Experiment.LATERAL},
+            "color": (0, 204, 0),
+        },
+    },
+    "static_cars": {
+        "static_car1": {
+            "start_lane": Experiment.WEST_FACING_EAST,
+            "destination": Experiment.OUTER_EAST,
+            "speed": Experiment.THROTTLE_SLOW,
+            "init_location": {"longitudinal": Experiment.LONGITUDINAL, "lateral": Experiment.LATERAL},
+        },
+    },
+}
+
 CONFIG_EXP2 = {
     "controlled_cars": {
         "car1": {
-        "start_lane": Experiment.SOUTH_TO_NORTH,
+        "start_lane": Experiment.SOUTH_FACING_NORTH,
         "destination": Experiment.OUTER_NORTH,
         "speed": Experiment.THROTTLE_FAST,
         "init_location": {
             "longitudinal": Experiment.LONGITUDINAL,
-            "lateral": 0
+            "lateral": Experiment.LATERAL
         },
         "color": (0, 204, 0)  # green
         }
@@ -82,7 +115,7 @@ CONFIG_EXP2 = {
     ,
     "static_cars": {
         "car2": {
-        "start_lane": Experiment.EAST_TO_WEST,
+        "start_lane": Experiment.EAST_FACING_WEST,
         "destination": Experiment.OUTER_EAST,
         "speed": Experiment.THROTTLE_FAST,
         "init_location": {
@@ -94,38 +127,11 @@ CONFIG_EXP2 = {
 }
 
 
-CONFIG_EXP1 = {
-    "controlled_cars": {
-        "car1": {
-            "start_lane": Experiment.SOUTH_TO_NORTH,
-            "destination": Experiment.OUTER_NORTH,
-            "speed": Experiment.THROTTLE_SLOW,
-            "init_location": {
-                "longitudinal": Experiment.LONGITUDINAL,
-                "lateral": Experiment.LATERAL
-            },
-            "color": (0, 204, 0)  # Green car
-        }
-    },
-    "static_cars": {
-        "car2": {
-            "start_lane": Experiment.WEST_TO_EAST,
-            "destination": Experiment.OUTER_EAST,
-            "speed": Experiment.THROTTLE_SLOW,  # **Low speed for first case**
-            "init_location": {
-                "longitudinal": Experiment.LONGITUDINAL,
-                "lateral": Experiment.LATERAL
-            }
-        }
-    }
-    }
-
-
 exp3_speed = random.choice([Experiment.THROTTLE_SLOW, Experiment.THROTTLE_FAST])
 CONFIG_EXP3 = {
     "controlled_cars": {
         "car1": {
-        "start_lane": Experiment.SOUTH_TO_NORTH,
+        "start_lane": Experiment.SOUTH_FACING_NORTH,
         "destination": Experiment.OUTER_NORTH,
         "speed": exp3_speed,  # Same speed for both cars
         "init_location": {
@@ -138,7 +144,7 @@ CONFIG_EXP3 = {
     "static_cars": {
 
         "car2": {
-        "start_lane": Experiment.EAST_TO_WEST,
+        "start_lane": Experiment.EAST_FACING_WEST,
         "destination": Experiment.OUTER_EAST,
         "speed": exp3_speed,  # Same speed for both cars
         "init_location": {
@@ -152,7 +158,7 @@ CONFIG_EXP3 = {
 CONFIG_EXP4 = {
     "controlled_cars": {
         "car1": {
-            "start_lane": Experiment.SOUTH_TO_NORTH,
+            "start_lane": Experiment.SOUTH_FACING_NORTH,
             "destination": Experiment.OUTER_NORTH,
             "speed": Experiment.THROTTLE_SLOW,  # Initial speed is FAST
             "init_location": {
@@ -164,7 +170,7 @@ CONFIG_EXP4 = {
     },
     "static_cars": {
         "car2": {
-            "start_lane": Experiment.WEST_TO_EAST,
+            "start_lane": Experiment.WEST_FACING_EAST,
             "destination": Experiment.OUTER_EAST,
             "speed": Experiment.THROTTLE_SLOW,
             "init_location": {
@@ -173,7 +179,7 @@ CONFIG_EXP4 = {
             }
         },
         "car3": {
-            "start_lane": Experiment.EAST_TO_WEST,
+            "start_lane": Experiment.EAST_FACING_WEST,
             "destination": Experiment.OUTER_NORTH,
             "speed": Experiment.THROTTLE_SLOW,
             "init_location": {
@@ -182,7 +188,7 @@ CONFIG_EXP4 = {
             }
         },
         "car4": {
-            "start_lane": Experiment.EAST_TO_WEST,
+            "start_lane": Experiment.EAST_FACING_WEST,
             "destination": Experiment.OUTER_NORTH,
             "speed": Experiment.THROTTLE_SLOW,  # **Low speed for first case**
             "init_location": {
@@ -197,7 +203,7 @@ CONFIG_EXP4 = {
 CONFIG_EXP5 = {
     "controlled_cars": {
         "car1": {
-            "start_lane": Experiment.SOUTH_TO_NORTH,
+            "start_lane": Experiment.SOUTH_FACING_NORTH,
             "destination": Experiment.OUTER_NORTH,
             "speed": Experiment.THROTTLE_SLOW,
             "init_location": {
@@ -209,7 +215,7 @@ CONFIG_EXP5 = {
     },
     "static_cars": {
         "car2": {
-            "start_lane": Experiment.WEST_TO_EAST,
+            "start_lane": Experiment.WEST_FACING_EAST,
             "destination": Experiment.OUTER_EAST,
             "speed": Experiment.THROTTLE_SLOW,
             "init_location": {
@@ -218,7 +224,7 @@ CONFIG_EXP5 = {
             }
         },
         "car3": {
-            "start_lane": Experiment.EAST_TO_WEST,
+            "start_lane": Experiment.EAST_FACING_WEST,
             "destination": Experiment.OUTER_SOUTH,
             "speed": Experiment.THROTTLE_SLOW,
             "init_location": {
@@ -227,7 +233,7 @@ CONFIG_EXP5 = {
             }
         },
         "car4": {
-            "start_lane": Experiment.EAST_TO_WEST,
+            "start_lane": Experiment.EAST_FACING_WEST,
             "destination": Experiment.OUTER_NORTH,
             "speed": Experiment.THROTTLE_FAST,
             "init_location": {
@@ -236,7 +242,7 @@ CONFIG_EXP5 = {
             }
         },
         "car5": {
-            "start_lane": Experiment.NORTH_TO_SOUTH,
+            "start_lane": Experiment.NORTH_FACING_SOUTH,
             "destination": Experiment.OUTER_WEST,
             "speed": Experiment.THROTTLE_FAST,
             "init_location": {
@@ -247,8 +253,8 @@ CONFIG_EXP5 = {
     }
     }
 
-full_env_config_exp1 = create_full_environment_config(CONFIG_EXP1)
-full_env_config_exp2 = create_full_environment_config(CONFIG_EXP2)
-full_env_config_exp3 = create_full_environment_config(CONFIG_EXP3)
-full_env_config_exp4 = create_full_environment_config(CONFIG_EXP4)
-full_env_config_exp5 = create_full_environment_config(CONFIG_EXP5)
+full_env_config_exp1 = create_full_environment_config("src/experiment/configs/Experiment1.py")
+full_env_config_exp2 = create_full_environment_config("src/experiment/configs/Experiment2.py")
+full_env_config_exp3 = create_full_environment_config("src/experiment/configs/Experiment3.py")
+full_env_config_exp4 = create_full_environment_config("src/experiment/configs/Experiment4.py")
+full_env_config_exp5 = create_full_environment_config("src/experiment/configs/Experiment5.py")
