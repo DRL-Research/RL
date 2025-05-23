@@ -56,6 +56,7 @@ class Experiment:
     THROTTLE_FAST: float = 10
     THROTTLE_SLOW: float = 5
     FIXED_THROTTLE: float = 7.5
+    SPEEDS = {"THROTTLE_FAST":THROTTLE_FAST, "THROTTLE_SLOW":THROTTLE_SLOW, "FIXED_THROTTLE":FIXED_THROTTLE}
 
     # Reward Configuration
     REACHED_TARGET_REWARD: int = 20
@@ -70,11 +71,16 @@ class Experiment:
     SAVE_MODEL_DIRECTORY: str = field(init=False)
 
     # Lanes Directions
-    SOUTH_TO_NORTH = ("o0", "ir0", 0)
-    EAST_TO_WEST = ("o1", "ir1", 0)
-    WEST_TO_EAST = ("o3", "ir3", 0)
-    NORTH_TO_SOUTH = ("o2", "ir2", 0)
-
+    SOUTH_FACING_NORTH = ("o0", "ir0", 0)
+    EAST_FACING_WEST = ("o1", "ir1", 0)
+    WEST_FACING_EAST = ("o3", "ir3", 0)
+    NORTH_FACING_SOUTH = ("o2", "ir2", 0)
+    START_LANES = {
+        "SOUTH_FACING_NORTH": SOUTH_FACING_NORTH,
+        "EAST_FACING_WEST": EAST_FACING_WEST,
+        "WEST_FACING_EAST": WEST_FACING_EAST,
+        "NORTH_FACING_SOUTH": NORTH_FACING_SOUTH,
+    }
     # Directions for the cars
     OUTER_SOUTH = "o0"
     OUTER_WEST = "o1"
@@ -84,6 +90,7 @@ class Experiment:
     INNER_WEST = "i1"
     INNER_NORTH = "i2"
     INNER_EAST = "i3"
+    DESTINATION_LANES = {"OUTER_SOUTH":OUTER_SOUTH, "OUTER_WEST":OUTER_WEST, "OUTER_NORTH":OUTER_NORTH, "OUTER_EAST":OUTER_EAST, "INNER_SOUTH":INNER_SOUTH, "INNER_WEST":INNER_WEST, "INNER_NORTH":INNER_NORTH, "INNER_EAST":INNER_EAST}
 
 
     # Simulations Graphics
