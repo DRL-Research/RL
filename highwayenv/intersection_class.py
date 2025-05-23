@@ -262,17 +262,17 @@ class IntersectionEnv(AbstractEnv):
                 heading=lane.heading_at(other_car["init_location"]["longitudinal"]),
             )
             controlled_vehicle.color = other_car["color"]   # Set color to green (RGB format)
-            controlled_vehicle.plan_route_to(other_car["destination"])
+            # controlled_vehicle.plan_route_to(other_car["destination"])
 
-            # controlled_vehicle.route = [
-            #     ("o0_1", "ir0_1", 0),  # כניסה לצומת 1 מדרום
-            #     ("ir0_1", "il2_1", 0),  # ישר צפונה בצומת 1
-            #     ("il2_1", "o2_1", 0),  # יציאה צפונה
-            #
-            #     ("o2_1", "ir0_2", 0),  # כניסה לצומת 2 מדרום
-            #     ("ir0_2", "il1_2", 0),  # שמאלה לצומת 2 (למערב)
-            #     ("il1_2", "o1_2", 0)  # יציאה מערבה ✅
-            # ]
+            controlled_vehicle.route = [
+                ("o0_1", "ir0_1", 0),  # כניסה לצומת 1 מדרום
+                ("ir0_1", "il2_1", 0),  # ישר צפונה בצומת 1
+                ("il2_1", "o2_1", 0),  # יציאה צפונה
+
+                ("o2_1", "ir0_2", 0),  # כניסה לצומת 2 מדרום
+                ("ir0_2", "il1_2", 0),  # שמאלה לצומת 2 (למערב)
+                ("il1_2", "o1_2", 0)  # יציאה מערבה ✅
+            ]
 
             # controlled_vehicle.route = [
             #     ("o0_2", "ir0_2", 0),  # כניסה לצומת 2 מדרום
