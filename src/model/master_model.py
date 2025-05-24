@@ -1,12 +1,14 @@
 import os
-import torch
-import numpy as np
+
 import gymnasium as gym
+import numpy as np
+import torch
+import torch.nn as nn
 from gymnasium import spaces
 from stable_baselines3 import PPO
 from stable_baselines3.common.buffers import RolloutBuffer
 from stable_baselines3.common.policies import ActorCriticPolicy
-import torch.nn as nn
+
 
 ###############################################
 # Master Network Components
@@ -28,7 +30,7 @@ class CustomMasterNetwork(nn.Module):
             nn.Linear(128, 64),
             nn.ReLU()
         )
-        #outputs embedding
+        # outputs embedding
         self.embedding_head = nn.Sequential(
             nn.Linear(64, 32),
             nn.ReLU(),
@@ -177,7 +179,7 @@ class MasterModel:
     This model can handle variable numbers of cars (up to 5) in the environment.
     """
 
-    def __init__(self, embedding_size=4, experiment=None):
+    def __init__(self, embedding_size, experiment=None):
         self.embedding_size = embedding_size
         self.experiment = experiment
         self.is_frozen = False
@@ -260,14 +262,14 @@ class MasterModel:
                 if len(state_tensor.shape) == 2 and state_tensor.shape[0] > 1:
                     # Reshape to (1, 20)
                     reshaped_tensor = torch.tensor(state_tensor.reshape(1, -1), dtype=torch.float32)
-                    #print(f"Reshaped numpy array from {state_tensor.shape} to {reshaped_tensor.shape}")
+                    # print(f"Reshaped numpy array from {state_tensor.shape} to {reshaped_tensor.shape}")
                 elif len(state_tensor.shape) == 3:
                     # If it's a 3D array with shape like (1, 5, 4)
                     # Reshape to (batch, num_cars*features_per_car)
                     batch_size = state_tensor.shape[0]
                     flattened = state_tensor.reshape(batch_size, -1)
                     reshaped_tensor = torch.tensor(flattened, dtype=torch.float32)
-                    #print(f"Reshaped 3D numpy array from {state_tensor.shape} to {reshaped_tensor.shape}")
+                    # print(f"Reshaped 3D numpy array from {state_tensor.shape} to {reshaped_tensor.shape}")
                 else:
                     # Already flat or single dimension
                     reshaped_tensor = torch.tensor(state_tensor, dtype=torch.float32)
@@ -283,7 +285,7 @@ class MasterModel:
                 elif len(state_tensor.shape) == 2 and state_tensor.shape[0] > 1 and state_tensor.shape[1] == 4:
                     # Reshape to (1, 20)
                     reshaped_tensor = state_tensor.reshape(1, -1)
-                    #print(f"Reshaped tensor from {state_tensor.shape} to {reshaped_tensor.shape}")
+                    # print(f"Reshaped tensor from {state_tensor.shape} to {reshaped_tensor.shape}")
                 elif len(state_tensor.shape) == 2 and state_tensor.shape[0] == 1:
                     # Already in correct shape (1, X)
                     reshaped_tensor = state_tensor
@@ -310,6 +312,7 @@ class MasterModel:
                     print(f"Truncated tensor to shape {reshaped_tensor.shape}")
             embedding, _, _ = self.model.policy.forward(reshaped_tensor)
             return embedding.cpu().numpy()[0]
+
     def set_logger(self, logger):
         """Set logger for master network"""
         self.model.set_logger(logger)

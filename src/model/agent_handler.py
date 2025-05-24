@@ -1,7 +1,8 @@
-import numpy as np
 import random
-import torch
+
 import gymnasium as gym
+import numpy as np
+import torch
 from gymnasium import spaces
 
 
@@ -61,6 +62,7 @@ class Agent(gym.Env):
             # Model prediction
             action, _ = model.predict(observation, deterministic=True)
             return action
+
     def reset(self, **kwargs):
         """
         Reset the environment for a new episode.
