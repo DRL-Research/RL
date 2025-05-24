@@ -73,16 +73,8 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
     return episode_sum_of_rewards, actions_per_episode, steps_counter, crashed
 
 
-def process_episode(
-        episode_idx: int,
-        total_steps: int,
-        env,
-        master_model,
-        agent_model,
-        experiment,
-        train_both: bool,
-        training_master: bool
-) -> Tuple[float, Any, int, bool]:
+def process_episode(episode_idx, total_steps, env, master_model, agent_model, experiment, train_both, training_master)\
+        -> Tuple[float, Any, int, bool]:
     """
     Run an episode and log results.
     Returns: (reward, actions, steps, crashed)
@@ -107,9 +99,5 @@ def process_episode(
         logger.info("Episode %d ended with %s", episode_idx, status)
 
     logger.info(
-        "Result: %s | Reward: %.2f | Steps: %d",
-        status,
-        reward,
-        steps
-    )
+        "Result: %s | Reward: %.2f | Steps: %d", status, reward, steps)
     return reward, actions, steps, crashed
