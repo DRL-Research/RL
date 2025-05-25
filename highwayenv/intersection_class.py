@@ -65,16 +65,16 @@ class IntersectionEnv(AbstractEnv):
 
     def _agent_rewards(self, vehicle: Vehicle) -> dict[str, float]:
         """Per-agent per-objective reward signal."""
-        scaled_speed = utils.lmap(
-            vehicle.speed, self.config["reward_speed_range"], [0, 1]
-        )
+        # scaled_speed = utils.lmap(
+        #     vehicle.speed, self.config["reward_speed_range"], [0, 1]
+        # )
         return {
             "collision_reward": vehicle.crashed,
-            # "high_speed_reward": np.clip(scaled_speed, 0, 1),
             "high_speed_reward": 0,
             "arrived_reward": self.has_arrived(vehicle),
             "starvation_reward": True
             # "on_road_reward": vehicle.on_road,
+            # "high_speed_reward": np.clip(scaled_speed, 0, 1),
         }
 
     def _is_terminated(self) -> bool:

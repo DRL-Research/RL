@@ -245,10 +245,66 @@ CONFIG_EXP5 = {
             }
         }
     }
+}
+
+CONFIG_EXP5_2_controlled_cars = {
+    "controlled_cars": {
+        "car1": {
+            "start_lane": Experiment.SOUTH_TO_NORTH,
+            "destination": Experiment.OUTER_NORTH,
+            "speed": Experiment.THROTTLE_SLOW,
+            "init_location": {
+                "longitudinal": Experiment.LONGITUDINAL,
+                "lateral": Experiment.LATERAL
+            },
+            "color": (0, 204, 0)  # Green car
+        },
+        "car2": {
+            "start_lane": Experiment.WEST_TO_EAST,
+            "destination": Experiment.OUTER_EAST,
+            "speed": Experiment.THROTTLE_SLOW,
+            "init_location": {
+                "longitudinal": Experiment.LONGITUDINAL,
+                "lateral": Experiment.LATERAL
+            },
+            "color": (204, 0, 0)  #  car
+        },
+    },
+    "static_cars": {
+        "car3": {
+            "start_lane": Experiment.EAST_TO_WEST,
+            "destination": Experiment.OUTER_SOUTH,
+            "speed": Experiment.THROTTLE_SLOW,
+            "init_location": {
+                "longitudinal": Experiment.LONGITUDINAL - 20,
+                "lateral": Experiment.LATERAL
+            }
+        },
+        "car4": {
+            "start_lane": Experiment.EAST_TO_WEST,
+            "destination": Experiment.OUTER_NORTH,
+            "speed": Experiment.THROTTLE_FAST,
+            "init_location": {
+                "longitudinal": Experiment.LONGITUDINAL + 10,
+                "lateral": Experiment.LATERAL
+            }
+        },
+        "car5": {
+            "start_lane": Experiment.NORTH_TO_SOUTH,
+            "destination": Experiment.OUTER_WEST,
+            "speed": Experiment.THROTTLE_FAST,
+            "init_location": {
+                "longitudinal": Experiment.LONGITUDINAL - 10,
+                "lateral": Experiment.LATERAL
+            }
+        }
     }
+    }
+
 
 full_env_config_exp1 = create_full_environment_config(CONFIG_EXP1)
 full_env_config_exp2 = create_full_environment_config(CONFIG_EXP2)
 full_env_config_exp3 = create_full_environment_config(CONFIG_EXP3)
 full_env_config_exp4 = create_full_environment_config(CONFIG_EXP4)
 full_env_config_exp5 = create_full_environment_config(CONFIG_EXP5)
+# full_env_config_exp5 = create_full_environment_config(CONFIG_EXP5_2_controlled_cars)

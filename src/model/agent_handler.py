@@ -67,31 +67,33 @@ class Agent(gym.Env):
         """
         Reset the environment for a new episode.
         """
-        self.episode_step = 0
-        self.total_episode_reward = 0
+        self.episode_step, self.total_episode_reward = 0, 0
 
         # Reset Highway environment
         state, info = self.highway_env.reset(**kwargs)
-        self.current_state = state
+        self.current_state = state  # gets the state of both controlled and static vehicles
 
         # Get initial embedding from master if available
         if self.master_model is not None:
-            if len(state.shape) == 2 and state.shape[0] == 5 and state.shape[1] == 4:
+            if len(state.shape) == 2 and state.shape[0] == 5 and state.shape[1] == 4:  # TODO: hardcoded sizes?
                 master_input = torch.tensor(state.reshape(1, -1), dtype=torch.float32)
             else:
                 master_input = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
 
-            embedding = self.master_model.get_proto_action(master_input)
+            embedding, _, _ = self.master_model.get_proto_action(master_input)
             self.current_embedding = embedding
         else:
             # Use zeros if master not available
-            self.current_embedding = np.zeros(4)
+            raise ValueError("master not available")
+            # self.current_embedding = np.zeros(4)
 
-        # Combine highway state with embedding for agent observation
+        # Combine each driver state with embedding from master
         car1_state = state[:4] if len(state.shape) == 1 else state[0]  # First 4 values are the ego car state
-        agent_observation = np.concatenate((car1_state, self.current_embedding))
+        car2_state = state[4:8] if len(state.shape) == 1 else state[1]
+        agent_observation_car1 = np.concatenate((car1_state, self.current_embedding))
+        agent_observation_car2 = np.concatenate((car2_state, self.current_embedding))
 
-        return agent_observation, info
+        return agent_observation_car1, agent_observation_car2, info  # car return embedding also
 
     def step(self, action):
         """
@@ -109,15 +111,14 @@ class Agent(gym.Env):
             else:
                 master_input = torch.tensor(next_state, dtype=torch.float32).unsqueeze(0)
 
-            embedding = self.master_model.get_proto_action(master_input)
+            embedding, _, _ = self.master_model.get_proto_action(master_input)
             self.current_embedding = embedding
         else:
             # Use zeros if master not available
             self.current_embedding = np.zeros(4)
 
         # Combine car1 state with embedding for agent observation
-        car1_state = next_state[:4] if len(next_state.shape) == 1 else next_state[
-            0]  # First 4 values are the ego car state
+        car1_state = next_state[:4] if len(next_state.shape) == 1 else next_state[0]
         agent_observation = np.concatenate((car1_state, self.current_embedding))
 
         # Update internal state

@@ -35,18 +35,18 @@ def training_loop(experiment, env, agent_model, master_model):
                                                                                master_model, agent_model)
         for _ in range(experiment.EPISODES_PER_CYCLE):
             episode_counter += 1
-            reward, actions, steps, crashed = process_episode(episode_counter, total_steps, env, master_model,
+            episode_rewards, actions, steps, crashed = process_episode(episode_counter, total_steps, env, master_model,
                                                               agent_model, experiment, train_both, training_master)
             if crashed:
                 collision_counter += 1
 
             total_steps += steps
-            results["episode_rewards"].append(reward)
+            results["episode_rewards"].append(episode_rewards)
             results["all_actions"].append(actions)
 
             # Prepare state for training
             with torch.no_grad():
-                _, _ = env.reset()
+                _, _, _ = env.reset()
                 full_state = env.env.current_state
                 state_tensor = ensure_tensor(full_state)
 
@@ -114,8 +114,7 @@ def run_inference_mode(experiment_config, wrapped_env, agent_model, master_model
 def run_training_mode(experiment_config, wrapped_env, agent_model, master_model, agent_logger, master_logger):
     """Run the training loop and handle saving/logging."""
     agent_model, master_model, collision_counter, all_rewards, all_actions, training_results = (
-        training_loop(experiment=experiment_config, env=wrapped_env, agent_model=agent_model,
-                      master_model=master_model))
+        training_loop(experiment=experiment_config, env=wrapped_env, agent_model=agent_model, master_model=master_model))
     save_models(agent_model, master_model, experiment_config.SAVE_MODEL_DIRECTORY)
     plot_training_results(experiment_config, training_results, show_plots=True)
     log_training_results_to_neptune(experiment_config.logger, training_results)

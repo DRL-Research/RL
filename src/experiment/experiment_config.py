@@ -49,7 +49,8 @@ class Experiment:
         default_factory=lambda: {'pi': [64, 32, 16, 8], 'vf': [64, 32, 16, 8]})
 
     # State Configuration - still 8-dimensional (4 from car state + 4 from master embedding)
-    STATE_INPUT_SIZE: int = 8
+    AGENT_STATE_SIZE: int = 4
+    STATE_INPUT_SIZE: int = EMBEDDING_SIZE + AGENT_STATE_SIZE  # 8
 
     # Action Configuration
     ACTION_SPACE_SIZE: int = 2
