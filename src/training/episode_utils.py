@@ -12,6 +12,12 @@ from src.training.general_utils import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+def reshape_drivers_states(all_drivers_states):
+    all_drivers_states = all_drivers_states.reshape(-1) if isinstance(all_drivers_states, np.ndarray) and len(all_drivers_states.shape) == 2 else all_drivers_states
+    return all_drivers_states
+
+
+
 
 def run_episode(experiment, total_steps, env, master_model, agent_model, train_both, training_master):
     all_rewards, actions_per_episode = [], []
@@ -24,19 +30,18 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
     while not done and not truncated:
         steps_counter += 1
 
-        # Get full, flattened observation from environment
-        full_obs = env.env.current_state
+        # Get all drivers states (without master embedding) from environment
+        all_drivers_states = env.env.current_state
 
         # Compute master embedding & (for later optionally use) its value/log_prob
-        master_input = ensure_tensor(full_obs)
-        embedding, value, log_prob = master_model.get_proto_action(master_input)
+        embedding, value, log_prob = master_model.get_proto_action(ensure_tensor(all_drivers_states))
 
-        # Prepare agent observation vector
-        car1_state = get_obs_of_agent(all_agents_states=full_obs, car_index=0)
-        # car2_state = get_obs_of_agent(all_agents_states=full_obs, car_index=1)
+        # Prepare drivers' observation vectors
+        car1_state = get_obs_of_agent(all_drivers_states=all_drivers_states, car_index=0)
+        car2_state = get_obs_of_agent(all_drivers_states=all_drivers_states, car_index=1)
 
         agent_obs = combine_agent_obs(car1_state, embedding, agent_model.policy.observation_space.shape[0])
-        # agent_obs_car2 = combine_agent_obs(car1_state, embedding, agent_model.policy.observation_space.shape[0])
+        agent_obs_car2 = combine_agent_obs(car2_state, embedding, agent_model.policy.observation_space.shape[0])
 
         # Choose agent action and compute its metrics
         agent_action = Agent.get_action(agent_model, car1_observation, total_steps, experiment.EXPLORATION_EXPLOITATION_THRESHOLD)
@@ -62,19 +67,24 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
             crashed = True
 
         episode_start = (steps_counter == 1)
+        all_drivers_states = reshape_drivers_states(all_drivers_states)
+
         if train_both:
-            full_obs_flat = full_obs.reshape(-1) if isinstance(full_obs, np.ndarray) and len(full_obs.shape) == 2 else full_obs
             agent_model.rollout_buffer.add(agent_obs, action_array, reward, episode_start, agent_value, log_prob_agent)
-            master_model.rollout_buffer.add(full_obs_flat, embedding, reward, episode_start, value, log_prob)
+            master_model.rollout_buffer.add(all_drivers_states, embedding, reward, episode_start, value, log_prob)
         elif training_master:
-            full_obs_flat = full_obs.reshape(-1) if isinstance(full_obs, np.ndarray) and len(full_obs.shape) == 2 else full_obs
-            master_model.rollout_buffer.add(full_obs_flat, embedding, reward, episode_start, value, log_prob)
+            master_model.rollout_buffer.add(all_drivers_states, embedding, reward, episode_start, value, log_prob)
         else:
             agent_model.rollout_buffer.add(agent_obs, action_array, reward, episode_start, agent_value, log_prob_agent)
 
         car1_observation = next_obs  # TODO: make is generic for more than car1
 
     return episode_sum_of_rewards, actions_per_episode, steps_counter, crashed
+
+
+
+
+
 
 
 def process_episode(episode_idx, total_steps, env, master_model, agent_model, experiment, train_both, training_master) \

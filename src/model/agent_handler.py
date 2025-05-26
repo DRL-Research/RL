@@ -70,15 +70,15 @@ class Agent(gym.Env):
         self.episode_step, self.total_episode_reward = 0, 0
 
         # Reset Highway environment
-        state, info = self.highway_env.reset(**kwargs)
-        self.current_state = state  # gets the state of both controlled and static vehicles
+        current_state, info = self.highway_env.reset(**kwargs)
+        self.current_state = current_state  # gets the current_state of both controlled and static vehicles
 
         # Get initial embedding from master if available
         if self.master_model is not None:
-            if len(state.shape) == 2 and state.shape[0] == 5 and state.shape[1] == 4:  # TODO: hardcoded sizes?
-                master_input = torch.tensor(state.reshape(1, -1), dtype=torch.float32)
+            if len(current_state.shape) == 2 and current_state.shape[0] == 5 and current_state.shape[1] == 4:  # TODO: hardcoded sizes?
+                master_input = torch.tensor(current_state.reshape(1, -1), dtype=torch.float32)
             else:
-                master_input = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
+                master_input = torch.tensor(current_state, dtype=torch.float32).unsqueeze(0)
 
             embedding, _, _ = self.master_model.get_proto_action(master_input)
             self.current_embedding = embedding
@@ -87,9 +87,9 @@ class Agent(gym.Env):
             raise ValueError("master not available")
             # self.current_embedding = np.zeros(4)
 
-        # Combine each driver state with embedding from master
-        car1_state = state[:4] if len(state.shape) == 1 else state[0]  # First 4 values are the ego car state
-        car2_state = state[4:8] if len(state.shape) == 1 else state[1]
+        # Combine each driver current_state with embedding from master
+        car1_state = current_state[:4] if len(current_state.shape) == 1 else current_state[0]  # First 4 values are the ego car current_state
+        car2_state = current_state[4:8] if len(current_state.shape) == 1 else current_state[1]
         agent_observation_car1 = np.concatenate((car1_state, self.current_embedding))
         agent_observation_car2 = np.concatenate((car2_state, self.current_embedding))
 

@@ -34,11 +34,11 @@ def ensure_tensor(obs, target_dim=None):
     return tensor
 
 
-def get_obs_of_agent(all_agents_states, car_index):
+def get_obs_of_agent(all_drivers_states, car_index):
     """Flatten observation, taking the first car if multidimensional."""
-    if isinstance(all_agents_states, np.ndarray):
-        if len(all_agents_states.shape) == 2 and all_agents_states.shape[0] > 1:
-            return all_agents_states[car_index]
+    if isinstance(all_drivers_states, np.ndarray):
+        if len(all_drivers_states.shape) == 2 and all_drivers_states.shape[0] > 1:
+            return all_drivers_states[car_index]
 
 
 def flatten_obs(obs, length=4):
