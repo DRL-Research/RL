@@ -78,10 +78,19 @@ class IntersectionEnv(AbstractEnv):
         }
 
     def _is_terminated(self) -> bool:
+
+        if self.has_arrived(self.controlled_vehicles[0]):
+            self.controlled_vehicles[0].target_speed = 0
+
+        if self.has_arrived(self.controlled_vehicles[1]):
+            self.controlled_vehicles[1].target_speed = 0
+
+
+        print(self.controlled_vehicles[0].target_speed)
         return (
                 any(vehicle.crashed for vehicle in self.controlled_vehicles)
-                # or all(self.has_arrived(vehicle) for vehicle in self.controlled_vehicles)
-                or any(self.has_arrived(vehicle) for vehicle in self.controlled_vehicles)  # TODO: any!
+                or all(self.has_arrived(vehicle) for vehicle in self.controlled_vehicles)
+                # or any(self.has_arrived(vehicle) for vehicle in self.controlled_vehicles)  # TODO: any!
                 or (self.config["offroad_terminal"] and not self.vehicle.on_road)
         )
 
