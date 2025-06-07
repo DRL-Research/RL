@@ -1,22 +1,17 @@
 import logging
-from typing import Tuple, Any
 
 import numpy as np
-import torch
 
-from src.model.agent_handler import Agent
-from src.training.general_utils import (
-    ensure_tensor, combine_agent_obs, get_action_array, get_obs_of_agent,
-)
+from src.model.agent_handler import Driver
+from src.training.general_utils import ensure_tensor, get_agent_values_from_observation, get_scaler_action_and_action_array
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 def reshape_drivers_states(all_drivers_states):
     all_drivers_states = all_drivers_states.reshape(-1) if isinstance(all_drivers_states, np.ndarray) and len(all_drivers_states.shape) == 2 else all_drivers_states
     return all_drivers_states
-
-
 
 
 def run_episode(experiment, total_steps, env, master_model, agent_model, train_both, training_master):
@@ -36,32 +31,26 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
         # Compute master embedding & (for later optionally use) its value/log_prob
         embedding, value, log_prob = master_model.get_proto_action(ensure_tensor(all_drivers_states))
 
-        # Prepare drivers' observation vectors
-        car1_state = get_obs_of_agent(all_drivers_states=all_drivers_states, car_index=0)
-        car2_state = get_obs_of_agent(all_drivers_states=all_drivers_states, car_index=1)
-
-        agent_obs = combine_agent_obs(car1_state, embedding, agent_model.policy.observation_space.shape[0])
-        agent_obs_car2 = combine_agent_obs(car2_state, embedding, agent_model.policy.observation_space.shape[0])
-
         # Choose agent action and compute its metrics
-        agent_action = Agent.get_action(agent_model, car1_observation, total_steps, experiment.EXPLORATION_EXPLOITATION_THRESHOLD)
-        scalar_action = agent_action[0] if (hasattr(agent_action, 'shape') and len(agent_action.shape) > 0) else \
-            (agent_action[0] if isinstance(agent_action, list) and len(agent_action) > 0 else agent_action)
-        action_array = get_action_array(agent_action)
+        car1_action, car2_action = Driver.get_action(agent_model, car1_observation, car2_observation, total_steps,
+                                                     experiment.EXPLORATION_EXPLOITATION_THRESHOLD)
+
+        car1_scalar_action, car1_action_array = get_scaler_action_and_action_array(car1_action)
+        car2_scalar_action, car2_action_array = get_scaler_action_and_action_array(car2_action)
+
+        print(f"Actions: [{car1_scalar_action}, {car2_scalar_action}]")
 
         # Get agent values
         if train_both or not training_master:
-            with torch.no_grad():
-                obs_tensor = torch.tensor(agent_obs, dtype=torch.float32).unsqueeze(0)
-                agent_value = agent_model.policy.predict_values(obs_tensor)
-                dist = agent_model.policy.get_distribution(obs_tensor)
-                log_prob_agent = dist.log_prob(torch.tensor(action_array, dtype=torch.long))
+            car1_values, car1_log_prob = get_agent_values_from_observation(car1_observation, car1_action_array, agent_model)
+            car2_values, car2_log_prob = get_agent_values_from_observation(car2_observation, car2_action_array, agent_model)
 
         env.render()
-        next_obs, reward, done, truncated, info = env.step(scalar_action)
+
+        next_obs, reward, done, truncated, info = env.step((car1_scalar_action, car2_scalar_action))
         episode_sum_of_rewards += reward
         all_rewards.append(reward)
-        actions_per_episode.append(scalar_action)
+        actions_per_episode.append(car1_scalar_action)
 
         if done and info.get("crashed", False):
             crashed = True
@@ -70,25 +59,20 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
         all_drivers_states = reshape_drivers_states(all_drivers_states)
 
         if train_both:
-            agent_model.rollout_buffer.add(agent_obs, action_array, reward, episode_start, agent_value, log_prob_agent)
+            agent_model.rollout_buffer.add(car1_observation, car1_action_array, reward, episode_start, car1_values, car1_log_prob)
             master_model.rollout_buffer.add(all_drivers_states, embedding, reward, episode_start, value, log_prob)
         elif training_master:
             master_model.rollout_buffer.add(all_drivers_states, embedding, reward, episode_start, value, log_prob)
         else:
-            agent_model.rollout_buffer.add(agent_obs, action_array, reward, episode_start, agent_value, log_prob_agent)
+            agent_model.rollout_buffer.add(car1_observation, car1_action_array, reward, episode_start, car1_values, car1_log_prob)
 
         car1_observation = next_obs  # TODO: make is generic for more than car1
+
 
     return episode_sum_of_rewards, actions_per_episode, steps_counter, crashed
 
 
-
-
-
-
-
-def process_episode(episode_idx, total_steps, env, master_model, agent_model, experiment, train_both, training_master) \
-        -> Tuple[float, Any, int, bool]:
+def process_episode(episode_idx, total_steps, env, master_model, agent_model, experiment, train_both, training_master):
     """
     Run an episode and log results.
     Returns: (reward, actions, steps, crashed)

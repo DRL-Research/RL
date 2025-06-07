@@ -6,7 +6,7 @@ import torch
 from gymnasium import spaces
 
 
-class Agent(gym.Env):
+class Driver(gym.Env):
     """
     Agent environment wrapper for Highway intersection.
 
@@ -50,18 +50,19 @@ class Agent(gym.Env):
         self.highway_env = gym.make('RELintersection-v0', render_mode="rgb_array", config=self.config)
 
     @staticmethod
-    def get_action(model, observation, step_counter, exploration_threshold):
+    def get_action(model, car1_observation, car2_observation, step_counter, exploration_threshold):
         """
         Get an action from the agent model, with optional exploration.
         """
         # Epsilon-greedy exploration
         if random.random() < max(0.05, exploration_threshold * np.exp(-0.01 * step_counter)):
             # Random action
-            return [random.randint(0, model.action_space.n - 1)]
+            return [random.randint(0, model.action_space.n - 1)], [random.randint(0, model.action_space.n - 1)]
         else:
             # Model prediction
-            action, _ = model.predict(observation, deterministic=True)
-            return action
+            car1_action, _ = model.predict(car1_observation, deterministic=True)
+            car2_action, _ = model.predict(car2_observation, deterministic=True)
+            return car1_action, car2_action
 
     def reset(self, **kwargs):
         """
@@ -95,14 +96,15 @@ class Agent(gym.Env):
 
         return agent_observation_car1, agent_observation_car2, info  # car return embedding also
 
-    def step(self, action):
+    def step(self, action_tuple):
         """
         Execute action in the environment.
         """
         self.episode_step += 1
 
         # Take action in Highway environment
-        next_state, reward, done, truncated, info = self.highway_env.step(action)
+        # next_state, reward, done, truncated, info = self.highway_env.step(car1_action)
+        next_state, reward, done, truncated, info = self.highway_env.step(action_tuple)
 
         # Get embedding from master if available
         if self.master_model is not None:

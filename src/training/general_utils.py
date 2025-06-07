@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from stable_baselines3.common.logger import configure
 
-from src.model.agent_handler import Agent, DummyVecEnv
+from src.model.agent_handler import Driver, DummyVecEnv
 from src.model.master_model import MasterModel
 from src.model.model_handler import Model
 
@@ -69,14 +69,30 @@ def combine_agent_obs(car_state, embedding, expected_dim):
     return agent_obs
 
 
-def get_action_array(action):
-    """Get action in array format for logging/buffer."""
-    if hasattr(action, 'shape') and len(action.shape) > 0:
-        return np.array([[action[0]]])
-    elif isinstance(action, list) and len(action) > 0:
-        return np.array([[action[0]]])
+def get_scaler_action_and_action_array(car_action):
+    # scaler action
+    scaler_action =  car_action[0] if (hasattr(car_action, 'shape') and len(car_action.shape) > 0) else \
+        (car_action[0] if isinstance(car_action, list) and len(car_action) > 0 else car_action)
+
+    # action array
+    if hasattr(car_action, 'shape') and len(car_action.shape) > 0:
+        action_array = np.array([[car_action[0]]])
+    elif isinstance(car_action, list) and len(car_action) > 0:
+        action_array = np.array([[car_action[0]]])
     else:
-        return np.array([[action]])
+        action_array = np.array([[car_action]])
+
+    return scaler_action, action_array
+
+
+
+def get_agent_values_from_observation(car_observation, car_action_array, agent_model):
+    with torch.no_grad():
+        obs_tensor = torch.tensor(car_observation, dtype=torch.float32).unsqueeze(0)
+        car_values = agent_model.policy.predict_values(obs_tensor)
+        dist = agent_model.policy.get_distribution(obs_tensor)
+        log_prob = dist.log_prob(torch.tensor(car_action_array, dtype=torch.long))
+        return car_values, log_prob
 
 
 def setup_experiment_dirs(experiment_path):
@@ -94,7 +110,7 @@ def initialize_models(experiment_config, env_config):
         experiment=experiment_config
     )
     # Create env wrapper with Agent handler
-    env_fn = lambda: Agent(experiment_config, master_model=master_model)
+    env_fn = lambda: Driver(experiment_config, master_model=master_model)
     wrapped_env = DummyVecEnv([env_fn])
     # Create agent model
     agent_model = Model(wrapped_env, experiment_config).model

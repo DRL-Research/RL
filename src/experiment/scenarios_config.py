@@ -45,7 +45,11 @@ def create_full_environment_config(env_config):
             "observe_intentions": False,
         },
         "action": {
-            "type": "CustomDiscreteAction",
+            # "type": "CustomDiscreteAction",
+            "type": "CustomMultiAgentAction",
+            "action_config": {
+                "type": "CustomDiscreteAction",
+            },
             "target_speeds": [5, 10],  # speed is in [m/s]
         },
         # our current reward structure is: collision: -20, arriving: +10, every step (starvation): -0.1
@@ -248,6 +252,7 @@ CONFIG_EXP5 = {
 }
 
 CONFIG_EXP5_2_controlled_cars = {
+
     "controlled_cars": {
         "car1": {
             "start_lane": Experiment.SOUTH_TO_NORTH,
@@ -260,14 +265,14 @@ CONFIG_EXP5_2_controlled_cars = {
             "color": (0, 204, 0)  # Green car
         },
         "car2": {
-            "start_lane": Experiment.WEST_TO_EAST,
-            "destination": Experiment.OUTER_EAST,
+            "start_lane": Experiment.EAST_TO_WEST,
+            "destination": Experiment.OUTER_WEST,
             "speed": Experiment.THROTTLE_SLOW,
             "init_location": {
-                "longitudinal": Experiment.LONGITUDINAL,
+                "longitudinal": Experiment.LONGITUDINAL + 20,
                 "lateral": Experiment.LATERAL
             },
-            "color": (204, 0, 0)  #  car
+            "color": (0, 0, 204)  #  car
         },
     },
     "static_cars": {

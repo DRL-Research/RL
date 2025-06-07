@@ -72,9 +72,9 @@ class Experiment:
 
     # Lanes Directions
     SOUTH_TO_NORTH = ("o0", "ir0", 0)
-    EAST_TO_WEST = ("o1", "ir1", 0)
-    WEST_TO_EAST = ("o3", "ir3", 0)
+    WEST_TO_EAST = ("o1", "ir1", 0)  # TODO: fixed bug
     NORTH_TO_SOUTH = ("o2", "ir2", 0)
+    EAST_TO_WEST = ("o3", "ir3", 0) # TODO: fixed bug
 
     # Directions for the cars
     OUTER_SOUTH = "o0"
@@ -88,10 +88,13 @@ class Experiment:
 
 
     # Simulations Graphics
-    SCREEN_WIDTH: int = 600
-    SCREEN_HEIGHT: int = 600
+    # SCREEN_WIDTH: int = 600
+    SCREEN_WIDTH: int = 900
+    # SCREEN_HEIGHT: int = 600
+    SCREEN_HEIGHT: int = 800
     CENTERING_POSITION: List[float] = field(default_factory=lambda: [0.5, 0.6])  # Do not change, this centers the simulation
-    SCALING: float = 5.5 * 1.3
+    # SCALING: float = 5.5 * 1.3
+    SCALING: float = 3 * 1.3
 
     def __post_init__(self):
         self.EXPERIMENT_PATH = f"experiments/{self.EXPERIMENT_DATE_TIME}_{self.EXPERIMENT_ID}"

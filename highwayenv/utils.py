@@ -1,6 +1,6 @@
 from gymnasium.envs.registration import registry, register
 
-from highwayenv.intersection_class import IntersectionEnv
+from highwayenv.intersection_class import MultiAgentIntersectionEnv
 
 
 def patch_intersection_env():
@@ -11,7 +11,7 @@ def patch_intersection_env():
     """
 
     # Store the original method
-    original_agent_rewards = IntersectionEnv._agent_rewards
+    original_agent_rewards = MultiAgentIntersectionEnv._agent_rewards
 
     # Define the patched method
     def patched_agent_rewards(self, vehicle):
@@ -22,8 +22,8 @@ def patch_intersection_env():
         return original_agent_rewards(self, vehicle)
 
     # Replace the original method with our patched version
-    IntersectionEnv._agent_rewards = patched_agent_rewards
-    print("Successfully patched IntersectionEnv._agent_rewards method")
+    MultiAgentIntersectionEnv._agent_rewards = patched_agent_rewards
+    print("Successfully patched MultiAgentIntersectionEnv._agent_rewards method")
 
 
 
@@ -32,5 +32,6 @@ def register_intersection_env():
     if "RELintersection-v0" not in registry:
         register(
             id="RELintersection-v0",
-            entry_point="highwayenv.intersection_class:IntersectionEnv",
+            # entry_point="highwayenv.intersection_class:IntersectionEnv",
+            entry_point="highwayenv.intersection_class:MultiAgentIntersectionEnv",
         )

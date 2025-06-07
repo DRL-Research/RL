@@ -81,5 +81,57 @@ def action_factory(env: AbstractEnv, config: dict) -> ActionType:
         return MultiAgentAction(env, **config)
     elif config["type"] == "CustomDiscreteAction":
         return CustomDiscreteAction(env, **config)
+    elif config["type"] == "CustomMultiAgentAction":
+        return CustomMultiAgentAction(env, **config)
     else:
         raise ValueError("Unknown action type")
+
+
+class CustomMultiAgentAction(ActionType):
+    def __init__(self, env: AbstractEnv, action_config: dict, **kwargs) -> None:
+        """
+        Create a multi-agent version of CustomDiscreteAction.
+
+        :param env: the environment
+        :param action_config: the configuration for each agent's action
+        """
+        super().__init__(env)
+        self.action_config = action_config
+        self.agents_action_types = []
+
+        # Instantiate a CustomDiscreteAction for each controlled vehicle
+        for vehicle in self.env.controlled_vehicles:
+            action_type = CustomDiscreteAction(env, **self.action_config)
+            action_type.controlled_vehicle = vehicle
+            self.agents_action_types.append(action_type)
+
+    def space(self) -> spaces.Space:
+        """
+        Return a tuple space where each element is the action space of a specific agent.
+        """
+        return spaces.Tuple(
+            [action_type.space() for action_type in self.agents_action_types]
+        )
+
+    @property
+    def vehicle_class(self) -> Callable:
+        """
+        Return the vehicle class for the agents, assuming all share the same config.
+        """
+        return CustomDiscreteAction(self.env, **self.action_config).vehicle_class
+
+    def act(self, action: tuple[int]) -> None:
+        """
+        Apply the action tuple to the corresponding controlled vehicles.
+        """
+        assert isinstance(action, tuple), "Action must be a tuple for multi-agent setup"
+        for agent_action, action_type in zip(action, self.agents_action_types):
+            action_type.act(agent_action)
+
+    # def get_available_actions(self):
+    #     """
+    #     Return the Cartesian product of available actions for all agents.
+    #     """
+    #     return itertools.product(
+    #         *[action_type.get_available_actions() for action_type in self.agents_action_types]
+    #     )

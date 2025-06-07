@@ -80,7 +80,8 @@ class IntersectionEnv(AbstractEnv):
     def _is_terminated(self) -> bool:
         return (
                 any(vehicle.crashed for vehicle in self.controlled_vehicles)
-                or all(self.has_arrived(vehicle) for vehicle in self.controlled_vehicles)
+                # or all(self.has_arrived(vehicle) for vehicle in self.controlled_vehicles)
+                or any(self.has_arrived(vehicle) for vehicle in self.controlled_vehicles)  # TODO: any!
                 or (self.config["offroad_terminal"] and not self.vehicle.on_road)
         )
 
