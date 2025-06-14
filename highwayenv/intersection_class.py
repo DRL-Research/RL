@@ -79,11 +79,20 @@ class IntersectionEnv(AbstractEnv):
 
     def _is_terminated(self) -> bool:
 
-        if self.has_arrived(self.controlled_vehicles[0]):
-            self.controlled_vehicles[0].target_speed = 0
-
-        if self.has_arrived(self.controlled_vehicles[1]):
-            self.controlled_vehicles[1].target_speed = 0
+        # if self.has_arrived(self.controlled_vehicles[0]):
+        #     self.controlled_vehicles[0].target_speed = 0
+        #
+        # if self.has_arrived(self.controlled_vehicles[1]):
+        #     self.controlled_vehicles[1].target_speed = 0
+        for vehicle in self.controlled_vehicles:
+            arrived_counter = 0
+            if self.has_arrived(vehicle): # Move it to parkoing area
+                arrived_counter += 1
+                if vehicle.target_speed > 0:
+                    vehicle.target_speed = 0.0
+                    print(f"Vehicle {vehicle} has arrived at its destination.")
+                    vehicle.position = np.array([100.0, 100.0], dtype=np.float64)
+                print(f"Vehicle moved *o safe parking area")
 
 
         print(self.controlled_vehicles[0].target_speed)
