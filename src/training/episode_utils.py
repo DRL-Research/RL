@@ -38,7 +38,7 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
         car1_scalar_action, car1_action_array = get_scaler_action_and_action_array(car1_action)
         car2_scalar_action, car2_action_array = get_scaler_action_and_action_array(car2_action)
 
-        print(f"Actions: [{car1_scalar_action}, {car2_scalar_action}]")
+        #print(f"Actions: [{car1_scalar_action}, {car2_scalar_action}]")
 
         # Get agent values
         if train_both or not training_master:
@@ -47,7 +47,7 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
 
         env.render()
 
-        next_obs, reward, done, truncated, info = env.step((car1_scalar_action, car2_scalar_action))
+        car1_next_obs, car2_next_obs, reward, done, truncated, info = env.step((car1_scalar_action, car2_scalar_action))
         episode_sum_of_rewards += reward
         all_rewards.append(reward)
         actions_per_episode.append(car1_scalar_action)
@@ -66,7 +66,8 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
         else:
             agent_model.rollout_buffer.add(car1_observation, car1_action_array, reward, episode_start, car1_values, car1_log_prob)
 
-        car1_observation = next_obs  # TODO: make is generic for more than car1
+        car1_observation = car1_next_obs
+        car2_observation = car2_next_obs  # TODO: make is generic for more than car1
 
 
     return episode_sum_of_rewards, actions_per_episode, steps_counter, crashed

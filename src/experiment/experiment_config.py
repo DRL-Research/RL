@@ -60,8 +60,9 @@ class Experiment:
 
     # Reward Configuration
     REACHED_TARGET_REWARD: int = 20
-    COLLISION_REWARD: int = -20
-    STARVATION_REWARD: float = -0.5
+    COLLISION_REWARD: int = -230
+    STARVATION_REWARD: float = -10
+    HIGH_SPEED_REWARD=10
 
     # Path Configuration
     LOAD_MODEL_DIRECTORY: str = ""  # Directory for loading weights

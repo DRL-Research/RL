@@ -36,8 +36,8 @@ if __name__ == "__main__":
     experiment5_config = Experiment(
         EXPERIMENT_ID='Experiment5',
         LOAD_MODEL_DIRECTORY='experiments/08_12_2024-13_56_13_Experiment1/trained_model.zip',
-        EPOCHS=10,
-        CYCLES=10)
+        EPOCHS=1,
+        CYCLES=3)
 
     # dictionary were the keys are EXPERIMENT_ID (experiment name) and the values are environment configurations defined in scenarios_config.py
     custom_env_configs = {

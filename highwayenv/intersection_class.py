@@ -1,5 +1,6 @@
 from __future__ import annotations
 import numpy as np
+from flatbuffers.packer import float64
 from highway_env import utils
 from highway_env.envs.common.abstract import AbstractEnv
 from highway_env.envs.common.observation import observation_factory
@@ -36,6 +37,10 @@ class IntersectionEnv(AbstractEnv):
             self._agent_reward(vehicle) for vehicle in self.controlled_vehicles
         ) / len(self.controlled_vehicles)
 
+        # return sum(
+        #     self._agent_reward(vehicle) for vehicle in self.controlled_vehicles
+        # ) / len(self.controlled_vehicles)
+
     def _rewards(self, action: int) -> dict[str, float]:
         """Multi-objective rewards, for cooperative agents."""
         agents_rewards = [
@@ -48,19 +53,21 @@ class IntersectionEnv(AbstractEnv):
         }
 
     def _agent_reward(self, vehicle: Vehicle) -> float:
-        """Per-agent reward signal."""
+        """Enhanced reward with movement incentive."""
         rewards = self._agent_rewards(vehicle)
-        reward = sum(
-            self.config.get(name, 0) * reward for name, reward in rewards.items()
-        )
-        reward = self.config["arrived_reward"] if rewards["arrived_reward"] else reward
-        # reward *= rewards["on_road_reward"]
-        if self.config["normalize_reward"]:
-            reward = utils.lmap(
-                reward,
-                [self.config["collision_reward"], self.config["arrived_reward"]],
-                [0, 1],
-            )
+        #reward = sum(
+        #    self.config.get(name, 0) * reward for name, reward in rewards.items()
+        #)
+        if self.has_arrived(vehicle):
+            reward = self.config["arrived_reward"] if self.has_arrived(vehicle) else 0
+        elif vehicle.crashed:
+            reward= self.config["collision_reward"]
+        else: # Movement incentives - only for vehicles that haven't arrived
+            if vehicle.speed > 1.0:  # Moving at least 1 m/s
+                reward = 0.5  # Small bonus for moving
+            else:
+                reward = -10  # Penalty for being stationary
+        print(reward)
         return reward
 
     def _agent_rewards(self, vehicle: Vehicle) -> dict[str, float]:
@@ -70,38 +77,76 @@ class IntersectionEnv(AbstractEnv):
         # )
         return {
             "collision_reward": vehicle.crashed,
-            "high_speed_reward": 0,
+            "high_speed_reward": 1,
             "arrived_reward": self.has_arrived(vehicle),
             "starvation_reward": True
             # "on_road_reward": vehicle.on_road,
             # "high_speed_reward": np.clip(scaled_speed, 0, 1),
         }
 
+    # def _is_terminated(self) -> bool:
+    #     arrived_counter = 0
+    #
+    #     for vehicle in self.controlled_vehicles:
+    #         if self.has_arrived(vehicle):
+    #             arrived_counter += 1
+    #             print('arrived coun',arrived_counter)
+    #             print(vehicle.position)
+    #
+    #             if not hasattr(vehicle, 'is_arrived') or not vehicle.is_arrived:
+    #                 vehicle.is_arrived = True
+    #                 vehicle.target_speed = 0.0
+    #                 vehicle.MAX_SPEED = 0
+    #                 vehicle.MIN_SPEED=0
+    #                 vehicle.position = np.array([50.0 + arrived_counter*10, 50.0 + arrived_counter*20], dtype=np.float64)
+    #                 print(f"Vehicle marked as arrived")
+    #
+    #     return (
+    #             any(vehicle.crashed for vehicle in self.controlled_vehicles) or
+    #             arrived_counter == len(self.controlled_vehicles)
+    #     )
     def _is_terminated(self) -> bool:
+        # Initialize arrived_vehicles set if not exists
+        if not hasattr(self, 'arrived_vehicles'):
+            self.arrived_vehicles = set()
 
-        # if self.has_arrived(self.controlled_vehicles[0]):
-        #     self.controlled_vehicles[0].target_speed = 0
-        #
-        # if self.has_arrived(self.controlled_vehicles[1]):
-        #     self.controlled_vehicles[1].target_speed = 0
+        # Check for new arrivals
         for vehicle in self.controlled_vehicles:
-            arrived_counter = 0
-            if self.has_arrived(vehicle): # Move it to parkoing area
-                arrived_counter += 1
-                if vehicle.target_speed > 0:
-                    vehicle.target_speed = 0.0
-                    print(f"Vehicle {vehicle} has arrived at its destination.")
-                    vehicle.position = np.array([100.0, 100.0], dtype=np.float64)
-                print(f"Vehicle moved *o safe parking area")
+            if self.has_arrived(vehicle) and vehicle not in self.arrived_vehicles:
+                # New arrival
+                vehicle.position = np.array(
+                    [0.0 + len(self.arrived_vehicles) * 20.0, 1000 + len(self.arrived_vehicles) * 20.0],
+                    dtype=np.float64)
+                vehicle.target_speed = 0.0
+                vehicle.MAX_SPEED = 0
+                vehicle.is_arrived = True
+                self.arrived_vehicles.add(vehicle)
+                #print(f"Vehicle moved to parking area")
 
+        arrived_count = len(self.arrived_vehicles)
+        #print(f"Arrived: {arrived_count}/{len(self.controlled_vehicles)}")
 
-        print(self.controlled_vehicles[0].target_speed)
-        return (
-                any(vehicle.crashed for vehicle in self.controlled_vehicles)
-                or all(self.has_arrived(vehicle) for vehicle in self.controlled_vehicles)
-                # or any(self.has_arrived(vehicle) for vehicle in self.controlled_vehicles)  # TODO: any!
-                or (self.config["offroad_terminal"] and not self.vehicle.on_road)
-        )
+        # Immediate termination when all arrive
+        if arrived_count == len(self.controlled_vehicles):
+            #print(f"SUCCESS: All {len(self.controlled_vehicles)} vehicles completed!")
+            return True
+
+        return any((vehicle.crashed for vehicle in self.controlled_vehicles) or all(vehicle.is_arrived for vehicle in self.controlled_vehicles))
+
+    def get_observation(self):
+        obs = []
+
+        for vehicle in self.controlled_vehicles:
+            if hasattr(vehicle, 'is_arrived') and vehicle.is_arrived:
+                obs.append([0.0, 0.0, 0.0, 0.0])
+            else:
+                obs.append([
+                    vehicle.position[0],
+                    vehicle.position[1],
+                    vehicle.velocity[0],
+                    vehicle.velocity[1]
+                ])
+
 
     def _agent_is_terminal(self, vehicle: Vehicle) -> bool:
         """The episode is over when a collision occurs or when the access ramp has been passed."""
@@ -124,6 +169,8 @@ class IntersectionEnv(AbstractEnv):
     def _reset(self) -> None:
         self._make_road()
         self._make_vehicles(self.config["initial_vehicle_count"])
+        if hasattr(self, 'arrived_vehicles'):
+            self.arrived_vehicles.clear()
 
     def step(self, action: int) -> tuple[np.ndarray, float, bool, bool, dict]:
         obs, reward, terminated, truncated, info = super().step(action)
