@@ -52,7 +52,7 @@ class Experiment:
     AGENT_STATE_SIZE: int = 4
     STATE_INPUT_SIZE: int = EMBEDDING_SIZE + AGENT_STATE_SIZE  # 8
 
-    # Action Configuration
+    # Action Configurations
     ACTION_SPACE_SIZE: int = 2
     THROTTLE_FAST: float = 10
     THROTTLE_SLOW: float = 5
