@@ -52,17 +52,17 @@ class Experiment:
     AGENT_STATE_SIZE: int = 4
     STATE_INPUT_SIZE: int = EMBEDDING_SIZE + AGENT_STATE_SIZE  # 8
 
-    # Action Configurationss
+    # Action Configurations
     ACTION_SPACE_SIZE: int = 2
     THROTTLE_FAST: float = 10
     THROTTLE_SLOW: float = 5
     FIXED_THROTTLE: float = 7.5
 
     # Reward Configuration
-    REACHED_TARGET_REWARD: int = 20
-    COLLISION_REWARD: int = -230
+    REACHED_TARGET_REWARD: float = 20
+    COLLISION_REWARD: float = -230
     STARVATION_REWARD: float = -10
-    HIGH_SPEED_REWARD=10
+    HIGH_SPEED_REWARD: float = 0.5
 
     # Path Configuration
     LOAD_MODEL_DIRECTORY: str = ""  # Directory for loading weights
@@ -75,7 +75,7 @@ class Experiment:
     SOUTH_TO_NORTH = ("o0", "ir0", 0)
     WEST_TO_EAST = ("o1", "ir1", 0)  # TODO: fixed bug
     NORTH_TO_SOUTH = ("o2", "ir2", 0)
-    EAST_TO_WEST = ("o3", "ir3", 0) # TODO: fixed bug
+    EAST_TO_WEST = ("o3", "ir3", 0)  # TODO: fixed bug
 
     # Directions for the cars
     OUTER_SOUTH = "o0"
@@ -87,20 +87,19 @@ class Experiment:
     INNER_NORTH = "i2"
     INNER_EAST = "i3"
 
-
     # Simulations Graphics
     # SCREEN_WIDTH: int = 600
     SCREEN_WIDTH: int = 900
     # SCREEN_HEIGHT: int = 600
     SCREEN_HEIGHT: int = 800
-    CENTERING_POSITION: List[float] = field(default_factory=lambda: [0.5, 0.6])  # Do not change, this centers the simulation
+    CENTERING_POSITION: List[float] = field(
+        default_factory=lambda: [0.5, 0.6])  # Do not change, this centers the simulation
     # SCALING: float = 5.5 * 1.3
     SCALING: float = 3 * 1.3
 
     def __post_init__(self):
         self.EXPERIMENT_PATH = f"experiments/{self.EXPERIMENT_DATE_TIME}_{self.EXPERIMENT_ID}"
         self.SAVE_MODEL_DIRECTORY = f"{self.EXPERIMENT_PATH}/trained_model"
-
 
         # Load API token from external JSON file
         try:

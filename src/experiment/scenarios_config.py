@@ -57,6 +57,7 @@ def create_full_environment_config(env_config):
         "arrived_reward": Experiment.REACHED_TARGET_REWARD,  # reward for arriving at the destination
         "normalize_reward": False,
         "starvation_reward": Experiment.STARVATION_REWARD,  # reward for every step taken
+        "high_speed_reward": Experiment.HIGH_SPEED_REWARD,  # small bonus for moving
         "offroad_terminal": False,
         "duration": Experiment.EPISODE_MAX_TIME,
         "initial_vehicle_count": Experiment.CARS_AMOUNT,

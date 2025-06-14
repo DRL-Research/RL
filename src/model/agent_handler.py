@@ -68,6 +68,7 @@ class Driver(gym.Env):
         #print("Car 1 obs", car1_observation)
         #print("Car 2 obs", car2_observation)
         return car1_action, car2_action
+
     def _prepare_state_for_master(self, state):
         if isinstance(state, tuple):
             state = np.array(state)
@@ -92,7 +93,7 @@ class Driver(gym.Env):
                 if i < state.shape[0]:
                     if hasattr(vehicle, 'is_arrived') and vehicle.is_arrived:
                         state[i] = [0.0, 0.0, 0.0, 0.0]
-                        print(f"Master: Sending zeros for arrived vehicle {i}")
+                        print(f"Master: Filling zeros in master input, for arrived vehicle {i}")
 
         return state
 
@@ -125,7 +126,7 @@ class Driver(gym.Env):
         if (hasattr(env, 'controlled_vehicles') and len(env.controlled_vehicles) > 0 and
                 hasattr(env.controlled_vehicles[0], 'is_arrived') and env.controlled_vehicles[0].is_arrived):
             car1_state = np.array([0.0, 0.0, 0.0, 0.0])
-            print('The',env.controlled_vehicles[0],'Arrived and sending : ',car1_state)
+            print('The',env.controlled_vehicles[0],'Arrived and sending : ', car1_state)
         else:
             car1_state = current_state[:4] if len(current_state.shape) == 1 else current_state[0]
 
@@ -133,7 +134,7 @@ class Driver(gym.Env):
         if (hasattr(env, 'controlled_vehicles') and len(env.controlled_vehicles) > 1 and
                 hasattr(env.controlled_vehicles[1], 'is_arrived') and env.controlled_vehicles[1].is_arrived):
             car2_state = np.array([0.0, 0.0, 0.0, 0.0])
-            print('The', env.controlled_vehicles[0], 'Arrived and sending : ', car1_state)
+            print('The', env.controlled_vehicles[1], 'Arrived and sending : ', car2_state)
         else:
             car2_state = current_state[4:8] if len(current_state.shape) == 1 else current_state[1]
 
@@ -180,6 +181,7 @@ class Driver(gym.Env):
 
         # Return same format as reset() - both observations
         return agent_observation_car1, agent_observation_car2, reward, done, truncated, info
+
     def render(self, mode='human'):
         """
         Render the environment.

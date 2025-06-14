@@ -310,6 +310,7 @@ class MasterModel:
                     # Truncate if too large
                     reshaped_tensor = reshaped_tensor[:, :self.observation_dim]
                     print(f"Truncated tensor to shape {reshaped_tensor.shape}")
+
             embedding, value, log_prob = self.model.policy.forward(reshaped_tensor)
             return embedding.cpu().numpy()[0], value, log_prob
 

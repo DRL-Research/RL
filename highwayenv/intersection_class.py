@@ -1,6 +1,5 @@
 from __future__ import annotations
 import numpy as np
-from flatbuffers.packer import float64
 from highway_env import utils
 from highway_env.envs.common.abstract import AbstractEnv
 from highway_env.envs.common.observation import observation_factory
@@ -33,13 +32,11 @@ class IntersectionEnv(AbstractEnv):
 
     def _reward(self, action: int) -> float:
         """Aggregated reward, for cooperative agents."""
-        return sum(
+        mean_reward = sum(
             self._agent_reward(vehicle) for vehicle in self.controlled_vehicles
         ) / len(self.controlled_vehicles)
-
-        # return sum(
-        #     self._agent_reward(vehicle) for vehicle in self.controlled_vehicles
-        # ) / len(self.controlled_vehicles)
+        print("Reward:", mean_reward)
+        return mean_reward
 
     def _rewards(self, action: int) -> dict[str, float]:
         """Multi-objective rewards, for cooperative agents."""
@@ -54,20 +51,19 @@ class IntersectionEnv(AbstractEnv):
 
     def _agent_reward(self, vehicle: Vehicle) -> float:
         """Enhanced reward with movement incentive."""
-        rewards = self._agent_rewards(vehicle)
-        #reward = sum(
+        # rewards = self._agent_rewards(vehicle)
+        # reward = sum(
         #    self.config.get(name, 0) * reward for name, reward in rewards.items()
-        #)
+        # )
         if self.has_arrived(vehicle):
             reward = self.config["arrived_reward"] if self.has_arrived(vehicle) else 0
         elif vehicle.crashed:
-            reward= self.config["collision_reward"]
+            reward = self.config["collision_reward"]
         else: # Movement incentives - only for vehicles that haven't arrived
             if vehicle.speed > 1.0:  # Moving at least 1 m/s
-                reward = 0.5  # Small bonus for moving
+                reward = self.config["high_speed_reward"]  # Small bonus for moving
             else:
-                reward = -10  # Penalty for being stationary
-        print(reward)
+                reward = self.config["starvation_reward"] # Penalty for being stationary
         return reward
 
     def _agent_rewards(self, vehicle: Vehicle) -> dict[str, float]:

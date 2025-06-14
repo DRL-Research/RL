@@ -1,30 +1,24 @@
 from __future__ import annotations
 
-from highway_env.envs.common.abstract import AbstractEnv
-from highway_env.envs.common.action import ActionType, ContinuousAction, DiscreteAction, DiscreteMetaAction, \
-    MultiAgentAction
-
 import functools
-import itertools
-from typing import TYPE_CHECKING, Callable, Union
+from typing import Callable
 
 import numpy as np
 from gymnasium import spaces
-
-from highway_env import utils
+from highway_env.envs.common.abstract import AbstractEnv
+from highway_env.envs.common.action import ActionType, ContinuousAction, DiscreteAction, DiscreteMetaAction, \
+    MultiAgentAction
 from highway_env.utils import Vector
 from highway_env.vehicle.controller import MDPVehicle
-from highway_env.vehicle.dynamics import BicycleVehicle
-from highway_env.vehicle.kinematics import Vehicle
 
 
 class CustomDiscreteAction(ActionType):
     def __init__(
-        self,
-        env: AbstractEnv,
-        actions=None,
-        target_speeds: Vector | None = None,
-        **kwargs,
+            self,
+            env: AbstractEnv,
+            actions=None,
+            target_speeds: Vector | None = None,
+            **kwargs,
     ) -> None:
         """
         Create a discrete action space of meta-actions.
@@ -39,7 +33,7 @@ class CustomDiscreteAction(ActionType):
             else MDPVehicle.DEFAULT_TARGET_SPEEDS
         )
         if actions is None:
-            actions = {0: "SLOWER", 1: "FASTER"} #, 2: "SUPER SLOWER", 3: "SUPER FASTER"}
+            actions = {0: "SLOWER", 1: "FASTER"}  # , 2: "SUPER SLOWER", 3: "SUPER FASTER"}
         self.actions = actions
         self.actions_indexes = {v: k for k, v in self.actions.items()}
 
