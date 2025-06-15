@@ -59,9 +59,9 @@ class Experiment:
     FIXED_THROTTLE: float = 7.5
 
     # Reward Configuration
-    REACHED_TARGET_REWARD: float = 20
-    COLLISION_REWARD: float = -230
-    STARVATION_REWARD: float = -10
+    REACHED_TARGET_REWARD: float = 200
+    COLLISION_REWARD: float = -200
+    STARVATION_REWARD: float = -20
     HIGH_SPEED_REWARD: float = 0.5
 
     # Path Configuration

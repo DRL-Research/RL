@@ -1,8 +1,5 @@
 import logging
 
-import numpy as np
-import torch
-
 from logger.utils import log_training_results_to_neptune
 from src.model.model_handler import load_models, save_models
 from src.plotting_utils.plotting_utils import plot_training_results
@@ -17,6 +14,11 @@ from src.training.training_loop_utils import init_training_results, prepare_mode
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+import numpy as np
+import torch
+from gymnasium import spaces
+from stable_baselines3.common.buffers import RolloutBuffer
+
 
 ##########################################
 # Training Loop
@@ -26,6 +28,15 @@ def training_loop(experiment, env, agent_model, master_model):
     """
     Main training loop that orchestrates cycles and episodes.
     """
+
+    rollout_buffer_2 = RolloutBuffer(
+        buffer_size=experiment.N_STEPS,
+        observation_space=spaces.Box(low=-np.inf, high=np.inf, shape=(experiment.STATE_INPUT_SIZE,)),
+        action_space=spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32),
+        gamma=0.99,
+        gae_lambda=0.95,
+        n_envs=1
+    )
 
     collision_counter, episode_counter, total_steps = 0, 0, 0
 
@@ -40,7 +51,8 @@ def training_loop(experiment, env, agent_model, master_model):
             episode_counter += 1
             print('This is the ',episode_counter,'Out of',experiment.EPISODES_PER_CYCLE)
             episode_rewards, actions, steps, crashed = process_episode(episode_counter, total_steps, env, master_model,
-                                                              agent_model, experiment, train_both, training_master)
+                                                              agent_model, experiment, train_both, training_master,
+                                                                       rollout_buffer_2)
             if crashed:
                 collision_counter += 1
 
@@ -55,7 +67,7 @@ def training_loop(experiment, env, agent_model, master_model):
                 state_tensor = ensure_tensor(full_state)
 
             perform_training_phase(train_both, training_master, training_agent, master_model, agent_model, full_state,
-                                   state_tensor, results)
+                                   state_tensor, results, rollout_buffer_2)
 
     print("Training completed.")
     return agent_model, master_model, collision_counter, results["episode_rewards"], results["all_actions"], results

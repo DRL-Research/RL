@@ -136,7 +136,7 @@ def train_master_and_reset_buffer(master_model, full_obs):
     return None
 
 
-def train_agent_and_reset_buffer(master_model, agent_model, last_master_tensor):
+def train_agent_and_reset_buffer(master_model, agent_model, last_master_tensor, rollout_buffer_2):
     """Trains the agent model and resets its buffer - Returns loss values"""
     policy_loss_val = value_loss_val = total_loss_val = None
     try:
@@ -203,6 +203,79 @@ def train_agent_and_reset_buffer(master_model, agent_model, last_master_tensor):
         traceback.print_exc()
     agent_model.rollout_buffer.reset()
     print("Agent buffer reset")
+
+
+    # TODO: rollout buffer 2:
+    policy_loss_val_2 = value_loss_val_2 = total_loss_val_2 = None
+    try:
+        with torch.no_grad():
+            shaped_tensor = ensure_tensor(last_master_tensor)
+            embedding, _, _ = master_model.get_proto_action(shaped_tensor)
+            car_state = flatten_obs(last_master_tensor)
+            expected_dim = agent_model.policy.observation_space.shape[0]
+            agent_obs = combine_agent_obs(car_state, embedding, expected_dim)
+            agent_obs_tensor = torch.tensor(agent_obs, dtype=torch.float32).unsqueeze(0)
+            last_value = agent_model.policy.predict_values(agent_obs_tensor)
+        if rollout_buffer_2.pos == 0:
+            print("Agent model: No data to train on")
+            return None
+        rollout_buffer_2.compute_returns_and_advantage(last_value, np.array([True]))
+        orig_get = rollout_buffer_2.get
+
+        def modified_get(batch_size):
+            if not rollout_buffer_2.full:
+                orig_full = rollout_buffer_2.full
+                rollout_buffer_2.full = True
+                try:
+                    indices = np.arange(rollout_buffer_2.pos)
+                    if len(indices) > 0:
+                        return rollout_buffer_2._get_samples(indices)
+                    else:
+                        return None
+                finally:
+                    rollout_buffer_2.full = orig_full
+            else:
+                return next(orig_get(batch_size))
+
+        try:
+            rollout_buffer_2.get = modified_get
+            rollout_data = rollout_buffer_2.get(batch_size=None)
+            if rollout_data is not None:
+                steps_trained = len(rollout_data.observations)
+                print(f"Agent 2! model trained on {steps_trained} steps")
+                observations_tensor = torch.FloatTensor(rollout_data.observations)
+                actions_tensor = torch.FloatTensor(rollout_data.actions)
+                # policy = agent_model.policy
+                # optimizer = policy.optimizer
+                values, log_probs, entropy = policy.evaluate_actions(observations_tensor, actions_tensor)
+                value_loss = ((values - torch.FloatTensor(rollout_data.returns)) ** 2).mean()
+                advantages_tensor = torch.FloatTensor(rollout_data.advantages)
+                policy_loss = -(log_probs * advantages_tensor).mean()
+                entropy_loss = -entropy.mean()
+                loss = policy_loss + 0.5 * value_loss + 0.01 * entropy_loss
+                optimizer.zero_grad()
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(policy.parameters(), 0.5)
+                optimizer.step()
+                policy_loss_val = policy_loss.item()
+                value_loss_val = value_loss.item()
+                total_loss_val = loss.item()
+                print(
+                    f"Agent 2! loss - Policy: {policy_loss_val:.4f}, Value: {value_loss_val:.4f}, Total: {total_loss_val:.4f}")
+            else:
+                print("Agent model: No valid data for training")
+        finally:
+            rollout_buffer_2.get = orig_get
+    except Exception as e:
+        print(f"Error during agent training: {str(e)}")
+        traceback.print_exc()
+    rollout_buffer_2.reset()
+    print("Rollout buffer 2 reset")
+    # if policy_loss_val is not None:
+    #     return [policy_loss_val, value_loss_val, total_loss_val]
+    # return None
+
+
     if policy_loss_val is not None:
         return [policy_loss_val, value_loss_val, total_loss_val]
     return None
@@ -218,7 +291,8 @@ def perform_training_phase(
     agent_model,
     full_state: Any,
     state_tensor: torch.Tensor,
-    results: Dict[str, List[Any]]) -> None:
+    results: Dict[str, List[Any]],
+    rollout_buffer_2) -> None:
     """
     Execute training for master and/or agent and update results.
     """
@@ -227,7 +301,7 @@ def perform_training_phase(
     if train_both or training_master:
         master_losses = train_master_and_reset_buffer(master_model, full_state)
     if train_both or training_agent:
-        agent_losses = train_agent_and_reset_buffer(master_model, agent_model, state_tensor)
+        agent_losses = train_agent_and_reset_buffer(master_model, agent_model, state_tensor, rollout_buffer_2)
 
     record_losses(
         master_losses,

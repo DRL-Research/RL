@@ -1,0 +1,1 @@
+after_is_arrived_flags = [False, False]

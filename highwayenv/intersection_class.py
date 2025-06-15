@@ -11,6 +11,7 @@ import gym
 
 from highwayenv.CustomControlledVehicle import CustomControlledVehicle
 from highwayenv.custom_action import action_factory
+from src import project_globals
 
 
 class IntersectionEnv(AbstractEnv):
@@ -30,13 +31,50 @@ class IntersectionEnv(AbstractEnv):
         self.observation_space = self.observation_type.space()
         self.action_space = self.action_type.space()
 
+
     def _reward(self, action: int) -> float:
         """Aggregated reward, for cooperative agents."""
-        mean_reward = sum(
-            self._agent_reward(vehicle) for vehicle in self.controlled_vehicles
-        ) / len(self.controlled_vehicles)
-        print("Reward:", mean_reward)
-        return mean_reward
+        mean_reward_type = True
+
+        # Filter vehicles that haven't arrived yet
+        active_vehicles = [
+            vehicle for vehicle, flag in zip(self.controlled_vehicles, project_globals.after_is_arrived_flags)
+            if not flag
+        ]
+        print(f"Active vehicles: {len(active_vehicles)}")
+
+
+        if not active_vehicles:
+            print("No active vehicles left. Reward: 0.0")
+            return 0.0  # or some default value when all vehicles have arrived
+
+        if mean_reward_type:
+            mean_reward = sum(
+                self._agent_reward(vehicle) for vehicle in active_vehicles
+            ) / len(active_vehicles)
+            print("Reward:", mean_reward)
+            return mean_reward
+        else:
+            min_reward = min(
+                self._agent_reward(vehicle) for vehicle in active_vehicles
+            )
+            print("Min Reward:", min_reward)
+            return min_reward
+
+        # mean_reward_type = True
+        #
+        # if mean_reward_type:
+        #     mean_reward = sum(
+        #         self._agent_reward(vehicle) for vehicle in self.controlled_vehicles
+        #     ) / len(self.controlled_vehicles)
+        #     print("Reward:", mean_reward)
+        #     return mean_reward
+        # else:
+        #     min_reward = min(
+        #         self._agent_reward(vehicle) for vehicle in self.controlled_vehicles
+        #     )
+        #     print("Min Reward:", min_reward)
+        #     return min_reward
 
     def _rewards(self, action: int) -> dict[str, float]:
         """Multi-objective rewards, for cooperative agents."""
@@ -80,28 +118,16 @@ class IntersectionEnv(AbstractEnv):
             # "high_speed_reward": np.clip(scaled_speed, 0, 1),
         }
 
-    # def _is_terminated(self) -> bool:
-    #     arrived_counter = 0
-    #
-    #     for vehicle in self.controlled_vehicles:
-    #         if self.has_arrived(vehicle):
-    #             arrived_counter += 1
-    #             print('arrived coun',arrived_counter)
-    #             print(vehicle.position)
-    #
-    #             if not hasattr(vehicle, 'is_arrived') or not vehicle.is_arrived:
-    #                 vehicle.is_arrived = True
-    #                 vehicle.target_speed = 0.0
-    #                 vehicle.MAX_SPEED = 0
-    #                 vehicle.MIN_SPEED=0
-    #                 vehicle.position = np.array([50.0 + arrived_counter*10, 50.0 + arrived_counter*20], dtype=np.float64)
-    #                 print(f"Vehicle marked as arrived")
-    #
-    #     return (
-    #             any(vehicle.crashed for vehicle in self.controlled_vehicles) or
-    #             arrived_counter == len(self.controlled_vehicles)
-    #     )
+    def update_after_is_arrived_flags(self):
+        for i, vehicle in enumerate(self.controlled_vehicles):
+            if hasattr(vehicle, 'is_arrived') and vehicle.is_arrived:
+                project_globals.after_is_arrived_flags[i] = True
+
     def _is_terminated(self) -> bool:
+
+        self.update_after_is_arrived_flags()
+        # print(self.after_is_arrived_flags)
+
         # Initialize arrived_vehicles set if not exists
         if not hasattr(self, 'arrived_vehicles'):
             self.arrived_vehicles = set()
@@ -129,7 +155,11 @@ class IntersectionEnv(AbstractEnv):
 
         return any((vehicle.crashed for vehicle in self.controlled_vehicles) or all(vehicle.is_arrived for vehicle in self.controlled_vehicles))
 
-    def get_observation(self):
+
+    def get_observation(self): # TODO: never reaching this code
+
+        self.update_after_is_arrived_flags()
+
         obs = []
 
         for vehicle in self.controlled_vehicles:
@@ -167,6 +197,12 @@ class IntersectionEnv(AbstractEnv):
         self._make_vehicles(self.config["initial_vehicle_count"])
         if hasattr(self, 'arrived_vehicles'):
             self.arrived_vehicles.clear()
+
+        # reset after_is_arrived_flags
+        for i, vehicle in enumerate(self.controlled_vehicles):
+            project_globals.after_is_arrived_flags[i] = False
+        # print(f"Reset the after_is_arrived_flags: {self.after_is_arrived_flags}")
+
 
     def step(self, action: int) -> tuple[np.ndarray, float, bool, bool, dict]:
         obs, reward, terminated, truncated, info = super().step(action)

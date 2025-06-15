@@ -1,5 +1,7 @@
 import os
-from stable_baselines3 import PPO, DQN, A2C
+
+from stable_baselines3 import DQN, A2C
+from stable_baselines3 import PPO
 
 
 class ModelType:
@@ -13,6 +15,7 @@ class Model:
         self.env = env
         self.experiment_config = experiment_config
         self.model = self.init_model()
+
     def init_model(self):
         model_params = self.define_model_params(self.experiment_config)
         match self.experiment_config.MODEL_TYPE:

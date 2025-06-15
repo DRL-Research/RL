@@ -2,6 +2,7 @@ import logging
 
 import numpy as np
 
+from src import project_globals
 from src.model.agent_handler import Driver
 from src.training.general_utils import ensure_tensor, get_agent_values_from_observation, get_scaler_action_and_action_array
 
@@ -14,7 +15,7 @@ def reshape_drivers_states(all_drivers_states):
     return all_drivers_states
 
 
-def run_episode(experiment, total_steps, env, master_model, agent_model, train_both, training_master):
+def run_episode(experiment, total_steps, env, master_model, agent_model, train_both, training_master, rollout_buffer_2):
     all_rewards, actions_per_episode = [], []
     steps_counter, episode_sum_of_rewards = 0, 0
     crashed = False
@@ -58,13 +59,20 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
         episode_start = (steps_counter == 1)
         all_drivers_states = reshape_drivers_states(all_drivers_states)
 
-        if train_both:
-            agent_model.rollout_buffer.add(car1_observation, car1_action_array, reward, episode_start, car1_values, car1_log_prob)
+        if train_both: # added flag for arrived that turns True after one time of is_arrived, and add to buffer only if True (for car1 and car2)
+            if not project_globals.after_is_arrived_flags[0]:
+                agent_model.rollout_buffer.add(car1_observation, car1_action_array, reward, episode_start, car1_values, car1_log_prob)
+            if not project_globals.after_is_arrived_flags[1]:
+                rollout_buffer_2.add(car2_observation, car2_action_array, reward, episode_start, car2_values, car2_log_prob)
             master_model.rollout_buffer.add(all_drivers_states, embedding, reward, episode_start, value, log_prob)
         elif training_master:
             master_model.rollout_buffer.add(all_drivers_states, embedding, reward, episode_start, value, log_prob)
         else:
-            agent_model.rollout_buffer.add(car1_observation, car1_action_array, reward, episode_start, car1_values, car1_log_prob)
+            if not project_globals.after_is_arrived_flags[0]:
+                agent_model.rollout_buffer.add(car1_observation, car1_action_array, reward, episode_start, car1_values, car1_log_prob)
+            if not project_globals.after_is_arrived_flags[1]:
+                rollout_buffer_2.add(car2_observation, car2_action_array, reward, episode_start, car2_values, car2_log_prob)
+
 
         car1_observation = car1_next_obs
         car2_observation = car2_next_obs
@@ -73,7 +81,8 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
     return episode_sum_of_rewards, actions_per_episode, steps_counter, crashed
 
 
-def process_episode(episode_idx, total_steps, env, master_model, agent_model, experiment, train_both, training_master):
+def process_episode(episode_idx, total_steps, env, master_model, agent_model, experiment, train_both, training_master,
+                    rollout_buffer_2):
     """
     Run an episode and log results.
     Returns: (reward, actions, steps, crashed)
@@ -81,9 +90,10 @@ def process_episode(episode_idx, total_steps, env, master_model, agent_model, ex
     logger.info("Episode %d", episode_idx)
     master_model.rollout_buffer.reset()
     agent_model.rollout_buffer.reset()
+    rollout_buffer_2.reset()
 
     reward, actions, steps, crashed = run_episode(experiment, total_steps, env, master_model, agent_model,
-                                                  train_both=train_both, training_master=training_master)
+                                                  train_both=train_both, training_master=training_master, rollout_buffer_2=rollout_buffer_2)
     status = "Collision" if crashed else "Success"
     if crashed:
         logger.warning("Episode %d ended with %s", episode_idx, status)
