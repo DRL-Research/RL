@@ -198,43 +198,200 @@ class IntersectionEnv(AbstractEnv):
             self.arrived_vehicles.clear()
 
         BASE_LONG = 40
-        offset = 40
 
-        scenarios = [
-            # Scenario 2: Adjacent directions - one turning
+        # Scenarios for AGENTS ONLY (first 2 cars)
+        agent_scenarios = [
+            # Scenario 1: Heavy north-south flow
             [
-                (('o0', 'ir0', 0), "o1", 0),
-                (('o1', 'ir1', 0), "o3", 0)
+                (('o0', 'ir0', 0), "o2", 0),  # Agent 1: North to South
+                (('o1', 'ir1', 0), "o3", 0),  # Agent 2: East to West
             ],
-            # Scenario 3: Same origin - different destinations
+
+            # Scenario 2: All cars turning right
             [
-                (('o0', 'ir0', 0), "o2", 0),
-                (('o0', 'ir0', 0), "o3", 40)
+                (('o0', 'ir0', 0), "o1", 0),  # Agent 1: North to East (right)
+                (('o1', 'ir1', 0), "o2", 0),  # Agent 2: East to South (right)
             ],
-            # Scenario 4: Perpendicular crossing
+
+            # Scenario 3: Crossing patterns with left turns
             [
-                (('o0', 'ir0', 0), "o1", -20),
-                (('o1', 'ir1', 0), "o2", -20)
+                (('o0', 'ir0', 0), "o3", 0),  # Agent 1: North to West (left)
+                (('o2', 'ir2', 0), "o1", 0),  # Agent 2: South to East (left)
             ],
-            # Scenario 5: Right turns conflict
+
+            # Scenario 4: East-west corridor
             [
-                (('o0', 'ir0', 0), "o2", 0),
-                (('o3', 'ir3', 0), "o2", 0)
+                (('o1', 'ir1', 0), "o3", 0),  # Agent 1: East to West
+                (('o3', 'ir3', 0), "o1", 0),  # Agent 2: West to East
+            ],
+
+            # Scenario 5: Complex multi-direction flow
+            [
+                (('o2', 'ir2', 0), "o0", 0),  # Agent 1: South to North
+                (('o1', 'ir1', 0), "o2", 0),  # Agent 2: East to South (right)
+            ],
+
+            # Scenario 6: Same origin dispersal
+            [
+                (('o0', 'ir0', 0), "o2", 0),  # Agent 1: North to South
+                (('o0', 'ir0', 0), "o1", 20),  # Agent 2: North to East (offset forward)
+            ],
+
+            # Scenario 7: Convergence to same destination
+            [
+                (('o0', 'ir0', 0), "o2", 0),  # Agent 1: North to South
+                (('o1', 'ir1', 0), "o2", 0),  # Agent 2: East to South (right)
+            ],
+
+            # Scenario 8: Minimum conflict scenario
+            [
+                (('o0', 'ir0', 0), "o2", 0),  # Agent 1: North to South (straight)
+                (('o2', 'ir2', 0), "o0", 0),  # Agent 2: South to North (straight)
+            ],
+
+            # Scenario 9: Rush hour challenge
+            [
+                (('o3', 'ir3', 0), "o1", 0),  # Agent 1: West to East
+                (('o0', 'ir0', 0), "o2", 0),  # Agent 2: North to South
+            ],
+
+            # Scenario 10: Mixed speed challenge
+            [
+                (('o1', 'ir1', 0), "o0", 0),  # Agent 1: East to North (left)
+                (('o2', 'ir2', 0), "o3", 0),  # Agent 2: South to West (left)
+            ],
+
+            # Scenario 11: Roundabout simulation
+            [
+                (('o0', 'ir0', 0), "o1", 0),  # Agent 1: North to East (right)
+                (('o1', 'ir1', 0), "o2", 0),  # Agent 2: East to South (right)
+            ],
+
+            # Scenario 12: Emergency scenario
+            [
+                (('o0', 'ir0', 0), "o3", 0),  # Agent 1: North to West (left turn)
+                (('o1', 'ir1', 0), "o0", 30),  # Agent 2: East to North (ahead)
+            ],
+
+            # Scenario 13: T-junction behavior
+            [
+                (('o2', 'ir2', 0), "o1", 0),  # Agent 1: South to East (left)
+                (('o2', 'ir2', 0), "o3", 20),  # Agent 2: South to West (right, ahead)
+            ],
+
+            # Scenario 14: Highway merge simulation
+            [
+                (('o3', 'ir3', 0), "o2", 0),  # Agent 1: West to South (left)
+                (('o1', 'ir1', 0), "o2", 0),  # Agent 2: East to South (right)
             ]
         ]
 
-        chosen_scenario = random.choice(scenarios)
+        # Static car scenarios (for the 3 remaining cars)
+        static_scenarios = [
+            # Static scenario 1
+            [
+                (('o0', 'ir0', 0), "o2", -30),  # Static: North to South (behind)
+                (('o2', 'ir2', 0), "o0", -20),  # Static: South to North
+                (('o0', 'ir0', 0), "o1", -40)  # Static: North to East (right turn)
+            ],
+            # Static scenario 2
+            [
+                (('o2', 'ir2', 0), "o3", -25),  # Static: South to West (right)
+                (('o3', 'ir3', 0), "o0", -35),  # Static: West to North (right)
+                (('o0', 'ir0', 0), "o1", -15)  # Static: North to East (right)
+            ],
+            # Static scenario 3
+            [
+                (('o1', 'ir1', 0), "o0", -20),  # Static: East to North (left)
+                (('o3', 'ir3', 0), "o2", -30),  # Static: West to South (left)
+                (('o0', 'ir0', 0), "o2", -40)  # Static: North to South (straight)
+            ],
+            # Add more static scenarios as needed...
+        ]
 
-        for i, (lane_key, destination, off) in enumerate(chosen_scenario):
+        chosen_agent_scenario = random.choice(agent_scenarios)
+        chosen_static_scenario = random.choice(static_scenarios)
+
+        # Handle controlled vehicles (agents) - first 2
+        for i in range(len(self.controlled_vehicles)):
+            lane_key, destination, off = chosen_agent_scenario[i]
             vehicle = self.controlled_vehicles[i]
             lane = self.road.network.get_lane(lane_key)
             vehicle.position = np.array(lane.position(BASE_LONG + off, 0))
             vehicle.lane_index = lane_key
             vehicle.target_lane_index = lane_key
             vehicle.heading = lane.heading_at(vehicle.position)
-            vehicle.plan_route_to(destination)
+            if hasattr(vehicle, 'plan_route_to'):
+                vehicle.plan_route_to(destination)
+            else:
+                vehicle.route = [lane_key, (destination, 'ir' + destination[1:], 0)]
 
-        print(f"[IntersectionEnv._reset] Selected scenario: {scenarios.index(chosen_scenario)} with 2 agents")
+        # Handle static vehicles - remaining vehicles
+        all_vehicles = self.road.vehicles
+        controlled_count = len(self.controlled_vehicles)
+
+        for i in range(controlled_count, min(len(all_vehicles), controlled_count + len(chosen_static_scenario))):
+            static_index = i - controlled_count
+            lane_key, destination, off = chosen_static_scenario[static_index]
+            vehicle = all_vehicles[i]
+            lane = self.road.network.get_lane(lane_key)
+            vehicle.position = np.array(lane.position(BASE_LONG + off, 0))
+            vehicle.lane_index = lane_key
+            vehicle.target_lane_index = lane_key
+            vehicle.heading = lane.heading_at(vehicle.position)
+            if hasattr(vehicle, 'plan_route_to'):
+                vehicle.plan_route_to(destination)
+            else:
+                vehicle.route = [lane_key, (destination, 'ir' + destination[1:], 0)]
+
+        print(
+            f"[IntersectionEnv._reset] Selected agent scenario: {agent_scenarios.index(chosen_agent_scenario)}, static scenario: {static_scenarios.index(chosen_static_scenario)}")
+
+
+    # def _reset(self) -> None:
+    #     self._make_road()
+    #     self._make_vehicles(self.config["initial_vehicle_count"])
+    #     if hasattr(self, 'arrived_vehicles'):
+    #         self.arrived_vehicles.clear()
+    #
+    #     BASE_LONG = 40
+    #     offset = 40
+    #
+    #     scenarios = [
+    #         # Scenario 2: Adjacent directions - one turning
+    #         [
+    #             (('o0', 'ir0', 0), "o1", 0),
+    #             (('o1', 'ir1', 0), "o3", 0)
+    #         ],
+    #         # Scenario 3: Same origin - different destinations
+    #         [
+    #             (('o0', 'ir0', 0), "o2", 0),
+    #             (('o0', 'ir0', 0), "o3", 40)
+    #         ],
+    #         # Scenario 4: Perpendicular crossing
+    #         [
+    #             (('o0', 'ir0', 0), "o1", -20),
+    #             (('o1', 'ir1', 0), "o2", -20)
+    #         ],
+    #         # Scenario 5: Right turns conflict
+    #         [
+    #             (('o0', 'ir0', 0), "o2", 0),
+    #             (('o3', 'ir3', 0), "o2", 0)
+    #         ]
+    #     ]
+    #
+    #     chosen_scenario = random.choice(scenarios)
+    #
+    #     for i, (lane_key, destination, off) in enumerate(chosen_scenario):
+    #         vehicle = self.controlled_vehicles[i]
+    #         lane = self.road.network.get_lane(lane_key)
+    #         vehicle.position = np.array(lane.position(BASE_LONG + off, 0))
+    #         vehicle.lane_index = lane_key
+    #         vehicle.target_lane_index = lane_key
+    #         vehicle.heading = lane.heading_at(vehicle.position)
+    #         vehicle.plan_route_to(destination)
+    #
+    #     print(f"[IntersectionEnv._reset] Selected scenario: {scenarios.index(chosen_scenario)} with 2 agents")
     def step(self, action: int) -> tuple[np.ndarray, float, bool, bool, dict]:
         obs, reward, terminated, truncated, info = super().step(action)
         self._clear_vehicles()
