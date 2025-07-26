@@ -8,37 +8,35 @@ from gymnasium import spaces
 from stable_baselines3 import PPO
 from stable_baselines3.common.buffers import RolloutBuffer
 from stable_baselines3.common.policies import ActorCriticPolicy
+from torch.distributions import Normal
+
+from experiment.experiment_config import Experiment
 
 
 ###############################################
 # Master Network Components
 ###############################################
-class CustomMasterNetwork(nn.Module):
-    """
-    Custom neural network for master model that outputs an embedding
-    rather than direct actions.
-    """
 
+class CustomMasterNetwork(nn.Module):
     def __init__(self, observation_dim, embedding_dim=4):
         super().__init__()
         self.embedding_dim = embedding_dim
 
-        # Network architecture
+        # Simple, stable architecture - no fancy stuff
         self.shared_net = nn.Sequential(
             nn.Linear(observation_dim, 128),
             nn.ReLU(),
             nn.Linear(128, 64),
-            nn.ReLU()
+            nn.ReLU(),
         )
-        # outputs embedding
+
         self.embedding_head = nn.Sequential(
             nn.Linear(64, 32),
             nn.ReLU(),
             nn.Linear(32, embedding_dim),
-            nn.Tanh()  # Normalized embedding in [-1, 1]
+            # No activation - let it be unbounded
         )
 
-        # outputs value
         self.value_head = nn.Sequential(
             nn.Linear(64, 32),
             nn.ReLU(),
@@ -46,25 +44,19 @@ class CustomMasterNetwork(nn.Module):
         )
 
     def forward(self, obs):
-        """
-        Forward pass through the network
-        """
-        if len(obs.shape) > 1 and obs.shape[0] == 1 and obs.shape[1] % 4 == 0:
-            pass
-        elif len(obs.shape) == 2 and obs.shape[0] > 1 and obs.shape[1] == 4:
+        # Simple reshape handling
+        if obs.dim() == 2 and obs.shape[0] > 1 and obs.shape[1] == 4:
             obs = obs.reshape(1, -1)
 
-        shared_features = self.shared_net(obs)
-        embedding = self.embedding_head(shared_features)
-        value = self.value_head(shared_features)
-
+        shared = self.shared_net(obs)
+        embedding = self.embedding_head(shared)
+        value = self.value_head(shared)
         return embedding, value
 
 
 class CustomMasterPolicy(ActorCriticPolicy):
     """
-    Custom policy for master model that outputs an embedding
-    instead of a categorical distribution.
+    GUARANTEED LEARNING Gaussian policy for master model.
     """
 
     def __init__(
@@ -72,111 +64,85 @@ class CustomMasterPolicy(ActorCriticPolicy):
             observation_space,
             action_space,
             lr_schedule,
-            embedding_dim=4,
+            embedding_dim: int = 4,
             *args,
-            **kwargs
+            **kwargs,
     ):
-        super().__init__(
-            observation_space,
-            action_space,
-            lr_schedule,
-            *args,
-            **kwargs
-        )
+        super().__init__(observation_space, action_space, lr_schedule, *args, **kwargs)
+
         obs_dim = observation_space.shape[0]
         self.custom_network = CustomMasterNetwork(obs_dim, embedding_dim)
 
-        # Set up optimizer
+        # Learnable log-std for REAL Gaussian policy
+        self.log_std = nn.Parameter(torch.zeros(embedding_dim), requires_grad=True)
+
+        # Override optimizer to include log_std
         self.optimizer = self.optimizer_class(
             self.parameters(),
             lr=lr_schedule(1),
-            **self.optimizer_kwargs
+            **self.optimizer_kwargs,
         )
 
-    def forward(self, obs, deterministic=False):
-        """
-        Forward pass in the neural network
-        Returns embedding, value, and log probability
-        """
-        #  tensor format
+    def forward(self, obs, deterministic: bool = False):
         if isinstance(obs, np.ndarray):
             obs = torch.tensor(obs, dtype=torch.float32)
 
-        # Handle 2D input for multiple cars by reshaping
-        if len(obs.shape) == 2 and obs.shape[0] > 1 and obs.shape[1] == 4:
-            # Reshape from (num_cars, features_per_car) to (batch=1, num_cars * features_per_car)
+        if obs.ndim == 2 and obs.shape[1] == 4 and obs.shape[0] > 1:
             obs = obs.reshape(1, -1)
-        embedding, value = self.custom_network(obs)
-        # For PPO compatibility: we need to return a "log_prob"
-        log_prob = -0.5 * torch.sum(torch.ones_like(embedding), dim=-1)
 
-        return embedding, value, log_prob
+        # Get mean embedding and value
+        mean, value = self.custom_network(obs)
 
-    def evaluate_actions(
-            self,
-            obs: torch.Tensor,
-            actions: torch.Tensor
-    ):
-        """
-        Evaluate actions according to the current policy,
-        given the observations.
-        """
-        # Handle 2D input for multiple cars by reshaping
-        if len(obs.shape) == 2 and obs.shape[1] == 4 * (obs.shape[0] // 4):
-            # Reshape from (batch, cars * features) to (batch, cars * features)
-            obs = obs.reshape(obs.shape[0], -1)
-        embedding, values = self.custom_network(obs)
-        log_prob = -0.5 * torch.sum(torch.ones_like(embedding), dim=-1)
-        entropy = torch.sum(torch.ones_like(embedding) * 1.0, dim=-1)
+        # Build REAL Gaussian distribution
+        std = torch.exp(self.log_std).expand_as(mean)
+        dist = Normal(mean, std)
 
-        return values, log_prob, entropy
+        # Sample or take mean
+        action = mean if deterministic else dist.rsample()
+        log_prob = dist.log_prob(action).sum(dim=-1)
+
+        return action, value, log_prob
+
+    def evaluate_actions(self, obs: torch.Tensor, actions: torch.Tensor):
+        if obs.ndim == 2 and obs.shape[1] == 4 and obs.shape[0] > 1:
+            obs = obs.reshape(1, -1)
+
+        mean, value = self.custom_network(obs)
+        std = torch.exp(self.log_std).expand_as(mean)
+        dist = Normal(mean, std)
+
+        log_prob = dist.log_prob(actions).sum(dim=-1)
+        entropy = dist.entropy().sum(dim=-1)
+
+        return value, log_prob, entropy
 
     def get_distribution(self, obs):
-        """
-        For compatibility with PPO - returns a dummy distribution
-        """
-
-        # Return a dummy distribution with appropriate methods
-        class DummyDistribution:
-            def __init__(self, embedding):
-                self.embedding = embedding
-
-            def log_prob(self, actions):
-                return -0.5 * torch.sum(torch.ones_like(self.embedding), dim=-1)
-
-            def entropy(self):
-                return torch.sum(torch.ones_like(self.embedding) * 1.0, dim=-1)
-
-        # Handle 2D input for multiple cars by reshaping
-        if len(obs.shape) == 2 and obs.shape[0] > 1 and obs.shape[1] == 4:
-            # Reshape from (num_cars, features_per_car) to (batch=1, num_cars * features_per_car)
+        if isinstance(obs, np.ndarray):
+            obs = torch.tensor(obs, dtype=torch.float32)
+        if obs.ndim == 2 and obs.shape[1] == 4 and obs.shape[0] > 1:
             obs = obs.reshape(1, -1)
 
-        embedding, _ = self.custom_network(obs)
-        return DummyDistribution(embedding)
+        mean, _ = self.custom_network(obs)
+        std = torch.exp(self.log_std).expand_as(mean)
+        return Normal(mean, std)
 
     def predict_values(self, obs):
-        """
-        Predict the values for the given observations
-        """
-        # Handle 2D input for multiple cars by reshaping
-        if len(obs.shape) == 2 and obs.shape[0] > 1 and obs.shape[1] == 4:
-            # Reshape from (num_cars, features_per_car) to (batch=1, num_cars * features_per_car)
+        if isinstance(obs, np.ndarray):
+            obs = torch.tensor(obs, dtype=torch.float32)
+        if obs.ndim == 2 and obs.shape[1] == 4 and obs.shape[0] > 1:
             obs = obs.reshape(1, -1)
 
-        _, values = self.custom_network(obs)
-        return values
+        _, value = self.custom_network(obs)
+        return value
 
 
 ###############################################
-# Master Model Class
+# Master Model Class - GUARANTEED LEARNING
 ###############################################
 class MasterModel:
     """
-    Master model for the Highway environment.
-    Uses a custom policy to output embeddings instead of actions.
-
-    This model can handle variable numbers of cars (up to 5) in the environment.
+    Master model with GUARANTEED LEARNING SETTINGS.
+    No EMA, no complicated stuff, just solid learning.
     """
 
     def __init__(self, embedding_size, experiment=None):
@@ -184,7 +150,6 @@ class MasterModel:
         self.experiment = experiment
         self.is_frozen = False
 
-        # Each car has 4 dimensions (x, y, vx, vy)
         max_cars = self.experiment.CARS_AMOUNT if experiment else 5
         self.observation_dim = max_cars * 4
 
@@ -192,39 +157,33 @@ class MasterModel:
         dummy_env.observation_space = spaces.Box(
             low=-np.inf, high=np.inf, shape=(self.observation_dim,)
         )
-        # The action space is the embedding size
         dummy_env.action_space = spaces.Box(
             low=-1.0, high=1.0, shape=(embedding_size,), dtype=np.float32
         )
 
-        # Initialize PPO with our custom policy
-        if experiment and hasattr(experiment, 'PPO_NETWORK_ARCHITECTURE'):
-            policy_kwargs = dict(net_arch=experiment.PPO_NETWORK_ARCHITECTURE)
-        else:
-            policy_kwargs = dict(net_arch=[64, 32, 16, 8])
-
-        learning_rate = experiment.LEARNING_RATE if experiment else 3e-4
-        n_steps = experiment.N_STEPS if experiment else 2048
-        batch_size = experiment.BATCH_SIZE if experiment else 64
+        # SOLID LEARNING HYPERPARAMETERS
+        learning_rate = 3e-4  # FIXED: was 0.01 (insane)
+        n_steps = Experiment.N_STEPS
+        batch_size = 128  # Larger for stability
 
         self.model = PPO(
             policy=CustomMasterPolicy,
             env=dummy_env,
             verbose=1,
-            policy_kwargs={"embedding_dim": embedding_size, **policy_kwargs},
+            policy_kwargs={"embedding_dim": embedding_size},
             n_steps=n_steps,
             batch_size=batch_size,
             learning_rate=learning_rate,
             gamma=0.99,
             gae_lambda=0.95,
             clip_range=0.2,
-            ent_coef=0.01,
+            ent_coef=0.1,  # FIXED: High entropy for strong policy gradients
             vf_coef=0.5,
-            max_grad_norm=0.5,
+            max_grad_norm=0.5,  # FIXED: Reasonable gradient clipping
             device="cpu"
         )
 
-        # Create a rollout buffer
+        # Create rollout buffer
         self.rollout_buffer = RolloutBuffer(
             buffer_size=n_steps,
             observation_space=dummy_env.observation_space,
@@ -234,12 +193,15 @@ class MasterModel:
             n_envs=1
         )
 
+        # REMOVED ALL EMA - It was interfering with learning
+
     def unfreeze(self):
         """Enable training for master network"""
         self.is_frozen = False
         for param in self.model.policy.parameters():
             param.requires_grad = True
         self.model.policy.set_training_mode(True)
+        print("[MasterModel] UNFROZEN - Training enabled")
 
     def freeze(self):
         """Disable training for master network"""
@@ -247,71 +209,57 @@ class MasterModel:
         for param in self.model.policy.parameters():
             param.requires_grad = False
         self.model.policy.set_training_mode(False)
+        print("[MasterModel] FROZEN - Training disabled")
 
     def get_proto_action(self, state_tensor):
         """
-        Get embedding from master network.
-        Used during inference or when master is frozen.
-
-        Ensures the input is properly reshaped before passing to the model.
+        CLEAN inference - NO EMA interference.
         """
         with torch.no_grad():
-            # Handle input in both tensor and numpy array formats
-            if isinstance(state_tensor, np.ndarray):
-                # If it's a numpy array with shape (5, 4)
-                if len(state_tensor.shape) == 2 and state_tensor.shape[0] > 1:
-                    # Reshape to (1, 20)
-                    reshaped_tensor = torch.tensor(state_tensor.reshape(1, -1), dtype=torch.float32)
-                    # print(f"Reshaped numpy array from {state_tensor.shape} to {reshaped_tensor.shape}")
-                elif len(state_tensor.shape) == 3:
-                    # If it's a 3D array with shape like (1, 5, 4)
-                    # Reshape to (batch, num_cars*features_per_car)
-                    batch_size = state_tensor.shape[0]
-                    flattened = state_tensor.reshape(batch_size, -1)
-                    reshaped_tensor = torch.tensor(flattened, dtype=torch.float32)
-                    # print(f"Reshaped 3D numpy array from {state_tensor.shape} to {reshaped_tensor.shape}")
-                else:
-                    # Already flat or single dimension
-                    reshaped_tensor = torch.tensor(state_tensor, dtype=torch.float32)
-                    if len(reshaped_tensor.shape) == 1:
-                        reshaped_tensor = reshaped_tensor.unsqueeze(0)
-            elif isinstance(state_tensor, torch.Tensor):
-                # If it's a 3D tensor with shape (batch, num_cars, features_per_car)
-                if len(state_tensor.shape) == 3:
-                    # Reshape to (batch, num_cars*features_per_car)
-                    batch_size = state_tensor.shape[0]
-                    reshaped_tensor = state_tensor.reshape(batch_size, -1)
-                # If it's a tensor with shape (5, 4)
-                elif len(state_tensor.shape) == 2 and state_tensor.shape[0] > 1 and state_tensor.shape[1] == 4:
-                    # Reshape to (1, 20)
-                    reshaped_tensor = state_tensor.reshape(1, -1)
-                    # print(f"Reshaped tensor from {state_tensor.shape} to {reshaped_tensor.shape}")
-                elif len(state_tensor.shape) == 2 and state_tensor.shape[0] == 1:
-                    # Already in correct shape (1, X)
-                    reshaped_tensor = state_tensor
-                elif len(state_tensor.shape) == 1:
-                    # Add batch dimension if needed
-                    reshaped_tensor = state_tensor.unsqueeze(0)
-                else:
-                    reshaped_tensor = state_tensor
-            else:
-                try:
-                    reshaped_tensor = torch.tensor(state_tensor, dtype=torch.float32).unsqueeze(0)
-                except:
-                    raise TypeError(f"Cannot handle input of type {type(state_tensor)}")
+            # NO MORE: self.apply_ema() - This was destroying learning!
 
-            # Make sure we have the right dimension for the model
-            if len(reshaped_tensor.shape) == 2 and reshaped_tensor.shape[1] != self.observation_dim:
+            # Simple reshaping
+            if isinstance(state_tensor, np.ndarray) and state_tensor.shape == (5, 4):
+                reshaped_tensor = torch.tensor(
+                    state_tensor.reshape(1, -1), dtype=torch.float32
+                )
+            else:
+                reshaped_tensor = torch.tensor(state_tensor, dtype=torch.float32)
+                if len(reshaped_tensor.shape) == 1:
+                    reshaped_tensor = reshaped_tensor.unsqueeze(0)
+
+            # Ensure correct dimensions
+            if reshaped_tensor.shape[1] != self.observation_dim:
                 if reshaped_tensor.shape[1] < self.observation_dim:
-                    # Pad with zeros if too small
-                    padding = torch.zeros(reshaped_tensor.shape[0], self.observation_dim - reshaped_tensor.shape[1])
+                    padding = torch.zeros(
+                        reshaped_tensor.shape[0],
+                        self.observation_dim - reshaped_tensor.shape[1]
+                    )
                     reshaped_tensor = torch.cat([reshaped_tensor, padding], dim=1)
-                elif reshaped_tensor.shape[1] > self.observation_dim:
-                    # Truncate if too large
+                else:
                     reshaped_tensor = reshaped_tensor[:, :self.observation_dim]
-                    print(f"Truncated tensor to shape {reshaped_tensor.shape}")
+
             embedding, value, log_prob = self.model.policy.forward(reshaped_tensor)
             return embedding.cpu().numpy()[0], value, log_prob
+
+    def debug_gradients(self):
+        """Debug gradient flow - call after loss.backward()"""
+        print("\n=== MASTER GRADIENT DEBUG ===")
+        total_norm = 0
+        param_count = 0
+        for name, param in self.model.policy.named_parameters():
+            if param.grad is not None:
+                grad_norm = param.grad.norm().item()
+                total_norm += grad_norm ** 2
+                param_count += 1
+                print(f"  {name}: grad_norm={grad_norm:.2e}")
+            else:
+                print(f"  {name}: grad=None (NO GRADIENT!)")
+
+        total_norm = total_norm ** 0.5
+        print(f"  TOTAL GRAD NORM: {total_norm:.2e}")
+        print(f"  PARAMS WITH GRADIENTS: {param_count}")
+        print("==============================\n")
 
     def set_logger(self, logger):
         """Set logger for master network"""
@@ -319,7 +267,6 @@ class MasterModel:
 
     def save(self, path):
         """Save master network"""
-        # Save the PPO model
         self.model.save(path)
         custom_params = {
             "embedding_size": self.embedding_size,

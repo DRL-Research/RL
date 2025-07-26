@@ -106,15 +106,7 @@ def initialize_models(experiment_config, env_config):
     experiment_config.CONFIG = env_config
 
     # === MASTER MODEL CONFIGURATION ===
-    MASTER_NETWORK_ARCH = [64,32,16]
-    MASTER_LR = 1e-4  # Increased from 2e-5 - too low was causing slow learning
-    MASTER_BATCH_SIZE = 128
-
-    master_policy_kwargs = dict(
-        activation_fn=torch.nn.ReLU,
-        net_arch=MASTER_NETWORK_ARCH
-    )
-
+    # Master model uses its own internal architecture now
     master_model = MasterModel(
         embedding_size=experiment_config.EMBEDDING_SIZE,
         experiment=experiment_config
@@ -125,7 +117,7 @@ def initialize_models(experiment_config, env_config):
         'pi': [16,32,64,32,16],
         'vf': [16,32,64,32,16]
     }
-    AGENT_LR = 3e-4  # CRITICAL: Reduced from 0.05 - was causing massive instability
+    AGENT_LR = 3e-4
     AGENT_BATCH_SIZE = 64
 
     # Environment wrapper using the custom Driver class
@@ -133,10 +125,12 @@ def initialize_models(experiment_config, env_config):
     wrapped_env = DummyVecEnv([env_fn])
 
     agent_additional_model_params = {
-        'gamma': 0.99,
-        'gae_lambda': 0.95,
-        'ent_coef': 0.01,  # Reduced from 0.2 - less exploration, more exploitation
-        'clip_range': 0.2   # Increased from 0.05 - standard PPO clipping
+        'gamma': 0.995,          # Higher for stability
+        'gae_lambda': 0.98,      # Higher for smoother returns
+        'ent_coef': 0.005,       # Lower for less exploration noise
+        'clip_range': 0.15,      # More conservative clipping
+        'vf_coef': 0.25,         # Lower value function coefficient
+        'max_grad_norm': 0.5     # Gradient clipping for stability
     }
 
     # Patch model params definition for agent model
@@ -167,7 +161,6 @@ def initialize_models(experiment_config, env_config):
     Model.define_model_params = original_define_model_params
 
     return master_model, agent_model, wrapped_env
-
 
 # def initialize_models(experiment_config, env_config):
 #     """
