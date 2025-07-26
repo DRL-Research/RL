@@ -120,8 +120,8 @@ def train_master_and_reset_buffer(master_model, full_obs):
                 policy_loss_val = policy_loss.item()
                 value_loss_val = value_loss.item()
                 total_loss_val = loss.item()
-                print(
-                    f"Master loss - Policy: {policy_loss_val:.4f}, Value: {value_loss_val:.4f}, Total: {total_loss_val:.4f}")
+                #print(
+                #    f"Master loss - Policy: {policy_loss_val:.4f}, Value: {value_loss_val:.4f}, Total: {total_loss_val:.4f}")
             else:
                 print("Master model: No valid data for training")
         finally:
@@ -192,8 +192,8 @@ def train_agent_and_reset_buffer(master_model, agent_model, last_master_tensor):
                 policy_loss_val = policy_loss.item()
                 value_loss_val = value_loss.item()
                 total_loss_val = loss.item()
-                print(
-                    f"Agent loss - Policy: {policy_loss_val:.4f}, Value: {value_loss_val:.4f}, Total: {total_loss_val:.4f}")
+                #print(
+                #    f"Agent loss - Policy: {policy_loss_val:.4f}, Value: {value_loss_val:.4f}, Total: {total_loss_val:.4f}")
             else:
                 print("Agent model: No valid data for training")
         finally:

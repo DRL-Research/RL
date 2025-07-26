@@ -9,7 +9,7 @@ from highway_env.road.regulation import RegulatedRoad
 from highway_env.road.road import RoadNetwork
 from highway_env.vehicle.kinematics import Vehicle
 import gym
-
+import random
 from experiment.experiment_config import Experiment
 from highwayenv.CustomControlledVehicle import CustomControlledVehicle
 from highwayenv.custom_action import action_factory
@@ -64,12 +64,12 @@ class IntersectionEnv(AbstractEnv):
             reward = self.config["arrived_reward"] # Reward for arriving at the destination
         elif vehicle.crashed:
             reward= self.config["collision_reward"]
+            print(f"Vehicle {vehicle} crashed! Reward: {reward}")
         else: # Movement incentives - only for vehicles that haven't arrived
             if vehicle.speed > Experiment.FIXED_THROTTLE:  # Moving at least 1 m/s
                 reward = Experiment.HIGH_SPEED_REWARD  # Small bonus for moving
             else:
                 reward = Experiment.STARVATION_REWARD  # Penalty for being stationary
-        print(reward)
         return reward
 
     def _agent_rewards(self, vehicle: Vehicle) -> dict[str, float]:
@@ -168,12 +168,73 @@ class IntersectionEnv(AbstractEnv):
         )
         return info
 
+    PREDEFINED_SCENARIOS = [
+        {
+            "car1": {"start_lane": "south", "long": 40, "lat": 0, "dest": "north", "speed": 5, "color": (0, 204, 0)},
+            "car2": {"start_lane": "west", "long": 60, "lat": 0, "dest": "east", "speed": 5, "color": (0, 0, 204)},
+        },
+        {
+            "car1": {"start_lane": "south", "long": 40, "lat": 0, "dest": "north", "speed": 5, "color": (0, 204, 0)},
+            "car2": {"start_lane": "north", "long": 120, "lat": 0, "dest": "west", "speed": 5, "color": (0, 0, 204)},
+        },
+        {
+            "car1": {"start_lane": "east", "long": 100, "lat": 0, "dest": "north", "speed": 5, "color": (0, 204, 0)},
+            "car2": {"start_lane": "west", "long": 60, "lat": 0, "dest": "east", "speed": 5, "color": (0, 0, 204)},
+        },
+        {
+            "car1": {"start_lane": "east", "long": 100, "lat": 0, "dest": "north", "speed": 5, "color": (0, 204, 0)},
+            "car2": {"start_lane": "north", "long": 120, "lat": 0, "dest": "west", "speed": 5, "color": (0, 0, 204)},
+        },
+        {
+            "car1": {"start_lane": "south", "long": 40, "lat": 0, "dest": "north", "speed": 5, "color": (0, 204, 0)},
+            "car2": {"start_lane": "west", "long": 60, "lat": 0, "dest": "east", "speed": 5, "color": (0, 0, 204)},
+        },
+    ]
+
     def _reset(self) -> None:
         self._make_road()
         self._make_vehicles(self.config["initial_vehicle_count"])
         if hasattr(self, 'arrived_vehicles'):
             self.arrived_vehicles.clear()
 
+        BASE_LONG = 40
+        offset = 40
+
+        scenarios = [
+            # Scenario 2: Adjacent directions - one turning
+            [
+                (('o0', 'ir0', 0), "o1", 0),
+                (('o1', 'ir1', 0), "o3", 0)
+            ],
+            # Scenario 3: Same origin - different destinations
+            [
+                (('o0', 'ir0', 0), "o2", 0),
+                (('o0', 'ir0', 0), "o3", 40)
+            ],
+            # Scenario 4: Perpendicular crossing
+            [
+                (('o0', 'ir0', 0), "o1", -20),
+                (('o1', 'ir1', 0), "o2", -20)
+            ],
+            # Scenario 5: Right turns conflict
+            [
+                (('o0', 'ir0', 0), "o2", 0),
+                (('o3', 'ir3', 0), "o2", 0)
+            ]
+        ]
+
+        chosen_scenario = random.choice(scenarios)
+
+        for i, (lane_key, destination, off) in enumerate(chosen_scenario):
+            vehicle = self.controlled_vehicles[i]
+            lane = self.road.network.get_lane(lane_key)
+            vehicle.position = np.array(lane.position(BASE_LONG + off, 0))
+            vehicle.lane_index = lane_key
+            vehicle.target_lane_index = lane_key
+            vehicle.heading = lane.heading_at(vehicle.position)
+            vehicle.plan_route_to(destination)
+
+        print(f"[IntersectionEnv._reset] Selected scenario: {scenarios.index(chosen_scenario)} with 2 agents")
     def step(self, action: int) -> tuple[np.ndarray, float, bool, bool, dict]:
         obs, reward, terminated, truncated, info = super().step(action)
         self._clear_vehicles()

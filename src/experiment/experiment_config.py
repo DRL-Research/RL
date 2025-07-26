@@ -12,7 +12,7 @@ class Experiment:
     BYPASS_RANDOM_INITIALIZATION = False
 
     # General Experiment Settings
-    EPISODES_PER_CYCLE: int = 75
+    EPISODES_PER_CYCLE: int = 200
     CYCLES: int = 3
     EXPERIMENT_ID: str = "fixed_training"
     ONLY_INFERENCE: bool = False
@@ -24,7 +24,7 @@ class Experiment:
     SPAWN_PROBABILITY: float = 0
 
     # Model and Training Configuration
-    EPISODE_AMOUNT_FOR_TRAIN: int = 2  # Train after 3 episodes instead of 1
+    EPISODE_AMOUNT_FOR_TRAIN: int = 5  # Train after 3 episodes instead of 1
     EPOCHS: int = None
     LEARNING_RATE: float = 0.005  # Reduced from 0.05
     N_STEPS: int = 64  # Increased from 30 to accommodate more steps

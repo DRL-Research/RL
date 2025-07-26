@@ -281,8 +281,8 @@ CONFIG_EXP5_2_controlled_cars = {
     "static_cars": {
         "car3": {
             "start_lane": Experiment.EAST_TO_WEST,
-            "destination": Experiment.OUTER_SOUTH,
-            "speed": Experiment.THROTTLE_SLOW,
+            "destination": Experiment.OUTER_WEST,
+            "speed": Experiment.THROTTLE_FAST,
             "init_location": {
                 "longitudinal": Experiment.LONGITUDINAL - 20,
                 "lateral": Experiment.LATERAL
@@ -292,7 +292,7 @@ CONFIG_EXP5_2_controlled_cars = {
         "car4": {
             "start_lane": Experiment.NORTH_TO_SOUTH,
             "destination": Experiment.OUTER_WEST,
-            "speed": Experiment.THROTTLE_FAST,
+            "speed": Experiment.THROTTLE_SLOW,
             "init_location": {
                 "longitudinal": Experiment.LONGITUDINAL - 40,
                 "lateral": Experiment.LATERAL
