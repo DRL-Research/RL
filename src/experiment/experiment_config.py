@@ -12,7 +12,7 @@ class Experiment:
     BYPASS_RANDOM_INITIALIZATION = False
 
     # General Experiment Settings
-    EPISODES_PER_CYCLE: int = 50
+    EPISODES_PER_CYCLE: int = 75
     CYCLES: int = 3
     EXPERIMENT_ID: str = "fixed_training"
     ONLY_INFERENCE: bool = False
@@ -24,14 +24,14 @@ class Experiment:
     SPAWN_PROBABILITY: float = 0
 
     # Model and Training Configuration
-    EPISODE_AMOUNT_FOR_TRAIN: int = 3  # Train after 3 episodes instead of 1
+    EPISODE_AMOUNT_FOR_TRAIN: int = 2  # Train after 3 episodes instead of 1
     EPOCHS: int = None
     LEARNING_RATE: float = 0.005  # Reduced from 0.05
     N_STEPS: int = 64  # Increased from 30 to accommodate more steps
     BATCH_SIZE: int = 32
     EPISODE_MAX_TIME = 50  # seconds
     LOSS_FUNCTION: str = "mse"
-    EXPLORATION_EXPLOITATION_THRESHOLD: int = 50
+    EXPLORATION_EXPLOITATION_THRESHOLD: int = 100
 
     # Cars Configuration - distance from intersection
     LONGITUDINAL: int = 40
@@ -45,8 +45,8 @@ class Experiment:
     INIT_SERIAL: bool = False
 
     # Network Configuration
-    PPO_NETWORK_ARCHITECTURE: Dict[str, List[int]] = field(
-        default_factory=lambda: {'pi': [64, 32, 16, 8], 'vf': [64, 32, 16, 8]})
+    #PPO_NETWORK_ARCHITECTURE: Dict[str, List[int]] = field(
+    #    default_factory=lambda: {'pi': [64, 32, 16, 8], 'vf': [64, 32, 16, 8]})
 
     # State Configuration - still 8-dimensional (4 from car state + 4 from master embedding)
     AGENT_STATE_SIZE: int = 4
@@ -56,13 +56,13 @@ class Experiment:
     ACTION_SPACE_SIZE: int = 2
     THROTTLE_FAST: float = 10
     THROTTLE_SLOW: float = 5
-    FIXED_THROTTLE: float = 7.5
+    FIXED_THROTTLE: float = 7.5  # Fixed throttle for all cars
 
     # Reward Configuration
-    REACHED_TARGET_REWARD: int = 20
-    COLLISION_REWARD: int = -230
-    STARVATION_REWARD: float = -10
-    HIGH_SPEED_REWARD=10
+    REACHED_TARGET_REWARD: int = 100
+    COLLISION_REWARD: int = -300
+    STARVATION_REWARD: float = -5
+    HIGH_SPEED_REWARD=2
 
     # Path Configuration
     LOAD_MODEL_DIRECTORY: str = ""  # Directory for loading weights

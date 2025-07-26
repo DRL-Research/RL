@@ -10,6 +10,7 @@ from highway_env.road.road import RoadNetwork
 from highway_env.vehicle.kinematics import Vehicle
 import gym
 
+from experiment.experiment_config import Experiment
 from highwayenv.CustomControlledVehicle import CustomControlledVehicle
 from highwayenv.custom_action import action_factory
 
@@ -59,14 +60,15 @@ class IntersectionEnv(AbstractEnv):
         #    self.config.get(name, 0) * reward for name, reward in rewards.items()
         #)
         if self.has_arrived(vehicle):
-            reward = self.config["arrived_reward"] if self.has_arrived(vehicle) else 0
+            #reward = self.config["arrived_reward"] if self.has_arrived(vehicle) else 0
+            reward = self.config["arrived_reward"] # Reward for arriving at the destination
         elif vehicle.crashed:
             reward= self.config["collision_reward"]
         else: # Movement incentives - only for vehicles that haven't arrived
-            if vehicle.speed > 1.0:  # Moving at least 1 m/s
-                reward = 0.5  # Small bonus for moving
+            if vehicle.speed > Experiment.FIXED_THROTTLE:  # Moving at least 1 m/s
+                reward = Experiment.HIGH_SPEED_REWARD  # Small bonus for moving
             else:
-                reward = -10  # Penalty for being stationary
+                reward = Experiment.STARVATION_REWARD  # Penalty for being stationary
         print(reward)
         return reward
 

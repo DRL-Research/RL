@@ -220,6 +220,7 @@ CONFIG_EXP5 = {
                 "longitudinal": Experiment.LONGITUDINAL,
                 "lateral": Experiment.LATERAL
             }
+
         },
         "car3": {
             "start_lane": Experiment.EAST_TO_WEST,
@@ -247,9 +248,11 @@ CONFIG_EXP5 = {
                 "longitudinal": Experiment.LONGITUDINAL - 10,
                 "lateral": Experiment.LATERAL
             }
+            ,"color": (204, 0, 0)  # Red car
         }
     }
 }
+
 
 CONFIG_EXP5_2_controlled_cars = {
 
@@ -284,6 +287,7 @@ CONFIG_EXP5_2_controlled_cars = {
                 "longitudinal": Experiment.LONGITUDINAL - 20,
                 "lateral": Experiment.LATERAL
             }
+            ,"speed": Experiment.THROTTLE_FAST
         },
         "car4": {
             "start_lane": Experiment.NORTH_TO_SOUTH,
@@ -304,14 +308,9 @@ CONFIG_EXP5_2_controlled_cars = {
                 "longitudinal": Experiment.LONGITUDINAL - 10,
                 "lateral": Experiment.LATERAL
             }
+            ,"speed": Experiment.THROTTLE_FAST
         }
     }
     }
 
-
-full_env_config_exp1 = create_full_environment_config(CONFIG_EXP1)
-full_env_config_exp2 = create_full_environment_config(CONFIG_EXP2)
-full_env_config_exp3 = create_full_environment_config(CONFIG_EXP3)
-full_env_config_exp4 = create_full_environment_config(CONFIG_EXP4)
-# full_env_config_exp5 = create_full_environment_config(CONFIG_EXP5)
 full_env_config_exp5 = create_full_environment_config(CONFIG_EXP5_2_controlled_cars)

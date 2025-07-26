@@ -99,22 +99,99 @@ def setup_experiment_dirs(experiment_path):
     """Create experiment directory if it doesn't exist."""
     os.makedirs(experiment_path, exist_ok=True)
 
-
 def initialize_models(experiment_config, env_config):
-    """Initialize master and agent models, and environment."""
-    # Attach environment configuration for easy access
+    """
+    Initialize master and agent models, each with tuned architectures and hyperparameters.
+    """
     experiment_config.CONFIG = env_config
-    # Create master model
+
+    # === MASTER MODEL CONFIGURATION ===
+    # - Slightly smaller network to avoid overfitting on the value function.
+    # - Lower learning rate for more stable global value estimation.
+    # - Higher batch size to smooth out the loss curve.
+    MASTER_NETWORK_ARCH = [128, 128]
+    MASTER_LR = 2e-5
+    MASTER_BATCH_SIZE = 128
+
+    master_policy_kwargs = dict(
+        activation_fn=torch.nn.ReLU,
+        net_arch=MASTER_NETWORK_ARCH
+    )
+
     master_model = MasterModel(
         embedding_size=experiment_config.EMBEDDING_SIZE,
         experiment=experiment_config
     )
-    # Create env wrapper with Agent handler
+
+    # === AGENT MODEL CONFIGURATION ===
+    # - Larger network to capture complex state/action mapping.
+    # - Slightly higher entropy for exploration.
+    # - Lower learning rate for stability.
+    # - Conservative PPO clipping.
+    AGENT_NETWORK_ARCH = {
+        'pi': [16,32,64,32,16],
+        'vf': [16,32,64,32,16]
+    }
+    AGENT_LR = 0.05
+    AGENT_BATCH_SIZE = 64
+
+    # Environment wrapper using the custom Driver class
     env_fn = lambda: Driver(experiment_config, master_model=master_model)
     wrapped_env = DummyVecEnv([env_fn])
-    # Create agent model
+
+    agent_additional_model_params = {
+        'gamma': 0.99,
+        'gae_lambda': 0.95,
+        'ent_coef': 0.2,
+        'clip_range': 0.05
+    }
+
+    # Patch model params definition for agent model
+    original_define_model_params = Model.define_model_params
+
+    @staticmethod
+    def improved_define_model_params(experiment):
+        params = original_define_model_params(experiment)
+        params.update(agent_additional_model_params)
+        params['learning_rate'] = AGENT_LR
+        params['batch_size'] = AGENT_BATCH_SIZE
+        params['policy_kwargs'] = dict(
+            activation_fn=torch.nn.ReLU,
+            net_arch=[dict(
+                pi=AGENT_NETWORK_ARCH['pi'],
+                vf=AGENT_NETWORK_ARCH['vf']
+            )]
+        )
+        return params
+
+    # Temporarily override static method for agent initialization
+    Model.define_model_params = improved_define_model_params
+
+    # Initialize agent model with improved parameters
     agent_model = Model(wrapped_env, experiment_config).model
+
+    # Restore the original static method to avoid side effects
+    Model.define_model_params = original_define_model_params
+
     return master_model, agent_model, wrapped_env
+
+
+# def initialize_models(experiment_config, env_config):
+#     """Initialize master and agent models, and environment."""
+#     # Attach environment configuration for easy access
+#     experiment_config.CONFIG = env_config
+#     # Create master model
+#     master_model = MasterModel(
+#         embedding_size=experiment_config.EMBEDDING_SIZE,
+#         experiment=experiment_config
+#     )
+#     # Create env wrapper with Agent handler
+#     env_fn = lambda: Driver(experiment_config, master_model=master_model)
+#     wrapped_env = DummyVecEnv([env_fn])
+#     # Create agent model
+#
+
+#     return master_model, agent_model, wrapped_env
 
 
 def setup_loggers(base_path):

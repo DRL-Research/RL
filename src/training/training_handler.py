@@ -38,7 +38,7 @@ def training_loop(experiment, env, agent_model, master_model):
         for _ in range(experiment.EPISODES_PER_CYCLE):
 
             episode_counter += 1
-            print('This is the ',episode_counter,'Out of',experiment.EPISODES_PER_CYCLE)
+            print('This is the ',episode_counter,'Out of',experiment.EPISODES_PER_CYCLE* experiment.CYCLES, 'episodes')
             episode_rewards, actions, steps, crashed = process_episode(episode_counter, total_steps, env, master_model,
                                                               agent_model, experiment, train_both, training_master)
             if crashed:

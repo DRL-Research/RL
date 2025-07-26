@@ -45,7 +45,7 @@ class CustomControlledVehicle(ControlledVehicle):
         if action == "FASTER":
             self.target_speed = min(self.max_speed, self.target_speed + self.DELTA_SPEED)
         elif action == "SLOWER":
-            self.target_speed = max(0, self.target_speed - self.DELTA_SPEED)
+            self.target_speed = max(5, self.target_speed - self.DELTA_SPEED)
         elif action == "LANE_RIGHT":
             _from, _to, _id = self.target_lane_index
             target_lane_index = (
@@ -76,4 +76,6 @@ class CustomControlledVehicle(ControlledVehicle):
         action["steering"] = np.clip(
             action["steering"], -self.MAX_STEERING_ANGLE, self.MAX_STEERING_ANGLE
         )
+        #print("Self position:", self.position)
+        print("Target speed:", self.target_speed) if ( (abs(self.position[0] > 100) or (abs(self.position[1]) > 100)) ) and (self.target_speed<5) else None
         super().act(action)
