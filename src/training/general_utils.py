@@ -106,34 +106,38 @@ def initialize_models(experiment_config, env_config):
     experiment_config.CONFIG = env_config
 
     # === MASTER MODEL CONFIGURATION ===
-    # Master model uses its own internal architecture now
+    # כאן אנחנו יוצרים את ה‑MasterModel הפשוט עם PPO
+    # נניח שהתצורה שלכם מגדירה מספר רכיבים observation_dim ו embedding_size:
+    obs_dim = experiment_config.CARS_AMOUNT * 4   # למשל 5 רכבים * 4 תכונות כל אחד = 20
+    emb_dim = experiment_config.EMBEDDING_SIZE     # למשל 4
+
     master_model = MasterModel(
-        embedding_size=experiment_config.EMBEDDING_SIZE,
-        experiment=experiment_config
+        observation_dim=obs_dim,
+        embedding_dim=emb_dim,
     )
 
     # === AGENT MODEL CONFIGURATION ===
     AGENT_NETWORK_ARCH = {
-        'pi': [16,32,64,32,16],
-        'vf': [16,32,64,32,16]
+        'pi': [16, 64, 256, 32, 16],
+        'vf': [16, 64, 256, 32, 16]
     }
     AGENT_LR = 3e-4
     AGENT_BATCH_SIZE = 64
 
-    # Environment wrapper using the custom Driver class
+    # סביבה עם ה‑Driver שמקבלת גם את ה‑master_model
     env_fn = lambda: Driver(experiment_config, master_model=master_model)
     wrapped_env = DummyVecEnv([env_fn])
 
     agent_additional_model_params = {
-        'gamma': 0.995,          # Higher for stability
-        'gae_lambda': 0.98,      # Higher for smoother returns
-        'ent_coef': 0.005,       # Lower for less exploration noise
-        'clip_range': 0.15,      # More conservative clipping
-        'vf_coef': 0.25,         # Lower value function coefficient
-        'max_grad_norm': 0.5     # Gradient clipping for stability
+        'gamma': 0.8,
+        'gae_lambda': 0.98,
+        'ent_coef': 0.005,
+        'clip_range': 0.2,
+        'vf_coef': 0.25,
+        'max_grad_norm': 0.5,
     }
 
-    # Patch model params definition for agent model
+    # טלאי לפרמטרים של ה‑Agent
     original_define_model_params = Model.define_model_params
 
     @staticmethod
@@ -141,26 +145,20 @@ def initialize_models(experiment_config, env_config):
         params = original_define_model_params(experiment)
         params.update(agent_additional_model_params)
         params['learning_rate'] = AGENT_LR
-        params['batch_size'] = AGENT_BATCH_SIZE
+        params['batch_size']    = AGENT_BATCH_SIZE
         params['policy_kwargs'] = dict(
             activation_fn=torch.nn.ReLU,
-            net_arch=[dict(
-                pi=AGENT_NETWORK_ARCH['pi'],
-                vf=AGENT_NETWORK_ARCH['vf']
-            )]
+            net_arch=[dict(pi=AGENT_NETWORK_ARCH['pi'],
+                           vf=AGENT_NETWORK_ARCH['vf'])]
         )
         return params
 
-    # Temporarily override static method for agent initialization
     Model.define_model_params = improved_define_model_params
-
-    # Initialize agent model with improved parameters
     agent_model = Model(wrapped_env, experiment_config).model
-
-    # Restore the original static method to avoid side effects
     Model.define_model_params = original_define_model_params
 
     return master_model, agent_model, wrapped_env
+
 
 # def initialize_models(experiment_config, env_config):
 #     """

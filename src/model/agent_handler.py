@@ -58,10 +58,14 @@ class Driver(gym.Env):
 
     @staticmethod
     def get_action(model, car1_observation, car2_observation, step_counter, exploration_threshold):
-        if random.random() < max(0.05, exploration_threshold * np.exp(-0.01 * step_counter)):
-            # Bias towards movement during exploration
-            car1_action = [1 if random.random() < 0.7 else 0]  # 70% chance to move
-            car2_action = [1 if random.random() < 0.7 else 0]
+        if step_counter < exploration_threshold:
+            car1_action = random.choice([0,1])
+            car2_action = random.choice([0,1])
+            print('random action',car1_action,car2_action)
+        # if random.random() < max(0.05, exploration_threshold * np.exp(-0.01 * step_counter)):
+        #     # Bias towards movement during exploration
+        #     car1_action = [1 if random.random() < 0.7 else 0]  # 70% chance to move
+        #     car2_action = [1 if random.random() < 0.7 else 0]
         else:
             car1_action, _ = model.predict(car1_observation, deterministic=True)
             car2_action, _ = model.predict(car2_observation, deterministic=True)
@@ -154,6 +158,7 @@ class Driver(gym.Env):
             embedding, _, _ = self.master_model.get_proto_action(master_input)
             self.current_embedding = embedding
         else:
+            print('master is none')
             self.current_embedding = np.zeros(4)
 
         env = self._get_unwrapped_env()

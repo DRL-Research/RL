@@ -12,7 +12,7 @@ class Experiment:
     BYPASS_RANDOM_INITIALIZATION = False
 
     # General Experiment Settings
-    EPISODES_PER_CYCLE: int = 200
+    EPISODES_PER_CYCLE: int = 300
     CYCLES: int = 3
     EXPERIMENT_ID: str = "fixed_training"
     ONLY_INFERENCE: bool = False
@@ -110,9 +110,9 @@ class Experiment:
         except (FileNotFoundError, KeyError) as e:
             raise RuntimeError("Failed to load API token from config.json") from e
 
-        self.logger = NeptuneLogger(
-            project_name="AS-DRL/DRL-Research",
-            api_token=api_token,
-            run_name=self.EXPERIMENT_ID,
-            tags=["experiment", "training"]
-        )
+        # self.logger = NeptuneLogger(
+        #     project_name="AS-DRL/DRL-Research",
+        #     api_token=api_token,
+        #     run_name=self.EXPERIMENT_ID,
+        #     tags=["experiment", "training"]
+        # )

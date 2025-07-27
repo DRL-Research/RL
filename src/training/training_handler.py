@@ -121,10 +121,10 @@ def run_training_mode(experiment_config, wrapped_env, agent_model, master_model,
         training_loop(experiment=experiment_config, env=wrapped_env, agent_model=agent_model, master_model=master_model))
     save_models(agent_model, master_model, experiment_config.SAVE_MODEL_DIRECTORY)
     plot_training_results(experiment_config, training_results, show_plots=True)
-    log_training_results_to_neptune(experiment_config.logger, training_results)
+    #log_training_results_to_neptune(experiment_config.logger, training_results)
     print("Training completed.")
     print("Total collisions:", collision_counter)
-    close_everything(wrapped_env, agent_logger, master_logger)
+    #close_everything(wrapped_env, agent_logger, master_logger)
     return agent_model, master_model, collision_counter
 
 

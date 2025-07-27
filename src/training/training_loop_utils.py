@@ -38,8 +38,8 @@ def prepare_models_for_cycle(
     """
     logger.info("Cycle %d/%d", cycle_num, total_cycles)
     train_both = cycle_num == 1
-    training_master = not train_both and (cycle_num % 2 == 1)
-    training_agent = not train_both and (cycle_num % 2 == 0)
+    training_master = not train_both and (cycle_num % 2 == 0)
+    training_agent = not train_both and (cycle_num % 2 == 1)
 
     # Freeze/unfreeze master and set agent training mode
     if train_both or training_master:
