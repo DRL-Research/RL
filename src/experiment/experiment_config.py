@@ -31,7 +31,7 @@ class Experiment:
     BATCH_SIZE: int = 32
     EPISODE_MAX_TIME = 50  # seconds
     LOSS_FUNCTION: str = "mse"
-    EXPLORATION_EXPLOITATION_THRESHOLD: int = 100
+    EXPLORATION_EXPLOITATION_THRESHOLD: int = 150
 
     # Cars Configuration - distance from intersection
     LONGITUDINAL: int = 40
@@ -54,15 +54,15 @@ class Experiment:
 
     # Action Configurationss
     ACTION_SPACE_SIZE: int = 2
-    THROTTLE_FAST: float = 10
+    THROTTLE_FAST: float = 15
     THROTTLE_SLOW: float = 5
-    FIXED_THROTTLE: float = 7.5  # Fixed throttle for all cars
+    FIXED_THROTTLE: float = 10  # Fixed throttle for all cars
 
     # Reward Configuration
-    REACHED_TARGET_REWARD: int = 100
+    REACHED_TARGET_REWARD: int = 50
     COLLISION_REWARD: int = -300
     STARVATION_REWARD: float = -5
-    HIGH_SPEED_REWARD=2
+    HIGH_SPEED_REWARD=5
 
     # Path Configuration
     LOAD_MODEL_DIRECTORY: str = ""  # Directory for loading weights

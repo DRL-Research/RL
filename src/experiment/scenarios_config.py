@@ -287,7 +287,7 @@ CONFIG_EXP5_2_controlled_cars = {
                 "longitudinal": Experiment.LONGITUDINAL - 20,
                 "lateral": Experiment.LATERAL
             }
-            ,"speed": Experiment.THROTTLE_FAST
+            ,"speed": Experiment.FIXED_THROTTLE
         },
         "car4": {
             "start_lane": Experiment.NORTH_TO_SOUTH,
@@ -303,12 +303,12 @@ CONFIG_EXP5_2_controlled_cars = {
         "car5": {
             "start_lane": Experiment.NORTH_TO_SOUTH,
             "destination": Experiment.OUTER_WEST,
-            "speed": Experiment.THROTTLE_FAST,
+            "speed": Experiment.FIXED_THROTTLE,
             "init_location": {
                 "longitudinal": Experiment.LONGITUDINAL - 10,
                 "lateral": Experiment.LATERAL
             }
-            ,"speed": Experiment.THROTTLE_FAST
+            ,"speed": Experiment.FIXED_THROTTLE
         }
     }
     }

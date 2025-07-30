@@ -90,22 +90,44 @@ class MasterModel:
 
         # PURE SB3 PPO - NOTHING CUSTOM
         self.model = PPO(
-            "MlpPolicy",  # Standard MLP policy
+            "MlpPolicy",
             dummy_env,
             learning_rate=1e-2,
             n_steps=n_steps,
             batch_size=128,
             gamma=0.99,
             gae_lambda=0.95,
-            clip_range=0.6,
+            clip_range=0.9,
             ent_coef=0.01,
             vf_coef=0.5,
             policy_kwargs=dict(
-                net_arch=[128, 512 ,256 ,128,64,32]  # Simple 2-layer network
+                features_extractor_class=SimpleResNetExtractor,
+                features_extractor_kwargs=dict(features_dim=128),
+                net_arch=[64, 32]
             ),
             verbose=1,
             device="cpu"
         )
+
+
+
+        # self.model = PPO(
+        #     "MlpPolicy",  # Standard MLP policy
+        #     dummy_env,
+        #     learning_rate=1e-2,
+        #     n_steps=n_steps,
+        #     batch_size=128,
+        #     gamma=0.99,
+        #     gae_lambda=0.95,
+        #     clip_range=0.6,
+        #     ent_coef=0.01,
+        #     vf_coef=0.5,
+        #     policy_kwargs=dict(
+        #         net_arch=[128, 256,128,32]  # Simple 2-layer network
+        #     ),
+        #     verbose=1,
+        #     device="cpu"
+        # )
 
         # Rollout buffer for compatibility
         self.rollout_buffer = RolloutBuffer(

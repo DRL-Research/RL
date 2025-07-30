@@ -3,6 +3,7 @@ import logging
 import numpy as np
 import torch
 
+from experiment.experiment_config import Experiment
 from logger.utils import log_training_results_to_neptune
 from src.model.model_handler import load_models, save_models
 from src.plotting_utils.plotting_utils import plot_training_results
@@ -54,8 +55,9 @@ def training_loop(experiment, env, agent_model, master_model):
                 full_state = env.env.current_state
                 state_tensor = ensure_tensor(full_state)
 
-            perform_training_phase(train_both, training_master, training_agent, master_model, agent_model, full_state,
-                                   state_tensor, results)
+            if episode_counter % Experiment.EPISODE_AMOUNT_FOR_TRAIN == 0 :
+                perform_training_phase(train_both, training_master, training_agent, master_model, agent_model, full_state,
+                                       state_tensor, results)
 
     print("Training completed.")
     return agent_model, master_model, collision_counter, results["episode_rewards"], results["all_actions"], results

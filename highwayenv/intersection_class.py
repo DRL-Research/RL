@@ -261,12 +261,6 @@ class IntersectionEnv(AbstractEnv):
                 (('o2', 'ir2', 0), "o3", 0),  # Agent 2: South to West (left)
             ],
 
-            # Scenario 11: Roundabout simulation
-            [
-                (('o0', 'ir0', 0), "o1", 0),  # Agent 1: North to East (right)
-                (('o1', 'ir1', 0), "o2", 0),  # Agent 2: East to South (right)
-            ],
-
             # Scenario 12: Emergency scenario
             [
                 (('o0', 'ir0', 0), "o3", 0),  # Agent 1: North to West (left turn)

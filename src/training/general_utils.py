@@ -106,38 +106,33 @@ def initialize_models(experiment_config, env_config):
     experiment_config.CONFIG = env_config
 
     # === MASTER MODEL CONFIGURATION ===
-    # כאן אנחנו יוצרים את ה‑MasterModel הפשוט עם PPO
-    # נניח שהתצורה שלכם מגדירה מספר רכיבים observation_dim ו embedding_size:
-    obs_dim = experiment_config.CARS_AMOUNT * 4   # למשל 5 רכבים * 4 תכונות כל אחד = 20
-    emb_dim = experiment_config.EMBEDDING_SIZE     # למשל 4
+    obs_dim = experiment_config.CARS_AMOUNT * 4
+    emb_dim = experiment_config.EMBEDDING_SIZE
 
     master_model = MasterModel(
         observation_dim=obs_dim,
         embedding_dim=emb_dim,
     )
 
-    # === AGENT MODEL CONFIGURATION ===
+    # === AGENT MODEL CONFIGsURATION ===
     AGENT_NETWORK_ARCH = {
-        'pi': [16, 64, 256, 32, 16],
-        'vf': [16, 64, 256, 32, 16]
+        'pi': [64, 256, 16],
+        'vf': [64, 256, 16]
     }
-    AGENT_LR = 3e-4
-    AGENT_BATCH_SIZE = 64
-
-    # סביבה עם ה‑Driver שמקבלת גם את ה‑master_model
+    AGENT_LR = 1e-3
+    AGENT_BATCH_SIZE = 128
     env_fn = lambda: Driver(experiment_config, master_model=master_model)
     wrapped_env = DummyVecEnv([env_fn])
 
     agent_additional_model_params = {
         'gamma': 0.8,
-        'gae_lambda': 0.98,
-        'ent_coef': 0.005,
-        'clip_range': 0.2,
+        'gae_lambda': 0.9,
+        'ent_coef': 0.5,
+        'clip_range': 0.7,
         'vf_coef': 0.25,
         'max_grad_norm': 0.5,
     }
 
-    # טלאי לפרמטרים של ה‑Agent
     original_define_model_params = Model.define_model_params
 
     @staticmethod
