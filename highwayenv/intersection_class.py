@@ -15,6 +15,44 @@ from highwayenv.CustomControlledVehicle import CustomControlledVehicle
 from highwayenv.custom_action import action_factory
 
 
+def rotate_lane_id(lane_id, rotation):
+    """
+    Rotate a lane ID clockwise by rotation steps (1-3)
+    Examples: 'o0' -> 'o1' -> 'o2' -> 'o3'
+    """
+    if len(lane_id) < 2 or not lane_id[-1].isdigit():
+        return lane_id
+
+    prefix = lane_id[:-1]  # 'o', 'ir', 'il'
+    direction = int(lane_id[-1])  # 0, 1, 2, 3
+
+    new_direction = (direction + rotation) % 4
+    return prefix + str(new_direction)
+
+
+def rotate_scenario_clockwise(scenario, rotation):
+    """
+    Rotate an entire scenario clockwise by rotation steps
+    """
+    rotated_scenario = []
+    for lane_key, destination, offset in scenario:
+        # Rotate lane_key (can be tuple like ('o0', 'ir0', 0))
+        if isinstance(lane_key, tuple):
+            rotated_lane = tuple(
+                rotate_lane_id(part, rotation) if isinstance(part, str) else part
+                for part in lane_key
+            )
+        else:
+            rotated_lane = rotate_lane_id(lane_key, rotation)
+
+        # Rotate destination
+        rotated_dest = rotate_lane_id(destination, rotation)
+
+        rotated_scenario.append((rotated_lane, rotated_dest, offset))
+
+    return rotated_scenario
+
+
 class IntersectionEnv(AbstractEnv):
     @classmethod
     def default_config(cls) -> dict:
@@ -38,10 +76,6 @@ class IntersectionEnv(AbstractEnv):
             self._agent_reward(vehicle) for vehicle in self.controlled_vehicles
         ) / len(self.controlled_vehicles)
 
-        # return sum(
-        #     self._agent_reward(vehicle) for vehicle in self.controlled_vehicles
-        # ) / len(self.controlled_vehicles)
-
     def _rewards(self, action: int) -> dict[str, float]:
         """Multi-objective rewards, for cooperative agents."""
         agents_rewards = [
@@ -56,57 +90,27 @@ class IntersectionEnv(AbstractEnv):
     def _agent_reward(self, vehicle: Vehicle) -> float:
         """Enhanced reward with movement incentive."""
         rewards = self._agent_rewards(vehicle)
-        #reward = sum(
-        #    self.config.get(name, 0) * reward for name, reward in rewards.items()
-        #)
         if self.has_arrived(vehicle):
-            #reward = self.config["arrived_reward"] if self.has_arrived(vehicle) else 0
-            reward = self.config["arrived_reward"] # Reward for arriving at the destination
+            reward = self.config["arrived_reward"]
         elif vehicle.crashed:
-            reward= self.config["collision_reward"]
+            reward = self.config["collision_reward"]
             print(f"Vehicle {vehicle} crashed! Reward: {reward}")
-        else: # Movement incentives - only for vehicles that haven't arrived
-            if vehicle.speed > Experiment.FIXED_THROTTLE:  # Moving at least 1 m/s
-                reward = Experiment.HIGH_SPEED_REWARD  # Small bonus for moving
+        else:
+            if vehicle.speed > Experiment.FIXED_THROTTLE:
+                reward = Experiment.HIGH_SPEED_REWARD
             else:
-                reward = Experiment.STARVATION_REWARD  # Penalty for being stationary
+                reward = Experiment.STARVATION_REWARD
         return reward
 
     def _agent_rewards(self, vehicle: Vehicle) -> dict[str, float]:
         """Per-agent per-objective reward signal."""
-        # scaled_speed = utils.lmap(
-        #     vehicle.speed, self.config["reward_speed_range"], [0, 1]
-        # )
         return {
             "collision_reward": vehicle.crashed,
             "high_speed_reward": 1,
             "arrived_reward": self.has_arrived(vehicle),
             "starvation_reward": True
-            # "on_road_reward": vehicle.on_road,
-            # "high_speed_reward": np.clip(scaled_speed, 0, 1),
         }
 
-    # def _is_terminated(self) -> bool:
-    #     arrived_counter = 0
-    #
-    #     for vehicle in self.controlled_vehicles:
-    #         if self.has_arrived(vehicle):
-    #             arrived_counter += 1
-    #             print('arrived coun',arrived_counter)
-    #             print(vehicle.position)
-    #
-    #             if not hasattr(vehicle, 'is_arrived') or not vehicle.is_arrived:
-    #                 vehicle.is_arrived = True
-    #                 vehicle.target_speed = 0.0
-    #                 vehicle.MAX_SPEED = 0
-    #                 vehicle.MIN_SPEED=0
-    #                 vehicle.position = np.array([50.0 + arrived_counter*10, 50.0 + arrived_counter*20], dtype=np.float64)
-    #                 print(f"Vehicle marked as arrived")
-    #
-    #     return (
-    #             any(vehicle.crashed for vehicle in self.controlled_vehicles) or
-    #             arrived_counter == len(self.controlled_vehicles)
-    #     )
     def _is_terminated(self) -> bool:
         # Initialize arrived_vehicles set if not exists
         if not hasattr(self, 'arrived_vehicles'):
@@ -123,17 +127,15 @@ class IntersectionEnv(AbstractEnv):
                 vehicle.MAX_SPEED = 0
                 vehicle.is_arrived = True
                 self.arrived_vehicles.add(vehicle)
-                #print(f"Vehicle moved to parking area")
 
         arrived_count = len(self.arrived_vehicles)
-        #print(f"Arrived: {arrived_count}/{len(self.controlled_vehicles)}")
 
         # Immediate termination when all arrive
         if arrived_count == len(self.controlled_vehicles):
-            #print(f"SUCCESS: All {len(self.controlled_vehicles)} vehicles completed!")
             return True
 
-        return any((vehicle.crashed for vehicle in self.controlled_vehicles) or all(vehicle.is_arrived for vehicle in self.controlled_vehicles))
+        return any((vehicle.crashed for vehicle in self.controlled_vehicles) or all(
+            vehicle.is_arrived for vehicle in self.controlled_vehicles))
 
     def get_observation(self):
         obs = []
@@ -148,7 +150,6 @@ class IntersectionEnv(AbstractEnv):
                     vehicle.velocity[0],
                     vehicle.velocity[1]
                 ])
-
 
     def _agent_is_terminal(self, vehicle: Vehicle) -> bool:
         """The episode is over when a collision occurs or when the access ramp has been passed."""
@@ -168,29 +169,6 @@ class IntersectionEnv(AbstractEnv):
         )
         return info
 
-    PREDEFINED_SCENARIOS = [
-        {
-            "car1": {"start_lane": "south", "long": 40, "lat": 0, "dest": "north", "speed": 5, "color": (0, 204, 0)},
-            "car2": {"start_lane": "west", "long": 60, "lat": 0, "dest": "east", "speed": 5, "color": (0, 0, 204)},
-        },
-        {
-            "car1": {"start_lane": "south", "long": 40, "lat": 0, "dest": "north", "speed": 5, "color": (0, 204, 0)},
-            "car2": {"start_lane": "north", "long": 120, "lat": 0, "dest": "west", "speed": 5, "color": (0, 0, 204)},
-        },
-        {
-            "car1": {"start_lane": "east", "long": 100, "lat": 0, "dest": "north", "speed": 5, "color": (0, 204, 0)},
-            "car2": {"start_lane": "west", "long": 60, "lat": 0, "dest": "east", "speed": 5, "color": (0, 0, 204)},
-        },
-        {
-            "car1": {"start_lane": "east", "long": 100, "lat": 0, "dest": "north", "speed": 5, "color": (0, 204, 0)},
-            "car2": {"start_lane": "north", "long": 120, "lat": 0, "dest": "west", "speed": 5, "color": (0, 0, 204)},
-        },
-        {
-            "car1": {"start_lane": "south", "long": 40, "lat": 0, "dest": "north", "speed": 5, "color": (0, 204, 0)},
-            "car2": {"start_lane": "west", "long": 60, "lat": 0, "dest": "east", "speed": 5, "color": (0, 0, 204)},
-        },
-    ]
-
     def _reset(self) -> None:
         self._make_road()
         self._make_vehicles(self.config["initial_vehicle_count"])
@@ -199,116 +177,347 @@ class IntersectionEnv(AbstractEnv):
 
         BASE_LONG = 40
 
-        # Scenarios for AGENTS ONLY (first 2 cars)
-        agent_scenarios = [
-            # Scenario 1: Heavy north-south flow
-            [
-                (('o0', 'ir0', 0), "o2", 0),  # Agent 1: North to South
-                (('o1', 'ir1', 0), "o3", 0),  # Agent 2: East to West
-            ],
-
-            # Scenario 2: All cars turning right
-            [
-                (('o0', 'ir0', 0), "o1", 0),  # Agent 1: North to East (right)
-                (('o1', 'ir1', 0), "o2", 0),  # Agent 2: East to South (right)
-            ],
-
-            # Scenario 3: Crossing patterns with left turns
-            [
-                (('o0', 'ir0', 0), "o3", 0),  # Agent 1: North to West (left)
-                (('o2', 'ir2', 0), "o1", 0),  # Agent 2: South to East (left)
-            ],
-
-            # Scenario 4: East-west corridor
-            [
-                (('o1', 'ir1', 0), "o3", 0),  # Agent 1: East to West
-                (('o3', 'ir3', 0), "o1", 0),  # Agent 2: West to East
-            ],
-
-            # Scenario 5: Complex multi-direction flow
-            [
-                (('o2', 'ir2', 0), "o0", 0),  # Agent 1: South to North
-                (('o1', 'ir1', 0), "o2", 0),  # Agent 2: East to South (right)
-            ],
-
-            # Scenario 6: Same origin dispersal
-            [
-                (('o0', 'ir0', 0), "o2", 0),  # Agent 1: North to South
-                (('o0', 'ir0', 0), "o1", 20),  # Agent 2: North to East (offset forward)
-            ],
-
-            # Scenario 7: Convergence to same destination
-            [
-                (('o0', 'ir0', 0), "o2", 0),  # Agent 1: North to South
-                (('o1', 'ir1', 0), "o2", 0),  # Agent 2: East to South (right)
-            ],
-
-            # Scenario 8: Minimum conflict scenario
-            [
-                (('o0', 'ir0', 0), "o2", 0),  # Agent 1: North to South (straight)
-                (('o2', 'ir2', 0), "o0", 0),  # Agent 2: South to North (straight)
-            ],
-
-            # Scenario 9: Rush hour challenge
-            [
-                (('o3', 'ir3', 0), "o1", 0),  # Agent 1: West to East
-                (('o0', 'ir0', 0), "o2", 0),  # Agent 2: North to South
-            ],
-
-            # Scenario 10: Mixed speed challenge
-            [
-                (('o1', 'ir1', 0), "o0", 0),  # Agent 1: East to North (left)
-                (('o2', 'ir2', 0), "o3", 0),  # Agent 2: South to West (left)
-            ],
-
-            # Scenario 12: Emergency scenario
-            [
-                (('o0', 'ir0', 0), "o3", 0),  # Agent 1: North to West (left turn)
-                (('o1', 'ir1', 0), "o0", 30),  # Agent 2: East to North (ahead)
-            ],
-
-            # Scenario 13: T-junction behavior
-            [
-                (('o2', 'ir2', 0), "o1", 0),  # Agent 1: South to East (left)
-                (('o2', 'ir2', 0), "o3", 20),  # Agent 2: South to West (right, ahead)
-            ],
-
-            # Scenario 14: Highway merge simulation
-            [
-                (('o3', 'ir3', 0), "o2", 0),  # Agent 1: West to South (left)
-                (('o1', 'ir1', 0), "o2", 0),  # Agent 2: East to South (right)
-            ]
+        # 25 COMPLETE SCENARIOS (agents + static together)
+        base_complete_scenarios = [
+            # Scenario 0: Heavy north-south flow
+            {
+                "agents": [
+                    (('o0', 'ir0', 0), "o2", 0),  # Agent 1: North to South
+                    (('o1', 'ir1', 0), "o3", 0)  # Agent 2: East to West
+                ],
+                "static": [
+                    (('o0', 'ir0', 0), "o2", -50),  # Static: North to South (behind)
+                    (('o2', 'ir2', 0), "o0", -35),  # Static: South to North
+                    (('o0', 'ir0', 0), "o1", -70)  # Static: North to East
+                ]
+            },
+            # Scenario 1: All cars turning right
+            {
+                "agents": [
+                    (('o0', 'ir0', 0), "o1", 0),  # Agent 1: North to East (right)
+                    (('o1', 'ir1', 0), "o2", 0)  # Agent 2: East to South (right)
+                ],
+                "static": [
+                    (('o2', 'ir2', 0), "o3", -25),  # Static: South to West (right)
+                    (('o3', 'ir3', 0), "o0", -35),  # Static: West to North (right)
+                    (('o0', 'ir0', 0), "o1", -15)  # Static: North to East (right)
+                ]
+            },
+            # Scenario 2: Crossing patterns
+            {
+                "agents": [
+                    (('o0', 'ir0', 0), "o3", 0),  # Agent 1: North to West (left)
+                    (('o2', 'ir2', 0), "o1", 0)  # Agent 2: South to East (left)
+                ],
+                "static": [
+                    (('o1', 'ir1', 0), "o0", -20),  # Static: East to North (left)
+                    (('o3', 'ir3', 0), "o2", -30),  # Static: West to South (left)
+                    (('o0', 'ir0', 0), "o2", -40)  # Static: North to South (straight)
+                ]
+            },
+            # Scenario 3: East-west corridor
+            {
+                "agents": [
+                    (('o1', 'ir1', 0), "o3", 0),  # Agent 1: East to West
+                    (('o3', 'ir3', 0), "o1", 0)  # Agent 2: West to East
+                ],
+                "static": [
+                    (('o1', 'ir1', 0), "o3", -30),  # Static: East to West (behind)
+                    (('o3', 'ir3', 0), "o1", -25),  # Static: West to East (behind)
+                    (('o2', 'ir2', 0), "o1", -35)  # Static: South to East (left)
+                ]
+            },
+            # Scenario 4: Complex multi-direction
+            {
+                "agents": [
+                    (('o2', 'ir2', 0), "o0", 0),  # Agent 1: South to North
+                    (('o1', 'ir1', 0), "o2", 0)  # Agent 2: East to South (right)
+                ],
+                "static": [
+                    (('o0', 'ir0', 0), "o3", -45),  # Static: North to West (left, far behind)
+                    (('o1', 'ir1', 0), "o2", -30),  # Static: East to South (right)
+                    (('o2', 'ir2', 0), "o0", -20)  # Static: South to North (straight)
+                ]
+            },
+            # Scenario 5: Same origin dispersal
+            {
+                "agents": [
+                    (('o0', 'ir0', 0), "o2", 0),  # Agent 1: North to South
+                    (('o0', 'ir0', 0), "o1", 20)  # Agent 2: North to East (offset forward)
+                ],
+                "static": [
+                    (('o0', 'ir0', 0), "o2", -50),  # Static: North to South (behind)
+                    (('o1', 'ir1', 0), "o3", -30),  # Static: East to West
+                    (('o2', 'ir2', 0), "o0", -25)  # Static: South to North
+                ]
+            },
+            # Scenario 6: Convergence to same destination
+            {
+                "agents": [
+                    (('o0', 'ir0', 0), "o2", 0),  # Agent 1: North to South
+                    (('o1', 'ir1', 0), "o2", 0)  # Agent 2: East to South (right)
+                ],
+                "static": [
+                    (('o3', 'ir3', 0), "o2", -40),  # Static: West to South (converge)
+                    (('o2', 'ir2', 0), "o1", -30),  # Static: South to East
+                    (('o0', 'ir0', 0), "o3", -50)  # Static: North to West
+                ]
+            },
+            # Scenario 7: Minimum conflict scenario
+            {
+                "agents": [
+                    (('o0', 'ir0', 0), "o2", 0),  # Agent 1: North to South (straight)
+                    (('o2', 'ir2', 0), "o0", 0)  # Agent 2: South to North (straight)
+                ],
+                "static": [
+                    (('o1', 'ir1', 0), "o3", -40),  # Static: East to West (parallel)
+                    (('o3', 'ir3', 0), "o1", -35),  # Static: West to East (parallel)
+                    (('o0', 'ir0', 0), "o1", -60)  # Static: North to East (turn)
+                ]
+            },
+            # Scenario 8: Rush hour challenge
+            {
+                "agents": [
+                    (('o3', 'ir3', 0), "o1", 0),  # Agent 1: West to East
+                    (('o0', 'ir0', 0), "o2", 0)  # Agent 2: North to South
+                ],
+                "static": [
+                    (('o1', 'ir1', 0), "o3", -20),  # Static: East to West (opposite)
+                    (('o2', 'ir2', 0), "o0", -15),  # Static: South to North (opposite)
+                    (('o3', 'ir3', 0), "o2", -45)  # Static: West to South (turn)
+                ]
+            },
+            # # Scenario 9: Mixed speed challenge
+            # {
+            #     "agents": [
+            #         (('o1', 'ir1', 0), "o0", 0),  # Agent 1: East to North (left)
+            #         (('o2', 'ir2', 0), "o3", 0)  # Agent 2: South to West (left)
+            #     ],
+            #     "static": [
+            #         (('o0', 'ir0', 0), "o1", -25),  # Static: North to East (right)
+            #         (('o3', 'ir3', 0), "o2", -30),  # Static: West to South (right)
+            #         (('o1', 'ir1', 0), "o2", -50)  # Static: East to South (right)
+            #     ]
+            # },
+            # Scenario 10: Emergency scenario
+            {
+                "agents": [
+                    (('o0', 'ir0', 0), "o3", 0),  # Agent 1: North to West (left turn)
+                    (('o1', 'ir1', 0), "o0", 30)  # Agent 2: East to North (ahead)
+                ],
+                "static": [
+                    (('o2', 'ir2', 0), "o1", -35),  # Static: South to East
+                    (('o3', 'ir3', 0), "o0", -40),  # Static: West to North
+                    (('o0', 'ir0', 0), "o2", -55)  # Static: North to South
+                ]
+            },
+            # Scenario 11: T-junction behavior
+            {
+                "agents": [
+                    (('o2', 'ir2', 0), "o1", 0),  # Agent 1: South to East (left)
+                    (('o2', 'ir2', 0), "o3", 20)  # Agent 2: South to West (right, ahead)
+                ],
+                "static": [
+                    (('o1', 'ir1', 0), "o0", -30),  # Static: East to North
+                    (('o3', 'ir3', 0), "o2", -25),  # Static: West to South
+                    (('o0', 'ir0', 0), "o1", -45)  # Static: North to East
+                ]
+            },
+            # Scenario 12: Highway merge simulation
+            {
+                "agents": [
+                    (('o3', 'ir3', 0), "o2", 0),  # Agent 1: West to South (left)
+                    (('o1', 'ir1', 0), "o2", 0)  # Agent 2: East to South (right)
+                ],
+                "static": [
+                    (('o0', 'ir0', 0), "o2", -20),  # Static: North to South (merge point)
+                    (('o2', 'ir2', 0), "o0", -35),  # Static: South to North
+                    (('o3', 'ir3', 0), "o1", -50)  # Static: West to East
+                ]
+            },
+            # Scenario 13: Complex intersection
+            {
+                "agents": [
+                    (('o0', 'ir0', 0), "o1", 0),  # Agent 1: North to East (right)
+                    (('o3', 'ir3', 0), "o0", 0)  # Agent 2: West to North (right)
+                ],
+                "static": [
+                    (('o1', 'ir1', 0), "o2", -25),  # Static: East to South (right)
+                    (('o2', 'ir2', 0), "o3", -30),  # Static: South to West (right)
+                    (('o0', 'ir0', 0), "o3", -60)  # Static: North to West (left)
+                ]
+            },
+            # Scenario 14: Parallel lanes
+            {
+                "agents": [
+                    (('o0', 'ir0', 0), "o2", 0),  # Agent 1: North to South
+                    (('o0', 'ir0', 0), "o2", -30)  # Agent 2: North to South (behind)
+                ],
+                "static": [
+                    (('o2', 'ir2', 0), "o0", -60),  # Static: South to North (parallel)
+                    (('o1', 'ir1', 0), "o3", -55),  # Static: East to West (crossing)
+                    (('o3', 'ir3', 0), "o1", -65)  # Static: West to East (crossing)
+                ]
+            },
+            # Scenario 15: Cross traffic
+            {
+                "agents": [
+                    (('o1', 'ir1', 0), "o3", 0),  # Agent 1: East to West
+                    (('o2', 'ir2', 0), "o0", 0)  # Agent 2: South to North
+                ],
+                "static": [
+                    (('o0', 'ir0', 0), "o2", -30),  # Static: North to South (crossing)
+                    (('o3', 'ir3', 0), "o1", -25),  # Static: West to East (opposite)
+                    (('o1', 'ir1', 0), "o0", -50)  # Static: East to North (turn)
+                ]
+            },
+            # Scenario 16: Left turn conflict
+            {
+                "agents": [
+                    (('o0', 'ir0', 0), "o3", 0),  # Agent 1: North to West (left)
+                    (('o1', 'ir1', 0), "o0", 0)  # Agent 2: East to North (left)
+                ],
+                "static": [
+                    (('o2', 'ir2', 0), "o1", -35),  # Static: South to East (left)
+                    (('o3', 'ir3', 0), "o2", -40),  # Static: West to South (left)
+                    (('o0', 'ir0', 0), "o1", -55)  # Static: North to East (right)
+                ]
+            },
+            # Scenario 17: Right turn priority
+            {
+                "agents": [
+                    (('o0', 'ir0', 0), "o1", 0),  # Agent 1: North to East (right)
+                    (('o2', 'ir2', 0), "o3", 0)  # Agent 2: South to West (right)
+                ],
+                "static": [
+                    (('o1', 'ir1', 0), "o2", -50),  # Static: East to South (right)
+                    (('o3', 'ir3', 0), "o0", -55),  # Static: West to North (right)
+                    (('o0', 'ir0', 0), "o2", -55)  # Static: North to South (straight)
+                ]
+            },
+            # Scenario 18: Staggered timing
+            {
+                "agents": [
+                    (('o0', 'ir0', 0), "o2", 0),  # Agent 1: North to South
+                    (('o1', 'ir1', 0), "o3", -40)  # Agent 2: East to West (behind)
+                ],
+                "static": [
+                    (('o2', 'ir2', 0), "o0", -50),  # Static: South to North (behind)
+                    (('o3', 'ir3', 0), "o1", -35),  # Static: West to East (behind)
+                    (('o0', 'ir0', 0), "o1", -20)  # Static: North to East (behind)
+                ]
+            },
+            # Scenario 19: Dense traffic
+            {
+                "agents": [
+                    (('o0', 'ir0', 0), "o2", 0),  # Agent 1: North to South
+                    (('o1', 'ir1', 0), "o2", -10)  # Agent 2: East to South (close behind)
+                ],
+                "static": [
+                    (('o3', 'ir3', 0), "o2", -20),  # Static: West to South (converge)
+                    (('o2', 'ir2', 0), "o0", -25),  # Static: South to North (opposite)
+                    (('o0', 'ir0', 0), "o3", -30)  # Static: North to West (turn)
+                ]
+            },
+            # # Scenario 20: Opposite directions
+            # {
+            #     "agents": [
+            #         (('o0', 'ir0', 0), "o2", 0),  # Agent 1: North to South
+            #         (('o2', 'ir2', 0), "o0", 0)  # Agent 2: South to North
+            #     ],
+            #     "static": [
+            #         (('o1', 'ir1', 0), "o3", -30),  # Static: East to West (parallel)
+            #         (('o3', 'ir3', 0), "o1", -35),  # Static: West to East (parallel)
+            #         (('o0', 'ir0', 0), "o1", -10)  # Static: North to East (turn)
+            #     ]
+            # },
+            # Scenario 21: Diagonal crossing
+            {
+                "agents": [
+                    (('o0', 'ir0', 0), "o3", 0),  # Agent 1: North to West (left)
+                    (('o1', 'ir1', 0), "o2", 0)  # Agent 2: East to South (right)
+                ],
+                "static": [
+                    (('o2', 'ir2', 0), "o1", -25),  # Static: South to East (left)
+                    (('o3', 'ir3', 0), "o0", -30),  # Static: West to North (right)
+                    (('o0', 'ir0', 0), "o2", -35)  # Static: North to South (straight)
+                ]
+            },
+            # Scenario 22: Sequential turns
+            {
+                "agents": [
+                    (('o0', 'ir0', 0), "o1", 0),  # Agent 1: North to East (right)
+                    (('o1', 'ir1', 0), "o2", 0)  # Agent 2: East to South (right)
+                ],
+                "static": [
+                    (('o2', 'ir2', 0), "o3", -50),  # Static: South to West (right)
+                    (('o3', 'ir3', 0), "o0", -55),  # Static: West to North (right)
+                    (('o0', 'ir0', 0), "o3", -65)  # Static: North to West (left)
+                ]
+            },
+            # Scenario 23: Wide spacing
+            {
+                "agents": [
+                    (('o0', 'ir0', 0), "o2", 0),  # Agent 1: North to South
+                    (('o1', 'ir1', 0), "o3", 50)  # Agent 2: East to West (far ahead)
+                ],
+                "static": [
+                    (('o2', 'ir2', 0), "o0", -60),  # Static: South to North (far behind)
+                    (('o3', 'ir3', 0), "o1", -45),  # Static: West to East (behind)
+                    (('o0', 'ir0', 0), "o1", -75)  # Static: North to East (far behind)
+                ]
+            },
+            # Scenario 24: Mixed patterns
+            {
+                "agents": [
+                    (('o2', 'ir2', 0), "o3", 0),  # Agent 1: South to West (right)
+                    (('o3', 'ir3', 0), "o2", 15)  # Agent 2: West to South (left, ahead)
+                ],
+                "static": [
+                    (('o0', 'ir0', 0), "o1", -30),  # Static: North to East (right)
+                    (('o1', 'ir1', 0), "o0", -35),  # Static: East to North (left)
+                    (('o2', 'ir2', 0), "o0", -50)  # Static: South to North (straight)
+                ]
+            }
         ]
 
-        # Static car scenarios (for the 3 remaining cars)
-        static_scenarios = [
-            # Static scenario 1
-            [
-                (('o0', 'ir0', 0), "o2", -30),  # Static: North to South (behind)
-                (('o2', 'ir2', 0), "o0", -20),  # Static: South to North
-                (('o0', 'ir0', 0), "o1", -40)  # Static: North to East (right turn)
-            ],
-            # Static scenario 2
-            [
-                (('o2', 'ir2', 0), "o3", -25),  # Static: South to West (right)
-                (('o3', 'ir3', 0), "o0", -35),  # Static: West to North (right)
-                (('o0', 'ir0', 0), "o1", -15)  # Static: North to East (right)
-            ],
-            # Static scenario 3
-            [
-                (('o1', 'ir1', 0), "o0", -20),  # Static: East to North (left)
-                (('o3', 'ir3', 0), "o2", -30),  # Static: West to South (left)
-                (('o0', 'ir0', 0), "o2", -40)  # Static: North to South (straight)
-            ],
-            # Add more static scenarios as needed...
-        ]
+        # Generate rotations for complete scenarios
+        def rotate_complete_scenario(scenario, rotation):
+            rotated_agents = [rotate_scenario_clockwise([agent], rotation)[0] for agent in scenario["agents"]]
+            rotated_static = [rotate_scenario_clockwise([static], rotation)[0] for static in scenario["static"]]
+            return {
+                "agents": rotated_agents,
+                "static": rotated_static
+            }
 
-        chosen_agent_scenario = random.choice(agent_scenarios)
-        chosen_static_scenario = random.choice(static_scenarios)
+        # Generate all 100 scenarios (25 × 4 rotations)
+        all_scenarios = []
+        for base_scenario in base_complete_scenarios:
+            # Add original (0° rotation)
+            all_scenarios.append(base_scenario)
 
-        # Handle controlled vehicles (agents) - first 2
-        for i in range(len(self.controlled_vehicles)):
-            lane_key, destination, off = chosen_agent_scenario[i]
+            # Add 3 rotations (90°, 180°, 270°)
+            for rotation in [1, 2, 3]:
+                rotated_scenario = rotate_complete_scenario(base_scenario, rotation)
+                all_scenarios.append(rotated_scenario)
+
+        # Choose scenario (3 options: specific, random, serial)
+
+        # 1. For random
+        chosen_scenario = random.choice(all_scenarios)
+
+        # 2. For specific scenarios (uncomment to use)
+        # desired_scenario = 11  # Choose scenario 0-99
+        # chosen_scenario = all_scenarios[desired_scenario]
+
+        # 3. For serial cycling (uncomment to use)
+        # if not hasattr(self, 'scenario_counter'):
+        #     self.scenario_counter = 0
+        # chosen_scenario = all_scenarios[self.scenario_counter % len(all_scenarios)]
+        # self.scenario_counter += 1
+
+        # Place agents
+        for i, (lane_key, destination, off) in enumerate(chosen_scenario["agents"]):
             vehicle = self.controlled_vehicles[i]
             lane = self.road.network.get_lane(lane_key)
             vehicle.position = np.array(lane.position(BASE_LONG + off, 0))
@@ -320,13 +529,44 @@ class IntersectionEnv(AbstractEnv):
             else:
                 vehicle.route = [lane_key, (destination, 'ir' + destination[1:], 0)]
 
-        # Handle static vehicles - remaining vehicles
+        # Place static vehicles with safety check (minimum distance = 10m)
         all_vehicles = self.road.vehicles
         controlled_count = len(self.controlled_vehicles)
 
-        for i in range(controlled_count, min(len(all_vehicles), controlled_count + len(chosen_static_scenario))):
+        # Safety check: Filter out conflicting static vehicles
+        safe_static_scenario = []
+        for i, (lane_key, destination, off) in enumerate(chosen_scenario["static"]):
+            lane = self.road.network.get_lane(lane_key)
+            position = np.array(lane.position(BASE_LONG + off, 0))
+
+            # Check distance from controlled vehicles
+            too_close_to_agent = False
+            for controlled_vehicle in self.controlled_vehicles:
+                if np.linalg.norm(controlled_vehicle.position - position) < 10:  # Changed to 10m
+                    too_close_to_agent = True
+                    break
+
+            # Check distance from other static vehicles
+            too_close_to_static = False
+            for existing_lane_key, existing_dest, existing_off in safe_static_scenario:
+                existing_lane = self.road.network.get_lane(existing_lane_key)
+                existing_position = np.array(existing_lane.position(BASE_LONG + existing_off, 0))
+
+                if np.linalg.norm(existing_position - position) < 10:  # Changed to 10m minimum distance
+                    too_close_to_static = True
+                    break
+
+            # Only add if safe
+            if not too_close_to_agent and not too_close_to_static:
+                safe_static_scenario.append((lane_key, destination, off))
+
+        # Place the safe static vehicles
+        for i in range(controlled_count, min(len(all_vehicles), controlled_count + len(safe_static_scenario))):
             static_index = i - controlled_count
-            lane_key, destination, off = chosen_static_scenario[static_index]
+            if static_index >= len(safe_static_scenario):
+                break
+
+            lane_key, destination, off = safe_static_scenario[static_index]
             vehicle = all_vehicles[i]
             lane = self.road.network.get_lane(lane_key)
             vehicle.position = np.array(lane.position(BASE_LONG + off, 0))
@@ -338,80 +578,30 @@ class IntersectionEnv(AbstractEnv):
             else:
                 vehicle.route = [lane_key, (destination, 'ir' + destination[1:], 0)]
 
-        print(
-            f"[IntersectionEnv._reset] Selected agent scenario: {agent_scenarios.index(chosen_agent_scenario)}, static scenario: {static_scenarios.index(chosen_static_scenario)}")
+        # Calculate scenario info for display
+        scenario_index = all_scenarios.index(chosen_scenario)
+        base_scenario_num = scenario_index // 4
+        rotation_num = scenario_index % 4
+        rotation_names = ["Original", "90° CW", "180° CW", "270° CW"]
 
+        print(f"[IntersectionEnv._reset] Using scenario {scenario_index}/100")
+        print(f"  Base scenario {base_scenario_num} ({rotation_names[rotation_num]})")
+        print(f"  Placed {len(safe_static_scenario)}/{len(chosen_scenario['static'])} static vehicles safely")
 
-    # def _reset(self) -> None:
-    #     self._make_road()
-    #     self._make_vehicles(self.config["initial_vehicle_count"])
-    #     if hasattr(self, 'arrived_vehicles'):
-    #         self.arrived_vehicles.clear()
-    #
-    #     BASE_LONG = 40
-    #     offset = 40
-    #
-    #     scenarios = [
-    #         # Scenario 2: Adjacent directions - one turning
-    #         [
-    #             (('o0', 'ir0', 0), "o1", 0),
-    #             (('o1', 'ir1', 0), "o3", 0)
-    #         ],
-    #         # Scenario 3: Same origin - different destinations
-    #         [
-    #             (('o0', 'ir0', 0), "o2", 0),
-    #             (('o0', 'ir0', 0), "o3", 40)
-    #         ],
-    #         # Scenario 4: Perpendicular crossing
-    #         [
-    #             (('o0', 'ir0', 0), "o1", -20),
-    #             (('o1', 'ir1', 0), "o2", -20)
-    #         ],
-    #         # Scenario 5: Right turns conflict
-    #         [
-    #             (('o0', 'ir0', 0), "o2", 0),
-    #             (('o3', 'ir3', 0), "o2", 0)
-    #         ]
-    #     ]
-    #
-    #     chosen_scenario = random.choice(scenarios)
-    #
-    #     for i, (lane_key, destination, off) in enumerate(chosen_scenario):
-    #         vehicle = self.controlled_vehicles[i]
-    #         lane = self.road.network.get_lane(lane_key)
-    #         vehicle.position = np.array(lane.position(BASE_LONG + off, 0))
-    #         vehicle.lane_index = lane_key
-    #         vehicle.target_lane_index = lane_key
-    #         vehicle.heading = lane.heading_at(vehicle.position)
-    #         vehicle.plan_route_to(destination)
-    #
-    #     print(f"[IntersectionEnv._reset] Selected scenario: {scenarios.index(chosen_scenario)} with 2 agents")
     def step(self, action: int) -> tuple[np.ndarray, float, bool, bool, dict]:
         obs, reward, terminated, truncated, info = super().step(action)
         self._clear_vehicles()
-        # self._spawn_vehicle(spawn_probability=self.config["spawn_probability"])
         return obs, reward, terminated, truncated, info
 
     def _make_road(self) -> None:
         """
         Make an 4-way intersection.
-
-        The horizontal road has the right of way. More precisely, the levels of priority are:
-            - 3 for horizontal straight lanes and right-turns
-            - 1 for vertical straight lanes and right-turns
-            - 2 for horizontal left-turns
-            - 0 for vertical left-turns
-
-        The code for nodes in the road network is:
-        (o:outer | i:inner + [r:right, l:left]) + (0:south | 1:west | 2:north | 3:east)
-
-        :return: the intersection road
         """
         lane_width = AbstractLane.DEFAULT_WIDTH
-        right_turn_radius = lane_width + 5  # [m}
-        left_turn_radius = right_turn_radius + lane_width  # [m}
+        right_turn_radius = lane_width + 5
+        left_turn_radius = right_turn_radius + lane_width
         outer_distance = right_turn_radius + lane_width / 2
-        access_length = 50 + 50  # [m]
+        access_length = 50 + 50
 
         net = RoadNetwork()
         n, c, s = LineType.NONE, LineType.CONTINUOUS, LineType.STRIPED
@@ -505,19 +695,15 @@ class IntersectionEnv(AbstractEnv):
     def _make_vehicles(self, n_vehicles: int = 10) -> None:
         """
         Populate a road with several vehicles on the highway and on the merging lane
-
-        :return: the ego-vehicle
         """
         # Configure vehicles
         vehicle_type = utils.class_from_path(self.config["other_vehicles_type"])
-        vehicle_type.DISTANCE_WANTED = 7  # Low jam distance
+        vehicle_type.DISTANCE_WANTED = 7
         vehicle_type.COMFORT_ACC_MAX = 6
         vehicle_type.COMFORT_ACC_MIN = -3
 
         # Random vehicles
         simulation_steps = 3
-        # for t in range(n_vehicles - 1):
-        #     self._spawn_vehicle(np.linspace(0, 80, n_vehicles)[t])
         for _ in range(simulation_steps):
             [
                 (
@@ -540,7 +726,7 @@ class IntersectionEnv(AbstractEnv):
                 speed=other_car["speed"],
                 heading=lane.heading_at(other_car["init_location"]["longitudinal"]),
             )
-            controlled_vehicle.color = other_car["color"]   # Set color to green (RGB format)
+            controlled_vehicle.color = other_car["color"]
             controlled_vehicle.plan_route_to(other_car["destination"])
             self.road.vehicles.append(controlled_vehicle)
             self.controlled_vehicles.append(controlled_vehicle)
@@ -556,7 +742,7 @@ class IntersectionEnv(AbstractEnv):
             )
             self.road.vehicles.append(other_vehicle)
 
-        for v in self.road.vehicles:  # Prevent early collisions
+        for v in self.road.vehicles:
             if (
                     v is not controlled_vehicle
                     and np.linalg.norm(v.position - controlled_vehicle.position) < 20
@@ -604,7 +790,7 @@ class IntersectionEnv(AbstractEnv):
             vehicle
             for vehicle in self.road.vehicles
             if vehicle in self.controlled_vehicles
-               or not (is_leaving(vehicle))  #or vehicle.route is None)
+               or not (is_leaving(vehicle))
         ]
 
     def has_arrived(self, vehicle: Vehicle, exit_distance: float = 25) -> bool:

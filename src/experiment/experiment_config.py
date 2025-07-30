@@ -31,7 +31,7 @@ class Experiment:
     BATCH_SIZE: int = 32
     EPISODE_MAX_TIME = 50  # seconds
     LOSS_FUNCTION: str = "mse"
-    EXPLORATION_EXPLOITATION_THRESHOLD: int = 150
+    EXPLORATION_EXPLOITATION_THRESHOLD: int = 800
 
     # Cars Configuration - distance from intersection
     LONGITUDINAL: int = 40
@@ -54,8 +54,8 @@ class Experiment:
 
     # Action Configurationss
     ACTION_SPACE_SIZE: int = 2
-    THROTTLE_FAST: float = 15
-    THROTTLE_SLOW: float = 5
+    THROTTLE_FAST: float = 50
+    THROTTLE_SLOW: float = 10
     FIXED_THROTTLE: float = 10  # Fixed throttle for all cars
 
     # Reward Configuration

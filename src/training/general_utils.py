@@ -116,19 +116,19 @@ def initialize_models(experiment_config, env_config):
 
     # === AGENT MODEL CONFIGsURATION ===
     AGENT_NETWORK_ARCH = {
-        'pi': [64, 256, 16],
-        'vf': [64, 256, 16]
+        'pi': [64, 256],
+        'vf': [64, 256]
     }
     AGENT_LR = 1e-3
-    AGENT_BATCH_SIZE = 128
+    AGENT_BATCH_SIZE = 32
     env_fn = lambda: Driver(experiment_config, master_model=master_model)
     wrapped_env = DummyVecEnv([env_fn])
 
     agent_additional_model_params = {
         'gamma': 0.8,
-        'gae_lambda': 0.9,
-        'ent_coef': 0.5,
-        'clip_range': 0.7,
+        'gae_lambda': 0.99,
+        'ent_coef': 0.1,
+        'clip_range': 0.9,
         'vf_coef': 0.25,
         'max_grad_norm': 0.5,
     }

@@ -61,7 +61,7 @@ class Driver(gym.Env):
         if step_counter < exploration_threshold:
             car1_action = random.choice([0,1])
             car2_action = random.choice([0,1])
-            print('random action',car1_action,car2_action)
+            #print('random action',car1_action,car2_action)
         # if random.random() < max(0.05, exploration_threshold * np.exp(-0.01 * step_counter)):
         #     # Bias towards movement during exploration
         #     car1_action = [1 if random.random() < 0.7 else 0]  # 70% chance to move
@@ -96,7 +96,7 @@ class Driver(gym.Env):
                 if i < state.shape[0]:
                     if hasattr(vehicle, 'is_arrived') and vehicle.is_arrived:
                         state[i] = [0.0, 0.0, 0.0, 0.0]
-                        print(f"Master: Sending zeros for arrived vehicle {i}")
+                        #print(f"Master: Sending zeros for arrived vehicle {i}")
 
         return state
 
