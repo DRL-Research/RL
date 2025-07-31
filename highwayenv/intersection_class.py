@@ -300,41 +300,41 @@ class IntersectionEnv(AbstractEnv):
             #     ]
             # },
             # Scenario 10: Emergency scenario
-            {
-                "agents": [
-                    (('o0', 'ir0', 0), "o3", 0),  # Agent 1: North to West (left turn)
-                    (('o1', 'ir1', 0), "o0", 30)  # Agent 2: East to North (ahead)
-                ],
-                "static": [
-                    (('o2', 'ir2', 0), "o1", -35),  # Static: South to East
-                    (('o3', 'ir3', 0), "o0", -40),  # Static: West to North
-                    (('o0', 'ir0', 0), "o2", -55)  # Static: North to South
-                ]
-            },
+            # {
+            #     "agents": [
+            #         (('o0', 'ir0', 0), "o3", 0),  # Agent 1: North to West (left turn)
+            #         (('o1', 'ir1', 0), "o0", 30)  # Agent 2: East to North (ahead)
+            #     ],
+            #     "static": [
+            #         (('o2', 'ir2', 0), "o1", -35),  # Static: South to East
+            #         (('o3', 'ir3', 0), "o0", -40),  # Static: West to North
+            #         (('o0', 'ir0', 0), "o2", -55)  # Static: North to South
+            #     ]
+            # },
             # Scenario 11: T-junction behavior
-            {
-                "agents": [
-                    (('o2', 'ir2', 0), "o1", 0),  # Agent 1: South to East (left)
-                    (('o2', 'ir2', 0), "o3", 20)  # Agent 2: South to West (right, ahead)
-                ],
-                "static": [
-                    (('o1', 'ir1', 0), "o0", -30),  # Static: East to North
-                    (('o3', 'ir3', 0), "o2", -25),  # Static: West to South
-                    (('o0', 'ir0', 0), "o1", -45)  # Static: North to East
-                ]
-            },
+            # {
+            #     "agents": [
+            #         (('o2', 'ir2', 0), "o1", 0),  # Agent 1: South to East (left)
+            #         (('o2', 'ir2', 0), "o3", 20)  # Agent 2: South to West (right, ahead)
+            #     ],
+            #     "static": [
+            #         (('o1', 'ir1', 0), "o0", -30),  # Static: East to North
+            #         (('o3', 'ir3', 0), "o2", -25),  # Static: West to South
+            #         (('o0', 'ir0', 0), "o1", -45)  # Static: North to East
+            #     ]
+            # },
             # Scenario 12: Highway merge simulation
-            {
-                "agents": [
-                    (('o3', 'ir3', 0), "o2", 0),  # Agent 1: West to South (left)
-                    (('o1', 'ir1', 0), "o2", 0)  # Agent 2: East to South (right)
-                ],
-                "static": [
-                    (('o0', 'ir0', 0), "o2", -20),  # Static: North to South (merge point)
-                    (('o2', 'ir2', 0), "o0", -35),  # Static: South to North
-                    (('o3', 'ir3', 0), "o1", -50)  # Static: West to East
-                ]
-            },
+            # {
+            #     "agents": [
+            #         (('o3', 'ir3', 0), "o2", 0),  # Agent 1: West to South (left)
+            #         (('o1', 'ir1', 0), "o2", 0)  # Agent 2: East to South (right)
+            #     ],
+            #     "static": [
+            #         (('o0', 'ir0', 0), "o2", -20),  # Static: North to South (merge point)
+            #         (('o2', 'ir2', 0), "o0", -35),  # Static: South to North
+            #         (('o3', 'ir3', 0), "o1", -50)  # Static: West to East
+            #     ]
+            # },
             # Scenario 13: Complex intersection
             {
                 "agents": [
@@ -407,30 +407,30 @@ class IntersectionEnv(AbstractEnv):
                     (('o0', 'ir0', 0), "o1", -20)  # Static: North to East (behind)
                 ]
             },
-            # Scenario 19: Dense traffic
-            {
-                "agents": [
-                    (('o0', 'ir0', 0), "o2", 0),  # Agent 1: North to South
-                    (('o1', 'ir1', 0), "o2", -10)  # Agent 2: East to South (close behind)
-                ],
-                "static": [
-                    (('o3', 'ir3', 0), "o2", -20),  # Static: West to South (converge)
-                    (('o2', 'ir2', 0), "o0", -25),  # Static: South to North (opposite)
-                    (('o0', 'ir0', 0), "o3", -30)  # Static: North to West (turn)
-                ]
-            },
-            # # Scenario 20: Opposite directions
+            # # Scenario 19: Dense traffic
             # {
             #     "agents": [
             #         (('o0', 'ir0', 0), "o2", 0),  # Agent 1: North to South
-            #         (('o2', 'ir2', 0), "o0", 0)  # Agent 2: South to North
+            #         (('o1', 'ir1', 0), "o2", -10)  # Agent 2: East to South (close behind)
             #     ],
             #     "static": [
-            #         (('o1', 'ir1', 0), "o3", -30),  # Static: East to West (parallel)
-            #         (('o3', 'ir3', 0), "o1", -35),  # Static: West to East (parallel)
-            #         (('o0', 'ir0', 0), "o1", -10)  # Static: North to East (turn)
+            #         (('o3', 'ir3', 0), "o2", -20),  # Static: West to South (converge)
+            #         (('o2', 'ir2', 0), "o0", -25),  # Static: South to North (opposite)
+            #         (('o0', 'ir0', 0), "o3", -30)  # Static: North to West (turn)
             #     ]
             # },
+            # # Scenario 20: Opposite directions
+            {
+                "agents": [
+                    (('o0', 'ir0', 0), "o2", 0),  # Agent 1: North to South
+                    (('o2', 'ir2', 0), "o0", 0)  # Agent 2: South to North
+                ],
+                "static": [
+                    (('o1', 'ir1', 0), "o3", -30),  # Static: East to West (parallel)
+                    (('o3', 'ir3', 0), "o1", -35),  # Static: West to East (parallel)
+                    (('o0', 'ir0', 0), "o1", -10)  # Static: North to East (turn)
+                ]
+            },
             # Scenario 21: Diagonal crossing
             {
                 "agents": [

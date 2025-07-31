@@ -56,7 +56,7 @@ class Experiment:
     ACTION_SPACE_SIZE: int = 2
     THROTTLE_FAST: float = 50
     THROTTLE_SLOW: float = 10
-    FIXED_THROTTLE: float = 10  # Fixed throttle for all cars
+    FIXED_THROTTLE: float = 12  # Fixed throttle for all cars
 
     # Reward Configuration
     REACHED_TARGET_REWARD: int = 50
