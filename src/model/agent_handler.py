@@ -4,7 +4,8 @@ import gymnasium as gym
 import numpy as np
 import torch
 from gymnasium import spaces
-
+import warnings
+warnings.filterwarnings("ignore")
 
 class Driver(gym.Env):
     """
@@ -47,7 +48,7 @@ class Driver(gym.Env):
         self.current_embedding = None
 
         # Create the underlying Highway environment
-        self.highway_env = gym.make('RELintersection-v0', render_mode="rgb_array", config=self.config)
+        self.highway_env = gym.make('RELintersection-v0', render_mode=experiment.RENDER_MODE, config=self.config)
 
     def _get_unwrapped_env(self):
         env = self.highway_env

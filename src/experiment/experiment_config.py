@@ -22,6 +22,7 @@ class Experiment:
     AGENT_TRAINED_MODEL: str = "EXP5_Inference_Models/agent_trained_model.zip"
     CARS_AMOUNT: int = 5  # Updated to 5 cars
     SPAWN_PROBABILITY: float = 0
+    RENDER_MODE: str|None = "rgb_array"
 
     # Model and Training Configuration
     EPISODE_AMOUNT_FOR_TRAIN: int = 5  # Train after x episodes instead of 1
