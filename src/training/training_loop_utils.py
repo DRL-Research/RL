@@ -136,76 +136,157 @@ def train_master_and_reset_buffer(master_model, full_obs):
     return None
 
 
+
 def train_agent_and_reset_buffer(master_model, agent_model, last_master_tensor):
     """Trains the agent model and resets its buffer - Returns loss values"""
-    policy_loss_val = value_loss_val = total_loss_val = None
-    try:
-        with torch.no_grad():
-            shaped_tensor = ensure_tensor(last_master_tensor)
-            embedding, _, _ = master_model.get_proto_action(shaped_tensor)
-            car_state = flatten_obs(last_master_tensor)
-            expected_dim = agent_model.policy.observation_space.shape[0]
-            agent_obs = combine_agent_obs(car_state, embedding, expected_dim)
-            agent_obs_tensor = torch.tensor(agent_obs, dtype=torch.float32).unsqueeze(0)
-            last_value = agent_model.policy.predict_values(agent_obs_tensor)
-        if agent_model.rollout_buffer.pos == 0:
-            print("Agent model: No data to train on")
-            return None
-        agent_model.rollout_buffer.compute_returns_and_advantage(last_value, np.array([True]))
-        orig_get = agent_model.rollout_buffer.get
+    from src.project_globals import rollout_buffers
 
-        def modified_get(batch_size):
-            if not agent_model.rollout_buffer.full:
-                orig_full = agent_model.rollout_buffer.full
-                agent_model.rollout_buffer.full = True
-                try:
-                    indices = np.arange(agent_model.rollout_buffer.pos)
-                    if len(indices) > 0:
-                        return agent_model.rollout_buffer._get_samples(indices)
-                    else:
-                        return None
-                finally:
-                    agent_model.rollout_buffer.full = orig_full
-            else:
-                return next(orig_get(batch_size))
+    for current_rollout_buffer in rollout_buffers:
 
+        policy_loss_val = value_loss_val = total_loss_val = None
         try:
-            agent_model.rollout_buffer.get = modified_get
-            rollout_data = agent_model.rollout_buffer.get(batch_size=None)
-            if rollout_data is not None:
-                steps_trained = len(rollout_data.observations)
-                print(f"Agent model trained on {steps_trained} steps")
-                observations_tensor = torch.FloatTensor(rollout_data.observations)
-                actions_tensor = torch.FloatTensor(rollout_data.actions)
-                policy = agent_model.policy
-                optimizer = policy.optimizer
-                values, log_probs, entropy = policy.evaluate_actions(observations_tensor, actions_tensor)
-                value_loss = ((values - torch.FloatTensor(rollout_data.returns)) ** 2).mean()
-                advantages_tensor = torch.FloatTensor(rollout_data.advantages)
-                policy_loss = -(log_probs * advantages_tensor).mean()
-                entropy_loss = -entropy.mean()
-                loss = policy_loss + 0.5 * value_loss + 0.01 * entropy_loss
-                optimizer.zero_grad()
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(policy.parameters(), 0.5)
-                optimizer.step()
-                policy_loss_val = policy_loss.item()
-                value_loss_val = value_loss.item()
-                total_loss_val = loss.item()
-                #print(
-                #    f"Agent loss - Policy: {policy_loss_val:.4f}, Value: {value_loss_val:.4f}, Total: {total_loss_val:.4f}")
-            else:
-                print("Agent model: No valid data for training")
-        finally:
-            agent_model.rollout_buffer.get = orig_get
-    except Exception as e:
-        print(f"Error during agent training: {str(e)}")
-        traceback.print_exc()
-    agent_model.rollout_buffer.reset()
-    print("Agent buffer reset")
+            with torch.no_grad():
+                shaped_tensor = ensure_tensor(last_master_tensor)
+                embedding, _, _ = master_model.get_proto_action(shaped_tensor)
+                car_state = flatten_obs(last_master_tensor)
+                expected_dim = agent_model.policy.observation_space.shape[0]
+                agent_obs = combine_agent_obs(car_state, embedding, expected_dim)
+                agent_obs_tensor = torch.tensor(agent_obs, dtype=torch.float32).unsqueeze(0)
+                last_value = agent_model.policy.predict_values(agent_obs_tensor)
+
+            if current_rollout_buffer.pos == 0:
+                print("Agent model: No data to train on")
+                return None
+
+            current_rollout_buffer.compute_returns_and_advantage(last_value, np.array([True]))
+            orig_get = current_rollout_buffer.get
+
+            def modified_get(batch_size):
+                if not current_rollout_buffer.full:
+                    orig_full = current_rollout_buffer.full
+                    current_rollout_buffer.full = True
+                    try:
+                        indices = np.arange(current_rollout_buffer.pos)
+                        if len(indices) > 0:
+                            return current_rollout_buffer._get_samples(indices)
+                        else:
+                            return None
+                    finally:
+                        current_rollout_buffer.full = orig_full
+                else:
+                    return next(orig_get(batch_size))
+
+            try:
+                current_rollout_buffer.get = modified_get
+                rollout_data = current_rollout_buffer.get(batch_size=None)
+                if rollout_data is not None:
+                    steps_trained = len(rollout_data.observations)
+                    print(f"Agent model trained on {steps_trained} steps")
+                    observations_tensor = torch.FloatTensor(rollout_data.observations)
+                    actions_tensor = torch.FloatTensor(rollout_data.actions)
+                    policy = agent_model.policy
+                    optimizer = policy.optimizer
+                    values, log_probs, entropy = policy.evaluate_actions(observations_tensor, actions_tensor)
+                    value_loss = ((values - torch.FloatTensor(rollout_data.returns)) ** 2).mean()
+                    advantages_tensor = torch.FloatTensor(rollout_data.advantages)
+                    policy_loss = -(log_probs * advantages_tensor).mean()
+                    entropy_loss = -entropy.mean()
+                    loss = policy_loss + 0.5 * value_loss + 0.01 * entropy_loss
+                    optimizer.zero_grad()
+                    loss.backward()
+                    torch.nn.utils.clip_grad_norm_(policy.parameters(), 0.5)
+                    optimizer.step()
+                    policy_loss_val = policy_loss.item()
+                    value_loss_val = value_loss.item()
+                    total_loss_val = loss.item()
+                    print(
+                        f"Agent loss - Policy: {policy_loss_val:.4f}, Value: {value_loss_val:.4f}, Total: {total_loss_val:.4f}")
+                else:
+                    print("Agent model: No valid data for training")
+            finally:
+                current_rollout_buffer.get = orig_get
+        except Exception as e:
+            print(f"Error during agent training: {str(e)}")
+            traceback.print_exc()
+        current_rollout_buffer.reset()
+        print("Agent buffer reset")
+
+
     if policy_loss_val is not None:
         return [policy_loss_val, value_loss_val, total_loss_val]
     return None
+
+#
+# def train_agent_and_reset_buffer(master_model, agent_model, last_master_tensor):
+#     """Trains the agent model and resets its buffer - Returns loss values"""
+#     policy_loss_val = value_loss_val = total_loss_val = None
+#     try:
+#         with torch.no_grad():
+#             shaped_tensor = ensure_tensor(last_master_tensor)
+#             embedding, _, _ = master_model.get_proto_action(shaped_tensor)
+#             car_state = flatten_obs(last_master_tensor)
+#             expected_dim = agent_model.policy.observation_space.shape[0]
+#             agent_obs = combine_agent_obs(car_state, embedding, expected_dim)
+#             agent_obs_tensor = torch.tensor(agent_obs, dtype=torch.float32).unsqueeze(0)
+#             last_value = agent_model.policy.predict_values(agent_obs_tensor)
+#         if agent_model.rollout_buffer.pos == 0:
+#             print("Agent model: No data to train on")
+#             return None
+#         agent_model.rollout_buffer.compute_returns_and_advantage(last_value, np.array([True]))
+#         orig_get = agent_model.rollout_buffer.get
+#
+#         def modified_get(batch_size):
+#             if not agent_model.rollout_buffer.full:
+#                 orig_full = agent_model.rollout_buffer.full
+#                 agent_model.rollout_buffer.full = True
+#                 try:
+#                     indices = np.arange(agent_model.rollout_buffer.pos)
+#                     if len(indices) > 0:
+#                         return agent_model.rollout_buffer._get_samples(indices)
+#                     else:
+#                         return None
+#                 finally:
+#                     agent_model.rollout_buffer.full = orig_full
+#             else:
+#                 return next(orig_get(batch_size))
+#
+#         try:
+#             agent_model.rollout_buffer.get = modified_get
+#             rollout_data = agent_model.rollout_buffer.get(batch_size=None)
+#             if rollout_data is not None:
+#                 steps_trained = len(rollout_data.observations)
+#                 print(f"Agent model trained on {steps_trained} steps")
+#                 observations_tensor = torch.FloatTensor(rollout_data.observations)
+#                 actions_tensor = torch.FloatTensor(rollout_data.actions)
+#                 policy = agent_model.policy
+#                 optimizer = policy.optimizer
+#                 values, log_probs, entropy = policy.evaluate_actions(observations_tensor, actions_tensor)
+#                 value_loss = ((values - torch.FloatTensor(rollout_data.returns)) ** 2).mean()
+#                 advantages_tensor = torch.FloatTensor(rollout_data.advantages)
+#                 policy_loss = -(log_probs * advantages_tensor).mean()
+#                 entropy_loss = -entropy.mean()
+#                 loss = policy_loss + 0.5 * value_loss + 0.01 * entropy_loss
+#                 optimizer.zero_grad()
+#                 loss.backward()
+#                 torch.nn.utils.clip_grad_norm_(policy.parameters(), 0.5)
+#                 optimizer.step()
+#                 policy_loss_val = policy_loss.item()
+#                 value_loss_val = value_loss.item()
+#                 total_loss_val = loss.item()
+#                 #print(
+#                 #    f"Agent loss - Policy: {policy_loss_val:.4f}, Value: {value_loss_val:.4f}, Total: {total_loss_val:.4f}")
+#             else:
+#                 print("Agent model: No valid data for training")
+#         finally:
+#             agent_model.rollout_buffer.get = orig_get
+#     except Exception as e:
+#         print(f"Error during agent training: {str(e)}")
+#         traceback.print_exc()
+#     agent_model.rollout_buffer.reset()
+#     print("Agent buffer reset")
+#     if policy_loss_val is not None:
+#         return [policy_loss_val, value_loss_val, total_loss_val]
+#     return None
 
 
 

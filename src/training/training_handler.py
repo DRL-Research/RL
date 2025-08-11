@@ -2,11 +2,12 @@ import logging
 
 import numpy as np
 import torch
+from gymnasium import spaces
+from stable_baselines3.common.buffers import RolloutBuffer
 
-from experiment.experiment_config import Experiment
-from logger.utils import log_training_results_to_neptune
 from src.model.model_handler import load_models, save_models
 from src.plotting_utils.plotting_utils import plot_training_results
+from src.project_globals import rollout_buffers
 from src.training.episode_utils import process_episode
 from src.training.general_utils import (
     setup_experiment_dirs,
@@ -28,6 +29,19 @@ def training_loop(experiment, env, agent_model, master_model):
     Main training loop that orchestrates cycles and episodes.
     """
 
+    # Add rollout buffer per controlled car
+    for _ in env.env.config["controlled_cars"]:
+        new_rollout_buffer_instance = RolloutBuffer(
+            buffer_size=experiment.N_STEPS,
+            observation_space=spaces.Box(low=-np.inf, high=np.inf, shape=(experiment.STATE_INPUT_SIZE,)),
+            action_space=spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32),
+            gamma=0.99,
+            gae_lambda=0.95,
+            n_envs=1
+        )
+        rollout_buffers.append(new_rollout_buffer_instance)
+
+
     collision_counter, episode_counter, total_steps = 0, 0, 0
 
     results = init_training_results()
@@ -39,7 +53,7 @@ def training_loop(experiment, env, agent_model, master_model):
         for _ in range(experiment.EPISODES_PER_CYCLE):
 
             episode_counter += 1
-            print('This is the ',episode_counter,'Out of',experiment.EPISODES_PER_CYCLE* experiment.CYCLES, 'episodes')
+            print('This is the ', episode_counter, 'Out of', experiment.EPISODES_PER_CYCLE * experiment.CYCLES, 'episodes')
             episode_rewards, actions, steps, crashed = process_episode(episode_counter, total_steps, env, master_model,
                                                               agent_model, experiment, train_both, training_master)
             if crashed:
@@ -51,16 +65,56 @@ def training_loop(experiment, env, agent_model, master_model):
 
             # Prepare state for training
             with torch.no_grad():
-                _, _, _ = env.reset()
+                _, _ = env.reset()
                 full_state = env.env.current_state
                 state_tensor = ensure_tensor(full_state)
 
-            if episode_counter % Experiment.EPISODE_AMOUNT_FOR_TRAIN == 0 :
+            if episode_counter % experiment.EPISODE_AMOUNT_FOR_TRAIN == 0:
                 perform_training_phase(train_both, training_master, training_agent, master_model, agent_model, full_state,
-                                       state_tensor, results)
+                                   state_tensor, results)
 
     print("Training completed.")
     return agent_model, master_model, collision_counter, results["episode_rewards"], results["all_actions"], results
+
+#
+# def training_loop(experiment, env, agent_model, master_model):
+#     """
+#     Main training loop that orchestrates cycles and episodes.
+#     """
+#
+#     collision_counter, episode_counter, total_steps = 0, 0, 0
+#
+#     results = init_training_results()
+#
+#     for cycle_num in range(1, experiment.CYCLES + 1):
+#         print('Cycle', cycle_num,'out of ', experiment.CYCLES)
+#         train_both, training_master, training_agent = prepare_models_for_cycle(cycle_num, experiment.CYCLES,
+#                                                                                master_model, agent_model)
+#         for _ in range(experiment.EPISODES_PER_CYCLE):
+#
+#             episode_counter += 1
+#             print('This is the ',episode_counter,'Out of',experiment.EPISODES_PER_CYCLE* experiment.CYCLES, 'episodes')
+#             episode_rewards, actions, steps, crashed = process_episode(episode_counter, total_steps, env, master_model,
+#                                                               agent_model, experiment, train_both, training_master)
+#             if crashed:
+#                 collision_counter += 1
+#
+#             total_steps += steps
+#             results["episode_rewards"].append(episode_rewards)
+#             results["all_actions"].append(actions)
+#
+#             # Prepare state for training
+#             with torch.no_grad():
+#                 _, _, _ = env.reset()
+#                 full_state = env.env.current_state
+#                 state_tensor = ensure_tensor(full_state)
+#
+#             if episode_counter % Experiment.EPISODE_AMOUNT_FOR_TRAIN == 0 :
+#                 perform_training_phase(train_both, training_master, training_agent, master_model, agent_model, full_state,
+#                                        state_tensor, results)
+#
+#     print("Training completed.")
+#     return agent_model, master_model, collision_counter, results["episode_rewards"], results["all_actions"], results
 
 
 ##########################################

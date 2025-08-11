@@ -57,21 +57,25 @@ class Driver(gym.Env):
 
 
     @staticmethod
-    def get_action(model, car1_observation, car2_observation, step_counter, exploration_threshold):
+    def get_action(model, car_observations, step_counter, exploration_threshold):
+        actions = []  # will collect one action per car (same order as observations)
+
         if step_counter < exploration_threshold:
-            car1_action = random.choice([0,1])
-            car2_action = random.choice([0,1])
-            #print('random action',car1_action,car2_action)
-        # if random.random() < max(0.05, exploration_threshold * np.exp(-0.01 * step_counter)):
-        #     # Bias towards movement during exploration
-        #     car1_action = [1 if random.random() < 0.7 else 0]  # 70% chance to move
-        #     car2_action = [1 if random.random() < 0.7 else 0]
+            # --- RANDOM PHASE: before the threshold, pick 0/1 at random for each car ---
+            for _ in car_observations:
+                # Choose a discrete action 0 or 1 uniformly at random
+                a = random.choice([0, 1])  # new: replaces the old exp-decay exploration rule
+                # Ensure the action has the same shape/type as model.predict output (e.g., [0] / [1])
+                actions.append(np.array([a], dtype=np.int64))  # new: keep 1-D, length-1 action
         else:
-            car1_action, _ = model.predict(car1_observation, deterministic=True)
-            car2_action, _ = model.predict(car2_observation, deterministic=True)
-        #print("Car 1 obs", car1_observation)
-        #print("Car 2 obs", car2_observation)
-        return car1_action, car2_action
+            # --- POLICY PHASE: after the threshold, use the model deterministically ---
+            for obs in car_observations:
+                car_action, _ = model.predict(obs, deterministic=True)  # unchanged: use policy
+                actions.append(car_action)
+
+        return actions
+
+
     def _prepare_state_for_master(self, state):
         if isinstance(state, tuple):
             state = np.array(state)
@@ -125,26 +129,22 @@ class Driver(gym.Env):
         else:
             raise ValueError("master not available")
 
-        # Check if car1 has arrived
-        if (hasattr(env, 'controlled_vehicles') and len(env.controlled_vehicles) > 0 and
-                hasattr(env.controlled_vehicles[0], 'is_arrived') and env.controlled_vehicles[0].is_arrived):
-            car1_state = np.array([0.0, 0.0, 0.0, 0.0])
-            print('The',env.controlled_vehicles[0],'Arrived and sending : ',car1_state)
-        else:
-            car1_state = current_state[:4] if len(current_state.shape) == 1 else current_state[0]
+        # Build agent_observations
+        agent_observations = []  # TODO: duplicate code, move to utils
 
-        # Check if car2 has arrived
-        if (hasattr(env, 'controlled_vehicles') and len(env.controlled_vehicles) > 1 and
-                hasattr(env.controlled_vehicles[1], 'is_arrived') and env.controlled_vehicles[1].is_arrived):
-            car2_state = np.array([0.0, 0.0, 0.0, 0.0])
-            print('The', env.controlled_vehicles[0], 'Arrived and sending : ', car1_state)
-        else:
-            car2_state = current_state[4:8] if len(current_state.shape) == 1 else current_state[1]
+        for car_index in range(len(env.controlled_vehicles)):
 
-        agent_observation_car1 = np.concatenate((car1_state, self.current_embedding))
-        agent_observation_car2 = np.concatenate((car2_state, self.current_embedding))
+            if (hasattr(env, 'controlled_vehicles') and len(env.controlled_vehicles) > 0 and
+                    hasattr(env.controlled_vehicles[car_index], 'is_arrived') and env.controlled_vehicles[car_index].is_arrived):
+                car_state = np.array([0.0, 0.0, 0.0, 0.0])
+                print('The',env.controlled_vehicles[car_index],'Arrived and sending : ', car_state)
+            else:
+                car_state = current_state[car_index*4:car_index*4+4] if len(current_state.shape) == 1 else current_state[car_index]
 
-        return agent_observation_car1, agent_observation_car2, info
+            agent_observations.append(np.concatenate((car_state, self.current_embedding)))
+
+
+        return agent_observations, info
 
     def step(self, action_tuple):
         """Execute action and return observations for both agents."""
@@ -158,33 +158,31 @@ class Driver(gym.Env):
             embedding, _, _ = self.master_model.get_proto_action(master_input)
             self.current_embedding = embedding
         else:
-            print('master is none')
             self.current_embedding = np.zeros(4)
 
         env = self._get_unwrapped_env()
 
-        # Car1 observation
-        if (hasattr(env, 'controlled_vehicles') and len(env.controlled_vehicles) > 0 and
-                hasattr(env.controlled_vehicles[0], 'is_arrived') and env.controlled_vehicles[0].is_arrived):
-            car1_state = np.array([0.0, 0.0, 0.0, 0.0])
-        else:
-            car1_state = next_state[:4] if len(next_state.shape) == 1 else next_state[0]
+        # Build agent_observations
+        agent_next_observations = []  # TODO: duplicate code, move to utils
 
-        # Car2 observation
-        if (hasattr(env, 'controlled_vehicles') and len(env.controlled_vehicles) > 1 and
-                hasattr(env.controlled_vehicles[1], 'is_arrived') and env.controlled_vehicles[1].is_arrived):
-            car2_state = np.array([0.0, 0.0, 0.0, 0.0])
-        else:
-            car2_state = next_state[4:8] if len(next_state.shape) == 1 else next_state[1]
+        for car_index in range(len(env.controlled_vehicles)):
 
-        agent_observation_car1 = np.concatenate((car1_state, self.current_embedding))
-        agent_observation_car2 = np.concatenate((car2_state, self.current_embedding))
+            if (hasattr(env, 'controlled_vehicles') and len(env.controlled_vehicles) > 0 and
+                    hasattr(env.controlled_vehicles[car_index], 'is_arrived') and env.controlled_vehicles[
+                        car_index].is_arrived):
+                car_state = np.array([0.0, 0.0, 0.0, 0.0])
+                print('The', env.controlled_vehicles[car_index], 'Arrived and sending : ', car_state)
+            else:
+                car_state = next_state[car_index * 4:car_index * 4 + 4] if len(next_state.shape) == 1 else next_state[car_index]
+
+            agent_next_observations.append(np.concatenate((car_state, self.current_embedding)))
 
         self.current_state = next_state
         self.total_episode_reward += reward
 
         # Return same format as reset() - both observations
-        return agent_observation_car1, agent_observation_car2, reward, done, truncated, info
+        return agent_next_observations, reward, done, truncated, info
+
     def render(self, mode='human'):
         """
         Render the environment.
