@@ -96,6 +96,8 @@ def process_episode(episode_idx, total_steps, env, master_model, agent_model, ex
     master_model.rollout_buffer.reset()
     reset_all_buffers()  # reset all buffers (for each Driver)
 
+    # TODO: Create an assert here to see that they are reset propely
+
     reward, actions, steps, crashed = run_episode(experiment, total_steps, env, master_model, agent_model,
                                                   train_both=train_both, training_master=training_master)
     status = "Collision" if crashed else "Success"

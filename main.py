@@ -13,7 +13,7 @@ if __name__ == "__main__":
     register_intersection_env()
 
     experiment5_config = Experiment(
-        RENDER_MODE=None,  # if not defined, default is to render
+        # RENDER_MODE=None,  # None = do not render. if not defined, default is to render
         EXPERIMENT_ID='Experiment5',
         LOAD_MODEL_DIRECTORY='experiments/08_12_2024-13_56_13_Experiment1/trained_model.zip',
         EPOCHS=1,

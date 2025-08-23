@@ -83,7 +83,7 @@ class IntersectionEnv(AbstractEnv):
         """Aggregated reward, for cooperative agents."""
         mean_reward_type = False
 
-        # Filter vehicles that haven't arrived yet
+        # Work with vehicles that haven't arrived yet
         # TODO: do we want to filter only not arrived? or do we need to filter not crashed also?
         active_vehicles = [
             vehicle for vehicle, flag in zip(self.controlled_vehicles, project_globals.after_is_arrived_flags)

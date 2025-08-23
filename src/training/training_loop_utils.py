@@ -193,7 +193,7 @@ def train_agent_and_reset_buffer(master_model, agent_model, last_master_tensor):
                     entropy_loss = -entropy.mean()
                     loss = policy_loss + 0.5 * value_loss + 0.01 * entropy_loss
                     optimizer.zero_grad()
-                    loss.backward()
+                    loss.backward()  # TODO: log the losses better
                     torch.nn.utils.clip_grad_norm_(policy.parameters(), 0.5)
                     optimizer.step()
                     policy_loss_val = policy_loss.item()
