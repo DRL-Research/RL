@@ -2,7 +2,7 @@ import logging
 
 from highwayenv.utils import patch_intersection_env, register_intersection_env
 from src.experiment import scenarios_config as sc
-from src.experiment.experiment_config import Experiment
+from src.experiment.experiment_config import Experiment, MasterActionExperiment
 from src.training.training_handler import run_experiment
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -39,12 +39,20 @@ if __name__ == "__main__":
         EPOCHS=1,
         CYCLES=3)
 
+    master_action_experiment = MasterActionExperiment(
+        EXPERIMENT_ID='MasterActionExp',
+        LOAD_MODEL_DIRECTORY='experiments/08_12_2024-13_56_13_Experiment1/trained_model.zip',
+        EPOCHS=1,
+        CYCLES=3,
+    )
+
     # dictionary were the keys are EXPERIMENT_ID (experiment name) and the values are environment configurations defined in scenarios_config.py
     custom_env_configs = {
-        experiment5_config.EXPERIMENT_ID: sc.full_env_config_exp5
+        experiment5_config.EXPERIMENT_ID: sc.full_env_config_exp5,
+        master_action_experiment.EXPERIMENT_ID: sc.full_env_config_exp5,
     }
 
-    experiments = [experiment5_config]  # , experiment1]
+    experiments = [experiment5_config, master_action_experiment]
     for experiment_config in experiments:
         print(f"Starting experiment: {experiment_config.EXPERIMENT_ID}")
         run_experiment(experiment_config, custom_env_configs[experiment_config.EXPERIMENT_ID])

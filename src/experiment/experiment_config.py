@@ -37,8 +37,12 @@ class Experiment:
     LONGITUDINAL: int = 40
     LATERAL: int = 0
 
-    # Master embedding size configuration
+    # Master output configuration
     EMBEDDING_SIZE: int = 4
+    MASTER_OUTPUT_MODE: str = "embedding"  # "embedding" or "actions"
+    MASTER_ACTION_DIM: int = 2
+    MASTER_ACTION_THRESHOLD: float = 0.0
+    USE_MASTER_ACTIONS: bool = False
 
     # Cars Setup Configuration
     RANDOM_INIT: bool = False
@@ -50,7 +54,7 @@ class Experiment:
 
     # State Configuration - still 8-dimensional (4 from car state + 4 from master embedding)
     AGENT_STATE_SIZE: int = 4
-    STATE_INPUT_SIZE: int = EMBEDDING_SIZE + AGENT_STATE_SIZE  # 8
+    STATE_INPUT_SIZE: int = EMBEDDING_SIZE + AGENT_STATE_SIZE  # 8 (will be adjusted in __post_init__)
 
     # Action Configurationss
     ACTION_SPACE_SIZE: int = 2
@@ -98,6 +102,13 @@ class Experiment:
     SCALING: float = 3 * 1.3
 
     def __post_init__(self):
+        # Dynamically adjust observation size based on master output mode
+        if getattr(self, "MASTER_OUTPUT_MODE", "embedding") == "actions":
+            action_dim = getattr(self, "MASTER_ACTION_DIM", self.EMBEDDING_SIZE)
+            self.STATE_INPUT_SIZE = self.AGENT_STATE_SIZE + action_dim
+        else:
+            self.STATE_INPUT_SIZE = self.AGENT_STATE_SIZE + self.EMBEDDING_SIZE
+
         self.EXPERIMENT_PATH = f"experiments/{self.EXPERIMENT_DATE_TIME}_{self.EXPERIMENT_ID}"
         self.SAVE_MODEL_DIRECTORY = f"{self.EXPERIMENT_PATH}/trained_model"
 
@@ -116,3 +127,16 @@ class Experiment:
         #     run_name=self.EXPERIMENT_ID,
         #     tags=["experiment", "training"]
         # )
+
+
+@dataclass
+class MasterActionExperiment(Experiment):
+    """Experiment configuration where the master outputs acceleration decisions."""
+
+    MASTER_OUTPUT_MODE: str = "actions"
+    USE_MASTER_ACTIONS: bool = True
+    MASTER_ACTION_DIM: int = 2
+    MASTER_ACTION_THRESHOLD: float = 0.0
+
+    def __post_init__(self):
+        super().__post_init__()

@@ -29,13 +29,21 @@ def training_loop(experiment, env, agent_model, master_model):
     """
 
     collision_counter, episode_counter, total_steps = 0, 0, 0
+    use_master_actions = getattr(experiment, 'USE_MASTER_ACTIONS', False)
 
     results = init_training_results()
 
     for cycle_num in range(1, experiment.CYCLES + 1):
         print('Cycle', cycle_num,'out of ', experiment.CYCLES)
-        train_both, training_master, training_agent = prepare_models_for_cycle(cycle_num, experiment.CYCLES,
-                                                                               master_model, agent_model)
+        train_both, training_master, training_agent = prepare_models_for_cycle(
+            cycle_num, experiment.CYCLES, master_model, agent_model
+        )
+
+        if use_master_actions:
+            train_both, training_master, training_agent = False, True, False
+            master_model.unfreeze()
+            if agent_model is not None and hasattr(agent_model, 'policy'):
+                agent_model.policy.set_training_mode(False)
         for _ in range(experiment.EPISODES_PER_CYCLE):
 
             episode_counter += 1

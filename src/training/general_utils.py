@@ -5,6 +5,7 @@ import torch
 from stable_baselines3.common.logger import configure
 
 from src.model.agent_handler import Driver, DummyVecEnv
+from src.model.master_action_model import ActionMasterModel
 from src.model.master_model import MasterModel
 from src.model.model_handler import Model
 
@@ -107,12 +108,21 @@ def initialize_models(experiment_config, env_config):
 
     # === MASTER MODEL CONFIGURATION ===
     obs_dim = experiment_config.CARS_AMOUNT * 4
-    emb_dim = experiment_config.EMBEDDING_SIZE
+    use_master_actions = getattr(experiment_config, 'USE_MASTER_ACTIONS', False)
 
-    master_model = MasterModel(
-        observation_dim=obs_dim,
-        embedding_dim=emb_dim,
-    )
+    if use_master_actions:
+        action_dim = getattr(experiment_config, 'MASTER_ACTION_DIM', experiment_config.EMBEDDING_SIZE)
+        master_model = ActionMasterModel(
+            observation_dim=obs_dim,
+            action_dim=action_dim,
+            experiment=experiment_config,
+        )
+    else:
+        emb_dim = experiment_config.EMBEDDING_SIZE
+        master_model = MasterModel(
+            observation_dim=obs_dim,
+            embedding_dim=emb_dim,
+        )
 
     # === AGENT MODEL CONFIGsURATION ===
     AGENT_NETWORK_ARCH = {

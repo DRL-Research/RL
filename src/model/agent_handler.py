@@ -21,6 +21,10 @@ class Driver(gym.Env):
         super().__init__()
         self.experiment = experiment
         self.master_model = master_model
+        self.master_output_mode = getattr(experiment, "MASTER_OUTPUT_MODE", "embedding")
+        self.use_master_actions = getattr(experiment, "USE_MASTER_ACTIONS", False)
+        self.master_action_threshold = getattr(experiment, "MASTER_ACTION_THRESHOLD", 0.0)
+        self.master_action_dim = getattr(experiment, "MASTER_ACTION_DIM", 2)
 
         # Load environment configuration
         self.config = experiment.CONFIG if hasattr(experiment, 'CONFIG') else None
@@ -45,6 +49,7 @@ class Driver(gym.Env):
         # Environment state
         self.current_state = None
         self.current_embedding = None
+        self.current_master_actions = np.zeros(self.master_action_dim, dtype=np.float32)
 
         # Create the underlying Highway environment
         self.highway_env = gym.make('RELintersection-v0', render_mode="rgb_array", config=self.config)
@@ -120,8 +125,15 @@ class Driver(gym.Env):
 
         if self.master_model is not None:
             master_input = torch.tensor(current_state.reshape(1, -1), dtype=torch.float32)
-            embedding, _, _ = self.master_model.get_proto_action(master_input)
-            self.current_embedding = embedding
+            master_output, _, _ = self.master_model.get_proto_action(master_input)
+            if self.use_master_actions:
+                self.current_master_actions = self.convert_master_output_to_actions(
+                    master_output,
+                    self.master_action_dim,
+                    self.master_action_threshold,
+                ).astype(np.float32)
+            else:
+                self.current_embedding = master_output
         else:
             raise ValueError("master not available")
 
@@ -141,8 +153,12 @@ class Driver(gym.Env):
         else:
             car2_state = current_state[4:8] if len(current_state.shape) == 1 else current_state[1]
 
-        agent_observation_car1 = np.concatenate((car1_state, self.current_embedding))
-        agent_observation_car2 = np.concatenate((car2_state, self.current_embedding))
+        if self.use_master_actions:
+            agent_observation_car1 = np.concatenate((car1_state, self.current_master_actions))
+            agent_observation_car2 = np.concatenate((car2_state, self.current_master_actions))
+        else:
+            agent_observation_car1 = np.concatenate((car1_state, self.current_embedding))
+            agent_observation_car2 = np.concatenate((car2_state, self.current_embedding))
 
         return agent_observation_car1, agent_observation_car2, info
 
@@ -155,11 +171,21 @@ class Driver(gym.Env):
 
         if self.master_model is not None:
             master_input = torch.tensor(next_state.reshape(1, -1), dtype=torch.float32)
-            embedding, _, _ = self.master_model.get_proto_action(master_input)
-            self.current_embedding = embedding
+            master_output, _, _ = self.master_model.get_proto_action(master_input)
+            if self.use_master_actions:
+                self.current_master_actions = self.convert_master_output_to_actions(
+                    master_output,
+                    self.master_action_dim,
+                    self.master_action_threshold,
+                ).astype(np.float32)
+            else:
+                self.current_embedding = master_output
         else:
             print('master is none')
-            self.current_embedding = np.zeros(4)
+            if self.use_master_actions:
+                self.current_master_actions = np.zeros(self.master_action_dim, dtype=np.float32)
+            else:
+                self.current_embedding = np.zeros(4)
 
         env = self._get_unwrapped_env()
 
@@ -177,8 +203,12 @@ class Driver(gym.Env):
         else:
             car2_state = next_state[4:8] if len(next_state.shape) == 1 else next_state[1]
 
-        agent_observation_car1 = np.concatenate((car1_state, self.current_embedding))
-        agent_observation_car2 = np.concatenate((car2_state, self.current_embedding))
+        if self.use_master_actions:
+            agent_observation_car1 = np.concatenate((car1_state, self.current_master_actions))
+            agent_observation_car2 = np.concatenate((car2_state, self.current_master_actions))
+        else:
+            agent_observation_car1 = np.concatenate((car1_state, self.current_embedding))
+            agent_observation_car2 = np.concatenate((car2_state, self.current_embedding))
 
         self.current_state = next_state
         self.total_episode_reward += reward
@@ -204,6 +234,16 @@ class Driver(gym.Env):
         if hasattr(self.highway_env, 'seed'):
             return self.highway_env.seed(seed)
         return None
+
+    @staticmethod
+    def convert_master_output_to_actions(master_output, action_dim, threshold=0.0):
+        values = np.array(master_output).flatten()
+        if values.size < action_dim:
+            values = np.pad(values, (0, action_dim - values.size))
+        elif values.size > action_dim:
+            values = values[:action_dim]
+        discrete = (values >= threshold).astype(int)
+        return discrete
 
 
 class DummyVecEnv(gym.Wrapper):
