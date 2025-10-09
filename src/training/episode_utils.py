@@ -29,15 +29,14 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
         # Get all drivers states (without master embedding) from environment
         all_drivers_states = env.env.current_state
 
-        # Compute master embedding & (for later optionally use) its value/log_prob
-        master_output, value, log_prob = master_model.get_proto_action(ensure_tensor(all_drivers_states))
-
         if use_master_actions:
-            action_dim = getattr(experiment, 'MASTER_ACTION_DIM', len(master_output))
-            threshold = getattr(experiment, 'MASTER_ACTION_THRESHOLD', 0.0)
-            master_actions = Driver.convert_master_output_to_actions(master_output, action_dim, threshold)
-            env_action = tuple(int(a) for a in master_actions)
+            master_output = env.env.last_master_output
+            value = env.env.last_master_value
+            log_prob = env.env.last_master_log_prob
+            env_action = env.env.get_current_master_action_tuple()
         else:
+            # Compute master embedding & (for later optionally use) its value/log_prob
+            master_output, value, log_prob = master_model.get_proto_action(ensure_tensor(all_drivers_states))
             car1_action, car2_action = Driver.get_action(
                 agent_model,
                 car1_observation,
@@ -65,7 +64,7 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
         episode_sum_of_rewards += reward
         all_rewards.append(reward)
         if use_master_actions:
-            actions_per_episode.append(env_action)
+            actions_per_episode.append(env.env.last_applied_action_tuple)
         else:
             actions_per_episode.append(env_action[0])
 

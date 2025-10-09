@@ -50,6 +50,10 @@ class Driver(gym.Env):
         self.current_state = None
         self.current_embedding = None
         self.current_master_actions = np.zeros(self.master_action_dim, dtype=np.float32)
+        self.last_master_output = None
+        self.last_master_value = None
+        self.last_master_log_prob = None
+        self.last_applied_action_tuple = tuple()
 
         # Create the underlying Highway environment
         self.highway_env = gym.make('RELintersection-v0', render_mode="rgb_array", config=self.config)
@@ -124,16 +128,8 @@ class Driver(gym.Env):
         current_state = self._prepare_state_for_master(current_state)
 
         if self.master_model is not None:
-            master_input = torch.tensor(current_state.reshape(1, -1), dtype=torch.float32)
-            master_output, _, _ = self.master_model.get_proto_action(master_input)
-            if self.use_master_actions:
-                self.current_master_actions = self.convert_master_output_to_actions(
-                    master_output,
-                    self.master_action_dim,
-                    self.master_action_threshold,
-                ).astype(np.float32)
-            else:
-                self.current_embedding = master_output
+            self._update_master_outputs(current_state)
+            self.last_applied_action_tuple = tuple()
         else:
             raise ValueError("master not available")
 
@@ -166,20 +162,18 @@ class Driver(gym.Env):
         """Execute action and return observations for both agents."""
         self.episode_step += 1
 
-        next_state, reward, done, truncated, info = self.highway_env.step(action_tuple)
+        if self.use_master_actions:
+            master_action_tuple = self._build_master_action_tuple()
+            self.last_applied_action_tuple = master_action_tuple
+            for idx, action in enumerate(master_action_tuple, start=1):
+                print(f"[MasterAction] Step {self.episode_step}: Car {idx} -> {action}")
+            next_state, reward, done, truncated, info = self.highway_env.step(master_action_tuple)
+        else:
+            next_state, reward, done, truncated, info = self.highway_env.step(action_tuple)
         next_state = self._prepare_state_for_master(next_state)
 
         if self.master_model is not None:
-            master_input = torch.tensor(next_state.reshape(1, -1), dtype=torch.float32)
-            master_output, _, _ = self.master_model.get_proto_action(master_input)
-            if self.use_master_actions:
-                self.current_master_actions = self.convert_master_output_to_actions(
-                    master_output,
-                    self.master_action_dim,
-                    self.master_action_threshold,
-                ).astype(np.float32)
-            else:
-                self.current_embedding = master_output
+            self._update_master_outputs(next_state)
         else:
             print('master is none')
             if self.use_master_actions:
@@ -215,6 +209,43 @@ class Driver(gym.Env):
 
         # Return same format as reset() - both observations
         return agent_observation_car1, agent_observation_car2, reward, done, truncated, info
+
+    def _update_master_outputs(self, state):
+        flat_state = np.array(state, dtype=np.float32).reshape(1, -1)
+        master_input = torch.tensor(flat_state, dtype=torch.float32)
+        master_output, value, log_prob = self.master_model.get_proto_action(master_input)
+        self.last_master_output = master_output
+        self.last_master_value = value
+        self.last_master_log_prob = log_prob
+        if self.use_master_actions:
+            self.current_master_actions = self.convert_master_output_to_actions(
+                master_output,
+                self.master_action_dim,
+                self.master_action_threshold,
+            ).astype(np.float32)
+        else:
+            self.current_embedding = master_output
+
+    def _build_master_action_tuple(self):
+        env = self._get_unwrapped_env()
+        num_cars = 0
+        if hasattr(env, 'controlled_vehicles'):
+            num_cars = len(env.controlled_vehicles)
+        if num_cars == 0:
+            num_cars = len(self.current_master_actions)
+        actions = []
+        for idx in range(num_cars):
+            if idx < len(self.current_master_actions):
+                actions.append(int(self.current_master_actions[idx]))
+            else:
+                actions.append(0)
+        return tuple(actions)
+
+    def get_current_master_action_tuple(self):
+        if not self.use_master_actions:
+            raise RuntimeError("Master actions are not enabled in this experiment")
+        return self._build_master_action_tuple()
+
     def render(self, mode='human'):
         """
         Render the environment.
