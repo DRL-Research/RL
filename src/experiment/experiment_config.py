@@ -1,7 +1,7 @@
 import json
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 from logger.neptune_logger import NeptuneLogger
 
@@ -33,6 +33,7 @@ class Experiment:
     EPISODE_MAX_TIME = 50  # seconds
     LOSS_FUNCTION: str = "mse"
     EXPLORATION_EXPLOITATION_THRESHOLD: int = 800
+    MASTER_PARAM_GRID: Optional[Dict[str, List]] = None
 
     # Cars Configuration - distance from intersection
     LONGITUDINAL: int = 40

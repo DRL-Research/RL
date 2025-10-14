@@ -58,7 +58,7 @@ class MasterModel:
     PURE SB3 PPO - NO CUSTOM ANYTHING
     """
 
-    def __init__(self, action_dim=None, experiment=None, observation_dim=None, **kwargs):
+    def __init__(self, action_dim=None, experiment=None, observation_dim=None, ppo_hyperparams=None, **kwargs):
         # Accept all possible arguments for compatibility
         self.experiment = experiment
         self.is_frozen = False
@@ -95,24 +95,45 @@ class MasterModel:
             n_steps = 64
 
         # PURE SB3 PPO - NOTHING CUSTOM
+        default_policy_kwargs = dict(
+            features_extractor_class=SimpleResNetExtractor,
+            features_extractor_kwargs=dict(features_dim=128),
+            net_arch=[64, 32]
+        )
+
+        provided_params = dict(ppo_hyperparams or {})
+        net_arch_override = provided_params.pop("net_arch", None)
+
+        resolved_n_steps = provided_params.get("n_steps", n_steps)
+
+        default_hyperparams = {
+            "learning_rate": 1e-2,
+            "n_steps": resolved_n_steps,
+            "batch_size": 128,
+            "gamma": 0.99,
+            "gae_lambda": 0.95,
+            "clip_range": 0.9,
+            "ent_coef": 0.01,
+            "vf_coef": 0.5,
+        }
+
+        default_hyperparams.update(provided_params)
+
+        policy_kwargs = default_policy_kwargs.copy()
+        if net_arch_override is not None:
+            policy_kwargs = policy_kwargs.copy()
+            policy_kwargs["net_arch"] = net_arch_override
+
+        default_hyperparams["policy_kwargs"] = policy_kwargs
+
+        self.ppo_hyperparams = default_hyperparams
+
         self.model = PPO(
             "MlpPolicy",
             dummy_env,
-            learning_rate=1e-2,
-            n_steps=n_steps,
-            batch_size=128,
-            gamma=0.99,
-            gae_lambda=0.95,
-            clip_range=0.9,
-            ent_coef=0.01,
-            vf_coef=0.5,
-            policy_kwargs=dict(
-                features_extractor_class=SimpleResNetExtractor,
-                features_extractor_kwargs=dict(features_dim=128),
-                net_arch=[64, 32]
-            ),
             verbose=1,
-            device="cpu"
+            device="cpu",
+            **self.ppo_hyperparams,
         )
 
 
@@ -137,11 +158,11 @@ class MasterModel:
 
         # Rollout buffer for compatibility
         self.rollout_buffer = RolloutBuffer(
-            buffer_size=n_steps,
+            buffer_size=int(self.ppo_hyperparams["n_steps"]),
             observation_space=dummy_env.observation_space,
             action_space=dummy_env.action_space,
-            gamma=0.99,
-            gae_lambda=0.95,
+            gamma=self.ppo_hyperparams["gamma"],
+            gae_lambda=self.ppo_hyperparams["gae_lambda"],
             n_envs=1
         )
 

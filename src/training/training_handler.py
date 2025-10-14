@@ -1,4 +1,7 @@
+import copy
 import logging
+import os
+from itertools import product
 
 import numpy as np
 import torch
@@ -18,6 +21,31 @@ from src.training.training_loop_utils import init_training_results, prepare_mode
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def _format_param_value_for_label(value):
+    if isinstance(value, (list, tuple)):
+        formatted = "-".join(_format_param_value_for_label(v) for v in value)
+    elif isinstance(value, float):
+        formatted = f"{value:.6g}"
+    else:
+        formatted = str(value)
+
+    formatted = formatted.replace(".", "p").replace("-", "m")
+    formatted = formatted.replace(" ", "")
+    formatted = formatted.replace("[", "").replace("]", "")
+    return formatted
+
+
+def _build_param_label(params):
+    if not params:
+        return "default"
+
+    parts = []
+    for key in sorted(params):
+        value_label = _format_param_value_for_label(params[key])
+        parts.append(f"{key}-{value_label}")
+    return "_".join(parts)
 
 
 ##########################################
@@ -195,23 +223,83 @@ def run_training_mode(experiment_config, wrapped_env, agent_model, master_model,
 # Main experiment entrypoint
 ##########################################
 
-def run_experiment(experiment_config, env_config):
+
+def _run_single_experiment(experiment_config, env_config, master_params=None):
+    experiment_config.SELECTED_MASTER_PARAMS = master_params
+
     print(
         f"Environment configuration: {len(env_config['controlled_cars'])} controlled cars, {len(env_config['static_cars'])} static cars"
     )
+
     setup_experiment_dirs(experiment_config.EXPERIMENT_PATH)
-    master_model, agent_model, wrapped_env = initialize_models(experiment_config, env_config)
+    master_model, agent_model, wrapped_env = initialize_models(
+        experiment_config, env_config, master_hyperparams=master_params
+    )
     agent_logger, master_logger = setup_loggers(experiment_config.EXPERIMENT_PATH)
     agent_model.set_logger(agent_logger)
     master_model.set_logger(master_logger)
 
     if experiment_config.ONLY_INFERENCE:
         print("Running in inference-only mode")
-        return run_inference_mode(
+        result = run_inference_mode(
             experiment_config, wrapped_env, agent_model, master_model, agent_logger, master_logger
         )
     else:
         print("Running in training mode")
-        return run_training_mode(
+        result = run_training_mode(
             experiment_config, wrapped_env, agent_model, master_model, agent_logger, master_logger
         )
+
+    collision_counter = result[2] if len(result) >= 3 else None
+    if collision_counter is not None:
+        params_display = (
+            experiment_config.SELECTED_MASTER_PARAMS
+            if experiment_config.SELECTED_MASTER_PARAMS is not None
+            else "default"
+        )
+        print(
+            f"[RunSummary] Selected master params: {params_display} -> crashes: {collision_counter}"
+        )
+
+    return result
+
+
+def run_experiment(experiment_config, env_config):
+    param_grid = getattr(experiment_config, "MASTER_PARAM_GRID", None)
+
+    if param_grid:
+        grid_keys = [key for key, values in param_grid.items() if values]
+        if not grid_keys:
+            experiment_config.GRID_SEARCH_LABEL = None
+            return _run_single_experiment(experiment_config, env_config)
+
+        combinations = list(product(*(param_grid[key] for key in grid_keys)))
+        print(f"[GridSearch] Running {len(combinations)} master hyperparameter combinations")
+
+        base_path = experiment_config.EXPERIMENT_PATH
+        setup_experiment_dirs(base_path)
+
+        results_summary = []
+        for combo in combinations:
+            params = dict(zip(grid_keys, combo))
+            label = _build_param_label(params)
+            run_config = copy.deepcopy(experiment_config)
+            run_config.EXPERIMENT_ID = f"{experiment_config.EXPERIMENT_ID}_{label}"
+            run_config.EXPERIMENT_PATH = os.path.join(base_path, label)
+            run_config.SAVE_MODEL_DIRECTORY = os.path.join(run_config.EXPERIMENT_PATH, "trained_model")
+            run_config.GRID_SEARCH_LABEL = label
+            run_config.MASTER_PARAM_GRID = None
+
+            print(f"[GridSearch] Starting combination {label}: {params}")
+            result = _run_single_experiment(run_config, env_config, params)
+            collision_counter = result[2] if len(result) >= 3 else None
+            results_summary.append({
+                "label": label,
+                "params": params,
+                "crashes": collision_counter,
+            })
+
+        return results_summary
+
+    experiment_config.GRID_SEARCH_LABEL = None
+    return _run_single_experiment(experiment_config, env_config, None)

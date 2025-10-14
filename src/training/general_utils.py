@@ -99,7 +99,7 @@ def setup_experiment_dirs(experiment_path):
     """Create experiment directory if it doesn't exist."""
     os.makedirs(experiment_path, exist_ok=True)
 
-def initialize_models(experiment_config, env_config):
+def initialize_models(experiment_config, env_config, master_hyperparams=None):
     """
     Initialize master and agent models, each with tuned architectures and hyperparameters.
     """
@@ -112,6 +112,7 @@ def initialize_models(experiment_config, env_config):
     master_model = MasterModel(
         observation_dim=obs_dim,
         action_dim=control_dim,
+        ppo_hyperparams=master_hyperparams,
     )
 
     # === AGENT MODEL CONFIGsURATION ===

@@ -16,6 +16,14 @@ def plot_training_results(experiment, results, show_plots=True):
     plots_dir = os.path.join(experiment.EXPERIMENT_PATH, "plots")
     os.makedirs(plots_dir, exist_ok=True)
 
+    label_suffix = getattr(experiment, "GRID_SEARCH_LABEL", None)
+
+    def _plot_path(filename: str) -> str:
+        if label_suffix:
+            name, ext = os.path.splitext(filename)
+            return os.path.join(plots_dir, f"{name}_{label_suffix}{ext}")
+        return os.path.join(plots_dir, filename)
+
     # Unpack the results
     episode_rewards = results["episode_rewards"]
     master_policy_losses = results["master_policy_losses"]
@@ -40,7 +48,7 @@ def plot_training_results(experiment, results, show_plots=True):
     plt.xlabel('Episode', fontsize=14)
     plt.ylabel('Reward', fontsize=14)
     plt.tight_layout()
-    plt.savefig(os.path.join(plots_dir, 'episode_rewards.png'))
+    plt.savefig(_plot_path('episode_rewards.png'))
     if show_plots:
         plt.show()
     else:
@@ -60,7 +68,7 @@ def plot_training_results(experiment, results, show_plots=True):
         plt.ylabel('Loss', fontsize=14)
         plt.yscale('log')  # Use log scale since losses can vary greatly
         plt.tight_layout()
-        plt.savefig(os.path.join(plots_dir, 'master_value_loss.png'))
+        plt.savefig(_plot_path('master_value_loss.png'))
         if show_plots:
             plt.show()
         else:
@@ -80,7 +88,7 @@ def plot_training_results(experiment, results, show_plots=True):
         plt.ylabel('Loss', fontsize=14)
         plt.yscale('log')  # Use log scale since losses can vary greatly
         plt.tight_layout()
-        plt.savefig(os.path.join(plots_dir, 'master_total_loss.png'))
+        plt.savefig(_plot_path('master_total_loss.png'))
         if show_plots:
             plt.show()
         else:
@@ -100,7 +108,7 @@ def plot_training_results(experiment, results, show_plots=True):
         plt.ylabel('Loss', fontsize=14)
         plt.yscale('log')  # Use log scale since losses can vary greatly
         plt.tight_layout()
-        plt.savefig(os.path.join(plots_dir, 'agent_value_loss.png'))
+        plt.savefig(_plot_path('agent_value_loss.png'))
         if show_plots:
             plt.show()
         else:
@@ -120,7 +128,7 @@ def plot_training_results(experiment, results, show_plots=True):
         plt.ylabel('Loss', fontsize=14)
         plt.yscale('log')  # Use log scale since losses can vary greatly
         plt.tight_layout()
-        plt.savefig(os.path.join(plots_dir, 'agent_total_loss.png'))
+        plt.savefig(_plot_path('agent_total_loss.png'))
         if show_plots:
             plt.show()
         else:
@@ -159,7 +167,7 @@ def plot_training_results(experiment, results, show_plots=True):
     plt.yscale('log')
     plt.legend(fontsize=12)
     plt.tight_layout()
-    plt.savefig(os.path.join(plots_dir, 'combined_losses.png'))
+    plt.savefig(_plot_path('combined_losses.png'))
     if show_plots:
         plt.show()
     else:
@@ -192,7 +200,7 @@ def plot_training_results(experiment, results, show_plots=True):
     ax2.legend(fontsize=12)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(plots_dir, 'training_summary.png'))
+    plt.savefig(_plot_path('training_summary.png'))
     if show_plots:
         plt.show()
     else:
