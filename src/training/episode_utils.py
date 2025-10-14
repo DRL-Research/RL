@@ -36,16 +36,32 @@ def run_episode(experiment, env, master_model) -> Tuple[float, List[List[int]], 
         # log probability that are required for PPO training updates.
         raw_actions, value, log_prob = master_model.get_proto_action(master_input)
 
-        # Determine how many vehicles are actually present in the current state: for a
-        # multi-vehicle observation we use the number of rows, otherwise we fall back to
-        # the configured fleet size. This guards against mismatch between the current
-        # environment state and the master model's output dimensionality.
-        num_controlled = current_state.shape[0] if isinstance(current_state, np.ndarray) and current_state.ndim == 2 else experiment.CARS_AMOUNT
-        num_controlled = min(num_controlled, len(raw_actions))
+        # Determine the number of master-controlled vehicles directly from the
+        # environment so that we never override the behaviour of static cars that
+        # the scenario builder injects. Fallback to the configured fleet size only
+        # when the attribute is missing (e.g. during tests) and clamp to the amount
+        # of actions proposed by the master network to avoid index errors.
+        env_controlled = getattr(env, "controlled_vehicles", None)
+        expected_controlled = len(env_controlled) if env_controlled is not None else experiment.CARS_AMOUNT
+        available_actions = len(raw_actions)
+
+        if available_actions < expected_controlled:
+            missing = expected_controlled - available_actions
+            logger.warning(
+                "Master proposed %s actions for %s controlled vehicles; reusing the last proposal to pad the remaining %s.",
+                available_actions,
+                expected_controlled,
+                missing,
+            )
 
         # Convert each raw acceleration (positive -> accelerate, negative -> brake) to a
         # discrete binary action that the environment understands and record it for logging.
-        discrete_actions = [1 if raw_actions[i] >= 0 else 0 for i in range(num_controlled)]
+        discrete_actions = []
+        for idx in range(expected_controlled):
+            source_idx = min(idx, max(available_actions - 1, 0))
+            raw_action = raw_actions[source_idx] if available_actions > 0 else 0.0
+            discrete_actions.append(1 if raw_action >= 0 else 0)
+
         print(f"Step {steps_counter}: Master actions {discrete_actions}")
 
         next_state, reward, done, truncated, info = env.step(tuple(discrete_actions))
