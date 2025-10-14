@@ -21,9 +21,9 @@ def plot_training_results(experiment, results, show_plots=True):
     master_policy_losses = results["master_policy_losses"]
     master_value_losses = results["master_value_losses"]
     master_total_losses = results["master_total_losses"]
-    agent_policy_losses = results["agent_policy_losses"]
-    agent_value_losses = results["agent_value_losses"]
-    agent_total_losses = results["agent_total_losses"]
+    agent_policy_losses = results.get("agent_policy_losses", [])
+    agent_value_losses = results.get("agent_value_losses", [])
+    agent_total_losses = results.get("agent_total_losses", [])
 
     # Create x-axis for episodes
     episodes = np.arange(1, len(episode_rewards) + 1)
