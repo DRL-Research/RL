@@ -38,9 +38,6 @@ class Experiment:
     LONGITUDINAL: int = 40
     LATERAL: int = 0
 
-    # Master embedding size configuration
-    EMBEDDING_SIZE: int = 4
-
     # Cars Setup Configuration
     RANDOM_INIT: bool = False
     INIT_SERIAL: bool = False
@@ -49,9 +46,10 @@ class Experiment:
     #PPO_NETWORK_ARCHITECTURE: Dict[str, List[int]] = field(
     #    default_factory=lambda: {'pi': [64, 32, 16, 8], 'vf': [64, 32, 16, 8]})
 
-    # State Configuration - still 8-dimensional (4 from car state + 4 from master embedding)
+    # State Configuration - master now provides a single control signal per car
     AGENT_STATE_SIZE: int = 4
-    STATE_INPUT_SIZE: int = EMBEDDING_SIZE + AGENT_STATE_SIZE  # 8
+    MASTER_CONTROL_SIZE_PER_CAR: int = 1
+    STATE_INPUT_SIZE: int = AGENT_STATE_SIZE + MASTER_CONTROL_SIZE_PER_CAR  # 5
 
     # Action Configurationss
     ACTION_SPACE_SIZE: int = 2

@@ -55,11 +55,11 @@ def flatten_obs(obs, length=4):
     return np.zeros(length)
 
 
-def combine_agent_obs(car_state, embedding, expected_dim):
-    """Concatenate car state and embedding, ensuring correct dim."""
+def combine_agent_obs(car_state, control_signal, expected_dim):
+    """Concatenate car state and master control signal, ensuring correct dim."""
     car_state = np.array(car_state).flatten()
-    embedding = np.array(embedding).flatten()
-    agent_obs = np.concatenate((car_state, embedding))
+    control = np.array(control_signal).flatten()
+    agent_obs = np.concatenate((car_state, control))
     if agent_obs.shape[0] != expected_dim:
         if agent_obs.shape[0] > expected_dim:
             agent_obs = agent_obs[:expected_dim]
@@ -107,11 +107,11 @@ def initialize_models(experiment_config, env_config):
 
     # === MASTER MODEL CONFIGURATION ===
     obs_dim = experiment_config.CARS_AMOUNT * 4
-    emb_dim = experiment_config.EMBEDDING_SIZE
+    control_dim = experiment_config.CARS_AMOUNT
 
     master_model = MasterModel(
         observation_dim=obs_dim,
-        embedding_dim=emb_dim,
+        action_dim=control_dim,
     )
 
     # === AGENT MODEL CONFIGsURATION ===

@@ -1,5 +1,3 @@
-import random
-
 import gymnasium as gym
 import numpy as np
 import torch
@@ -11,11 +9,12 @@ class Driver(gym.Env):
     """
     Agent environment wrapper for Highway intersection.
 
-    This wrapper interfaces with the Highway environment and integrates
-    the master model's embedding into the agent's observation.
+    This wrapper interfaces with the Highway environment and injects the
+    master model's acceleration/deceleration guidance into each agent
+    observation.
 
-    The agent controls only one car (car1) and receives information about
-    all cars in the environment through the master embedding.
+    The agent controls only one car (car1) and receives the master control
+    signal alongside its own kinematic state.
     """
 
     def __init__(self, experiment, master_model=None):
@@ -30,12 +29,12 @@ class Driver(gym.Env):
         # Highway environment uses discrete actions
         self.action_space = spaces.Discrete(experiment.ACTION_SPACE_SIZE)
 
-        # Observation space: combined car state and embedding
-        # Car state is 4-dimensional (x, y, vx, vy) and embedding is 4-dimensional
+        # Observation space: combined car state and master control signal
+        # Car state is 4-dimensional (x, y, vx, vy) and master control is scalar per car
         self.observation_space = spaces.Box(
             low=-np.inf,
             high=np.inf,
-            shape=(experiment.STATE_INPUT_SIZE,),  # Default is 8 (4 car state + 4 embedding)
+            shape=(experiment.STATE_INPUT_SIZE,),  # Default is 5 (4 car state + 1 master control)
             dtype=np.float32
         )
 
@@ -45,7 +44,13 @@ class Driver(gym.Env):
 
         # Environment state
         self.current_state = None
-        self.current_embedding = None
+        self.current_controls = None
+        self.current_value = None
+        self.current_log_prob = None
+        self.last_applied_controls = None
+        self.last_value = None
+        self.last_log_prob = None
+        self.last_discrete_actions = None
 
         # Create the underlying Highway environment
         self.highway_env = gym.make('RELintersection-v0', render_mode=experiment.RENDER_MODE, config=self.config)
@@ -55,27 +60,6 @@ class Driver(gym.Env):
         while hasattr(env, 'env') and not hasattr(env, 'controlled_vehicles'):
             env = env.env
         return env
-
-
-    @staticmethod
-    def get_action(model, car_observations, step_counter, exploration_threshold):
-        actions = []  # will collect one action per car (same order as observations)
-
-        if step_counter < exploration_threshold:
-            # --- RANDOM PHASE: before the threshold, pick 0/1 at random for each car ---
-            for _ in car_observations:
-                # Choose a discrete action 0 or 1 uniformly at random
-                a = random.choice([0, 1])  # new: replaces the old exp-decay exploration rule
-                # Ensure the action has the same shape/type as model.predict output (e.g., [0] / [1])
-                actions.append(np.array([a], dtype=np.int64))  # new: keep 1-D, length-1 action
-        else:
-            # --- POLICY PHASE: after the threshold, use the model deterministically ---
-            for obs in car_observations:
-                car_action, _ = model.predict(obs, deterministic=True)  # unchanged: use policy
-                actions.append(car_action)
-
-        return actions
-
 
     def _prepare_state_for_master(self, state):
         if isinstance(state, tuple):
@@ -105,6 +89,74 @@ class Driver(gym.Env):
 
         return state
 
+    def _align_controls_to_cars(self, controls, env):
+        controls = np.array(controls, dtype=np.float32).flatten()
+        num_cars = len(env.controlled_vehicles) if hasattr(env, 'controlled_vehicles') else 0
+        if num_cars == 0:
+            return controls
+
+        if controls.shape[0] < num_cars:
+            padded = np.zeros(num_cars, dtype=np.float32)
+            padded[:controls.shape[0]] = controls
+            controls = padded
+        elif controls.shape[0] > num_cars:
+            controls = controls[:num_cars]
+
+        for i, vehicle in enumerate(env.controlled_vehicles):
+            if hasattr(vehicle, 'is_arrived') and vehicle.is_arrived:
+                controls[i] = 0.0
+
+        return controls
+
+    def _convert_controls_to_actions(self, controls, env):
+        discrete_actions = []
+        for i, vehicle in enumerate(env.controlled_vehicles):
+            if hasattr(vehicle, 'is_arrived') and vehicle.is_arrived:
+                discrete_actions.append(0)
+                continue
+            control_value = controls[i] if i < len(controls) else 0.0
+            discrete_actions.append(1 if control_value >= 0 else 0)
+        return tuple(discrete_actions)
+
+    def get_discrete_master_actions(self):
+        if self.last_discrete_actions is not None:
+            return self.last_discrete_actions
+        env = self._get_unwrapped_env()
+        if self.current_controls is None:
+            return tuple()
+        return self._convert_controls_to_actions(self.current_controls, env)
+
+    def _update_master_controls(self, state):
+        env = self._get_unwrapped_env()
+        if self.master_model is not None:
+            master_input = torch.tensor(state.reshape(1, -1), dtype=torch.float32)
+            controls, value, log_prob = self.master_model.get_proto_action(master_input)
+            controls = self._align_controls_to_cars(controls, env)
+            self.current_value = value
+            self.current_log_prob = log_prob
+        else:
+            controls = np.zeros(len(env.controlled_vehicles), dtype=np.float32)
+            self.current_value = torch.zeros((1, 1))
+            self.current_log_prob = torch.zeros((1, 1))
+
+        self.current_controls = controls
+
+    def _build_agent_observations(self, state):
+        env = self._get_unwrapped_env()
+        agent_observations = []
+        for car_index in range(len(env.controlled_vehicles)):
+            if (hasattr(env, 'controlled_vehicles') and len(env.controlled_vehicles) > 0 and
+                    hasattr(env.controlled_vehicles[car_index], 'is_arrived') and env.controlled_vehicles[car_index].is_arrived):
+                car_state = np.array([0.0, 0.0, 0.0, 0.0])
+                control_signal = 0.0
+            else:
+                car_state = state[car_index * 4:car_index * 4 + 4] if len(state.shape) == 1 else state[car_index]
+                control_signal = self.current_controls[car_index] if self.current_controls is not None and car_index < len(self.current_controls) else 0.0
+
+            agent_observations.append(np.concatenate((car_state, [control_signal])))
+
+        return agent_observations
+
     def reset(self, **kwargs):
         self.episode_step, self.total_episode_reward = 0, 0
 
@@ -123,65 +175,41 @@ class Driver(gym.Env):
 
         current_state = self._prepare_state_for_master(current_state)
 
-        if self.master_model is not None:
-            master_input = torch.tensor(current_state.reshape(1, -1), dtype=torch.float32)
-            embedding, _, _ = self.master_model.get_proto_action(master_input)
-            self.current_embedding = embedding
-        else:
-            raise ValueError("master not available")
+        self._update_master_controls(current_state)
+        self.last_applied_controls = np.zeros_like(self.current_controls)
+        self.last_value = self.current_value
+        self.last_log_prob = self.current_log_prob
+        self.last_discrete_actions = self._convert_controls_to_actions(self.current_controls, env)
 
-        # Build agent_observations
-        agent_observations = []  # TODO: duplicate code, move to utils
-
-        for car_index in range(len(env.controlled_vehicles)):
-
-            if (hasattr(env, 'controlled_vehicles') and len(env.controlled_vehicles) > 0 and
-                    hasattr(env.controlled_vehicles[car_index], 'is_arrived') and env.controlled_vehicles[car_index].is_arrived):
-                car_state = np.array([0.0, 0.0, 0.0, 0.0])
-                # print('The',env.controlled_vehicles[car_index],'Arrived and sending : ', car_state)
-            else:
-                car_state = current_state[car_index*4:car_index*4+4] if len(current_state.shape) == 1 else current_state[car_index]
-
-            agent_observations.append(np.concatenate((car_state, self.current_embedding)))
-
+        agent_observations = self._build_agent_observations(current_state)
 
         return agent_observations, info
 
-    def step(self, action_tuple):
+    def step(self, action_tuple=None):
         """Execute action and return observations for both agents."""
         self.episode_step += 1
 
-        next_state, reward, done, truncated, info = self.highway_env.step(action_tuple)
-        next_state = self._prepare_state_for_master(next_state)
-
-        if self.master_model is not None:
-            master_input = torch.tensor(next_state.reshape(1, -1), dtype=torch.float32)
-            embedding, _, _ = self.master_model.get_proto_action(master_input)
-            self.current_embedding = embedding
-        else:
-            self.current_embedding = np.zeros(4)
-
         env = self._get_unwrapped_env()
 
-        # Build agent_observations
-        agent_next_observations = []  # TODO: duplicate code, move to utils
+        if self.current_controls is None:
+            raise ValueError("Master controls not initialized. Call reset() before step().")
 
-        for car_index in range(len(env.controlled_vehicles)):
+        actions_to_apply = self._convert_controls_to_actions(self.current_controls, env)
+        self.last_applied_controls = np.array(self.current_controls, copy=True)
+        self.last_value = self.current_value
+        self.last_log_prob = self.current_log_prob
+        self.last_discrete_actions = actions_to_apply
 
-            if (hasattr(env, 'controlled_vehicles') and len(env.controlled_vehicles) > 0 and
-                    hasattr(env.controlled_vehicles[car_index], 'is_arrived') and env.controlled_vehicles[
-                        car_index].is_arrived):
-                car_state = np.array([0.0, 0.0, 0.0, 0.0])
-                # print('The', env.controlled_vehicles[car_index], 'Arrived and sending : ', car_state)
-            else:
-                car_state = next_state[car_index * 4:car_index * 4 + 4] if len(next_state.shape) == 1 else next_state[car_index]
-
-            agent_next_observations.append(np.concatenate((car_state, self.current_embedding)))
+        next_state, reward, done, truncated, info = self.highway_env.step(actions_to_apply)
+        next_state = self._prepare_state_for_master(next_state)
 
         self.current_state = next_state
         self.total_episode_reward += reward
 
-        # Return same format as reset() - both observations
+        self._update_master_controls(next_state)
+
+        agent_next_observations = self._build_agent_observations(next_state)
+
         return agent_next_observations, reward, done, truncated, info
 
     def render(self, mode='human'):

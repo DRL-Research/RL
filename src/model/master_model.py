@@ -58,11 +58,17 @@ class MasterModel:
     PURE SB3 PPO - NO CUSTOM ANYTHING
     """
 
-    def __init__(self, embedding_size=4, experiment=None, observation_dim=None, **kwargs):
+    def __init__(self, action_dim=None, experiment=None, observation_dim=None, **kwargs):
         # Accept all possible arguments for compatibility
-        self.embedding_size = embedding_size
         self.experiment = experiment
         self.is_frozen = False
+
+        if action_dim is not None:
+            self.action_dim = action_dim
+        elif experiment is not None and hasattr(experiment, 'CARS_AMOUNT'):
+            self.action_dim = experiment.CARS_AMOUNT
+        else:
+            self.action_dim = 4
 
         # Calculate observation dimension
         if observation_dim is not None:
@@ -79,7 +85,7 @@ class MasterModel:
             low=-np.inf, high=np.inf, shape=(self.observation_dim,), dtype=np.float32
         )
         dummy_env.action_space = spaces.Box(
-            low=-1.0, high=1.0, shape=(embedding_size,), dtype=np.float32
+            low=-1.0, high=1.0, shape=(self.action_dim,), dtype=np.float32
         )
 
         # Get n_steps safely
@@ -157,7 +163,8 @@ class MasterModel:
 
     def get_proto_action(self, state_tensor):
         """
-        Get embedding using standard SB3 predict with proper tensor handling
+        Get master control signals (acceleration or deceleration suggestions)
+        using standard SB3 predict with proper tensor handling.
         """
         # Convert to the format SB3 expects
         if isinstance(state_tensor, np.ndarray) and state_tensor.shape == (5, 4):
@@ -183,6 +190,14 @@ class MasterModel:
             # Convert to numpy for the action (embedding)
             action_np = action.cpu().numpy()[0]
 
+            if action_np.shape[0] < self.action_dim:
+                padded_action = np.zeros(self.action_dim, dtype=action_np.dtype)
+                padded_len = action_np.shape[0]
+                padded_action[:padded_len] = action_np
+                action_np = padded_action
+            elif action_np.shape[0] > self.action_dim:
+                action_np = action_np[:self.action_dim]
+
             # Keep value and log_prob as tensors
             value_tensor = value.cpu()
             log_prob_tensor = log_prob.cpu()
@@ -197,7 +212,7 @@ class MasterModel:
         """Save master network"""
         self.model.save(path)
         custom_params = {
-            "embedding_size": self.embedding_size,
+            "action_dim": self.action_dim,
         }
         torch.save(custom_params, f"{path}_custom_params.pt")
 
@@ -206,4 +221,4 @@ class MasterModel:
         self.model = PPO.load(path)
         if os.path.exists(f"{path}_custom_params.pt"):
             custom_params = torch.load(f"{path}_custom_params.pt")
-            self.embedding_size = custom_params["embedding_size"]
+            self.action_dim = custom_params.get("action_dim", self.action_dim)

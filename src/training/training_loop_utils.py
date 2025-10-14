@@ -147,10 +147,10 @@ def train_agent_and_reset_buffer(master_model, agent_model, last_master_tensor):
         try:
             with torch.no_grad():
                 shaped_tensor = ensure_tensor(last_master_tensor)
-                embedding, _, _ = master_model.get_proto_action(shaped_tensor)
+                control_signal, _, _ = master_model.get_proto_action(shaped_tensor)
                 car_state = flatten_obs(last_master_tensor)
                 expected_dim = agent_model.policy.observation_space.shape[0]
-                agent_obs = combine_agent_obs(car_state, embedding, expected_dim)
+                agent_obs = combine_agent_obs(car_state, control_signal, expected_dim)
                 agent_obs_tensor = torch.tensor(agent_obs, dtype=torch.float32).unsqueeze(0)
                 last_value = agent_model.policy.predict_values(agent_obs_tensor)
 
