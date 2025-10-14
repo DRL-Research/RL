@@ -8,6 +8,21 @@ import numpy as np
 from src.training.rollout_buffer_utils import reset_all_buffers
 
 
+def _pad_action(action_values, target_dim):
+    """Pad or trim action arrays to match the rollout buffer expectation."""
+    padded = np.zeros(target_dim, dtype=np.float32)
+    if action_values is None:
+        return padded
+
+    action_array = np.asarray(action_values, dtype=np.float32).flatten()
+    if action_array.size == 0:
+        return padded
+
+    length = min(action_array.size, target_dim)
+    padded[:length] = action_array[:length]
+    return padded
+
+
 def reshape_drivers_states(all_drivers_states):
     all_drivers_states = all_drivers_states.reshape(-1) if isinstance(all_drivers_states, np.ndarray) and len(all_drivers_states.shape) == 2 else all_drivers_states
     return all_drivers_states
@@ -46,15 +61,11 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
         episode_start = (steps_counter == 1)
         all_drivers_states = reshape_drivers_states(all_drivers_states)
 
-        if master_controls is None:
-            control_count = len(discrete_actions)
-            master_controls = np.zeros(control_count, dtype=np.float32)
-
-        if applied_controls is None:
-            applied_controls = master_controls
+        padded_applied_controls = _pad_action(applied_controls if applied_controls is not None else master_controls,
+                                             master_model.action_dim)
 
         if train_both or training_master:
-            master_model.rollout_buffer.add(all_drivers_states, applied_controls, reward, episode_start,
+            master_model.rollout_buffer.add(all_drivers_states, padded_applied_controls, reward, episode_start,
                                             master_value, master_log_prob)
 
         car_observations = cars_next_obs
