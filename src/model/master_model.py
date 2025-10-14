@@ -211,6 +211,7 @@ class MasterModel:
             # Convert to numpy for the action (embedding)
             action_np = action.cpu().numpy()[0]
 
+            # pad or snip the action array from forward of the network
             if action_np.shape[0] < self.action_dim:
                 padded_action = np.zeros(self.action_dim, dtype=action_np.dtype)
                 padded_len = action_np.shape[0]

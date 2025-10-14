@@ -136,5 +136,3 @@ full_env_config_exp5 = create_full_environment_config(current_experiment)
 
 for _ in current_experiment["controlled_cars"]:
     after_is_arrived_flags.append(False)
-
-# TODO: make sure it works

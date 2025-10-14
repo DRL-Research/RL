@@ -284,8 +284,6 @@ def run_experiment(experiment_config, env_config):
             params = dict(zip(grid_keys, combo))
             label = _build_param_label(params)
             run_config = copy.deepcopy(experiment_config)
-            run_config.EXPERIMENT_ID = f"{experiment_config.EXPERIMENT_ID}_{label}"
-            run_config.EXPERIMENT_PATH = os.path.join(base_path, label)
             run_config.SAVE_MODEL_DIRECTORY = os.path.join(run_config.EXPERIMENT_PATH, "trained_model")
             run_config.GRID_SEARCH_LABEL = label
             run_config.MASTER_PARAM_GRID = None

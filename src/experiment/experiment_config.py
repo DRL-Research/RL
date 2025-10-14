@@ -33,7 +33,18 @@ class Experiment:
     EPISODE_MAX_TIME = 50  # seconds
     LOSS_FUNCTION: str = "mse"
     EXPLORATION_EXPLOITATION_THRESHOLD: int = 800
-    MASTER_PARAM_GRID: Optional[Dict[str, List]] = None
+
+    # MASTER_PARAM_GRID: Optional[Dict[str, List]] = None
+    MASTER_PARAM_GRID = {
+        "learning_rate": [5e-3, 5e-4, 1e-4],
+        "gae_lambda": [0.9, 0.95],
+        # "gamma": [0.99, 0.995],
+        # "clip_range": [0.1, 0.2],
+        "net_arch": [
+            [dict(pi=[64, 32], vf=[64, 64])],
+            [dict(pi=[128, 64], vf=[128, 128])],
+        ],
+    }
 
     # Cars Configuration - distance from intersection
     LONGITUDINAL: int = 40

@@ -115,7 +115,7 @@ class Driver(gym.Env):
                 discrete_actions.append(0)
                 continue
             control_value = controls[i] if i < len(controls) else 0.0
-            discrete_actions.append(1 if control_value >= 0 else 0)
+            discrete_actions.append(1 if control_value > 0 else 0)
         return tuple(discrete_actions)
 
     def get_discrete_master_actions(self):
