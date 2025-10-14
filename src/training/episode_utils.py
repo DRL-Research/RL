@@ -31,10 +31,20 @@ def run_episode(experiment, env, master_model) -> Tuple[float, List[List[int]], 
         steps_counter += 1
 
         master_input = ensure_tensor(current_state)
+        # Query the master policy for the raw (continuous) acceleration proposals for every
+        # vehicle that it believes it should control, alongside the state-value estimate and
+        # log probability that are required for PPO training updates.
         raw_actions, value, log_prob = master_model.get_proto_action(master_input)
 
+        # Determine how many vehicles are actually present in the current state: for a
+        # multi-vehicle observation we use the number of rows, otherwise we fall back to
+        # the configured fleet size. This guards against mismatch between the current
+        # environment state and the master model's output dimensionality.
         num_controlled = current_state.shape[0] if isinstance(current_state, np.ndarray) and current_state.ndim == 2 else experiment.CARS_AMOUNT
         num_controlled = min(num_controlled, len(raw_actions))
+
+        # Convert each raw acceleration (positive -> accelerate, negative -> brake) to a
+        # discrete binary action that the environment understands and record it for logging.
         discrete_actions = [1 if raw_actions[i] >= 0 else 0 for i in range(num_controlled)]
         print(f"Step {steps_counter}: Master actions {discrete_actions}")
 
