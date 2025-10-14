@@ -138,7 +138,7 @@ class Driver(gym.Env):
             if (hasattr(env, 'controlled_vehicles') and len(env.controlled_vehicles) > 0 and
                     hasattr(env.controlled_vehicles[car_index], 'is_arrived') and env.controlled_vehicles[car_index].is_arrived):
                 car_state = np.array([0.0, 0.0, 0.0, 0.0])
-                print('The',env.controlled_vehicles[car_index],'Arrived and sending : ', car_state)
+                # print('The',env.controlled_vehicles[car_index],'Arrived and sending : ', car_state)
             else:
                 car_state = current_state[car_index*4:car_index*4+4] if len(current_state.shape) == 1 else current_state[car_index]
 
@@ -172,7 +172,7 @@ class Driver(gym.Env):
                     hasattr(env.controlled_vehicles[car_index], 'is_arrived') and env.controlled_vehicles[
                         car_index].is_arrived):
                 car_state = np.array([0.0, 0.0, 0.0, 0.0])
-                print('The', env.controlled_vehicles[car_index], 'Arrived and sending : ', car_state)
+                # print('The', env.controlled_vehicles[car_index], 'Arrived and sending : ', car_state)
             else:
                 car_state = next_state[car_index * 4:car_index * 4 + 4] if len(next_state.shape) == 1 else next_state[car_index]
 

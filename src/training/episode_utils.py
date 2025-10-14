@@ -92,7 +92,6 @@ def process_episode(episode_idx, total_steps, env, master_model, agent_model, ex
     Run an episode and log results.
     Returns: (reward, actions, steps, crashed)
     """
-    logger.info("Episode %d", episode_idx)
     master_model.rollout_buffer.reset()
     reset_all_buffers()  # reset all buffers (for each Driver)
 
@@ -101,11 +100,7 @@ def process_episode(episode_idx, total_steps, env, master_model, agent_model, ex
     reward, actions, steps, crashed = run_episode(experiment, total_steps, env, master_model, agent_model,
                                                   train_both=train_both, training_master=training_master)
     status = "Collision" if crashed else "Success"
-    if crashed:
-        logger.warning("Episode %d ended with %s", episode_idx, status)
-    else:
-        logger.info("Episode %d ended with %s", episode_idx, status)
 
-    logger.info(
-        "Result: %s | Reward: %.2f | Steps: %d", status, reward, steps)
+    print(f"Episode {episode_idx} | Result: {status} | Reward: {reward} | Steps: {steps}")
+
     return reward, actions, steps, crashed

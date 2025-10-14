@@ -89,10 +89,10 @@ class IntersectionEnv(AbstractEnv):
             vehicle for vehicle, flag in zip(self.controlled_vehicles, project_globals.after_is_arrived_flags)
             if not flag
         ]
-        print(f"Active vehicles: {len(active_vehicles)}")
+        # print(f"Active vehicles: {len(active_vehicles)}")
 
         if not active_vehicles:
-            print("No active vehicles left. Reward: 0.0")
+            # print("No active vehicles left. Reward: 0.0")
             return 0.0  # or some default value when all vehicles have arrived
 
         # TODO: do we always want to return one reward shared between all (non crashed) vehicles?
@@ -100,13 +100,13 @@ class IntersectionEnv(AbstractEnv):
             mean_reward = sum(
                 self._agent_reward(vehicle) for vehicle in active_vehicles
             ) / len(active_vehicles)
-            print("Reward:", mean_reward)
+            # print("Reward:", mean_reward)
             return mean_reward
         else:
             min_reward = min(
                 self._agent_reward(vehicle) for vehicle in active_vehicles
             )
-            print("Min Reward:", min_reward)
+            # print("Min Reward:", min_reward)
             return min_reward
 
 
@@ -128,7 +128,7 @@ class IntersectionEnv(AbstractEnv):
             reward = self.config["arrived_reward"]
         elif vehicle.crashed:
             reward = self.config["collision_reward"]
-            print(f"Vehicle {vehicle} crashed! Reward: {reward}")
+            # print(f"Vehicle {vehicle} crashed! Reward: {reward}")
         else:
             if vehicle.speed > Experiment.FIXED_THROTTLE:
                 reward = Experiment.HIGH_SPEED_REWARD

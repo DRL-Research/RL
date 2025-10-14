@@ -41,21 +41,25 @@ def training_loop(experiment, env, agent_model, master_model):
         )
         rollout_buffers.append(new_rollout_buffer_instance)
 
-
     collision_counter, episode_counter, total_steps = 0, 0, 0
 
     results = init_training_results()
 
     for cycle_num in range(1, experiment.CYCLES + 1):
-        print('Cycle', cycle_num,'out of ', experiment.CYCLES)
+        print('Cycle', cycle_num, 'out of ', experiment.CYCLES)
         train_both, training_master, training_agent = prepare_models_for_cycle(cycle_num, experiment.CYCLES,
                                                                                master_model, agent_model)
         for _ in range(experiment.EPISODES_PER_CYCLE):
 
             episode_counter += 1
-            print('This is the ', episode_counter, 'Out of', experiment.EPISODES_PER_CYCLE * experiment.CYCLES, 'episodes')
+            print()
+            print("*" * 40)
+            print('Episode ', episode_counter, '/', experiment.EPISODES_PER_CYCLE * experiment.CYCLES, 'episodes')
+            print("*" * 40)
+            print()
             episode_rewards, actions, steps, crashed = process_episode(episode_counter, total_steps, env, master_model,
-                                                              agent_model, experiment, train_both, training_master)
+                                                                       agent_model, experiment, train_both,
+                                                                       training_master)
             if crashed:
                 collision_counter += 1
 
@@ -70,11 +74,13 @@ def training_loop(experiment, env, agent_model, master_model):
                 state_tensor = ensure_tensor(full_state)
 
             if episode_counter % experiment.EPISODE_AMOUNT_FOR_TRAIN == 0:
-                perform_training_phase(train_both, training_master, training_agent, master_model, agent_model, full_state,
-                                   state_tensor, results)
+                perform_training_phase(train_both, training_master, training_agent, master_model, agent_model,
+                                       full_state,
+                                       state_tensor, results)
 
     print("Training completed.")
     return agent_model, master_model, collision_counter, results["episode_rewards"], results["all_actions"], results
+
 
 #
 # def training_loop(experiment, env, agent_model, master_model):
@@ -174,13 +180,14 @@ def run_inference_mode(experiment_config, wrapped_env, agent_model, master_model
 def run_training_mode(experiment_config, wrapped_env, agent_model, master_model, agent_logger, master_logger):
     """Run the training loop and handle saving/logging."""
     agent_model, master_model, collision_counter, all_rewards, all_actions, training_results = (
-        training_loop(experiment=experiment_config, env=wrapped_env, agent_model=agent_model, master_model=master_model))
+        training_loop(experiment=experiment_config, env=wrapped_env, agent_model=agent_model,
+                      master_model=master_model))
     save_models(agent_model, master_model, experiment_config.SAVE_MODEL_DIRECTORY)
     plot_training_results(experiment_config, training_results, show_plots=True)
-    #log_training_results_to_neptune(experiment_config.logger, training_results)
+    # log_training_results_to_neptune(experiment_config.logger, training_results)
     print("Training completed.")
     print("Total collisions:", collision_counter)
-    #close_everything(wrapped_env, agent_logger, master_logger)
+    # close_everything(wrapped_env, agent_logger, master_logger)
     return agent_model, master_model, collision_counter
 
 
