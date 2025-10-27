@@ -6,17 +6,17 @@
 
 base_complete_scenarios_3_cars = [
     # Scenario 0: Heavy north-south flow
-    {
-        "agents": [
-            (('o0', 'ir0', 0), "o2", 0),
-            (('o1', 'ir1', 0), "o3", 0),
-            (('o0', 'ir0', 0), "o2", -50)  # Moved from static
-        ],
-        "static": [
-            (('o2', 'ir2', 0), "o0", -35),
-            (('o0', 'ir0', 0), "o1", -70)
-        ]
-    },
+    # {
+    #     "agents": [
+    #         (('o0', 'ir0', 0), "o2", 0),
+    #         (('o1', 'ir1', 0), "o3", 0),
+    #         (('o0', 'ir0', 0), "o2", -50)  # Moved from static
+    #     ],
+    #     "static": [
+    #         (('o2', 'ir2', 0), "o0", -35),
+    #         (('o0', 'ir0', 0), "o1", -70)
+    #     ]
+    # },
     # Scenario 1: All cars turning right
     {
         "agents": [
@@ -30,17 +30,17 @@ base_complete_scenarios_3_cars = [
         ]
     },
     # Scenario 2: Crossing patterns
-    {
-        "agents": [
-            (('o0', 'ir0', 0), "o3", 0),
-            (('o2', 'ir2', 0), "o1", 0),
-            (('o1', 'ir1', 0), "o0", -20)
-        ],
-        "static": [
-            (('o3', 'ir3', 0), "o2", -30),
-            (('o0', 'ir0', 0), "o2", -40)
-        ]
-    },
+    # {
+    #     "agents": [
+    #         (('o0', 'ir0', 0), "o3", 0),
+    #         (('o2', 'ir2', 0), "o1", 0),
+    #         (('o1', 'ir1', 0), "o0", -20)
+    #     ],
+    #     "static": [
+    #         (('o3', 'ir3', 0), "o2", -30),
+    #         (('o0', 'ir0', 0), "o2", -40)
+    #     ]
+    # },
     # Scenario 3: East-west corridor
     {
         "agents": [

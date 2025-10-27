@@ -1,3 +1,5 @@
+# Code and comments only in English.
+
 import os
 import gymnasium as gym
 import numpy as np
@@ -53,6 +55,54 @@ class SimpleResNetExtractor(BaseFeaturesExtractor):
         return self.output_layer(x)
 
 
+###############################################
+# Minimal real Gymnasium Env (replaces the dummy)
+###############################################
+class _MasterEnv(gym.Env):
+    """
+    Minimal working environment so PPO can actually collect rollouts.
+    Replace the synthetic dynamics/reward with your simulator when ready.
+    """
+    metadata = {"render_modes": []}
+
+    def __init__(self, obs_dim: int, emb_dim: int, max_steps: int = 128, seed: int | None = None):
+        super().__init__()
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(obs_dim,), dtype=np.float32)
+        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(emb_dim,), dtype=np.float32)
+
+        self._obs_dim = obs_dim
+        self._emb_dim = emb_dim
+        self._max_steps = max_steps
+        self._rng = np.random.default_rng(seed)
+        self._state = np.zeros(self._obs_dim, dtype=np.float32)
+        self._steps = 0
+
+    def reset(self, seed: int | None = None, options=None):
+        if seed is not None:
+            self._rng = np.random.default_rng(seed)
+        self._steps = 0
+        # synthetic initial state
+        self._state = self._rng.standard_normal(self._obs_dim).astype(np.float32)
+        return self._state.copy(), {}
+
+    def step(self, action):
+        self._steps += 1
+        action = np.asarray(action, dtype=np.float32).reshape(self._emb_dim)
+
+        # synthetic reward: penalize large embeddings (placeholder)
+        reward = -float(np.linalg.norm(action))
+
+        # simple controllable dynamics: blend action (padded) into state + noise
+        pad = np.zeros(self._obs_dim, dtype=np.float32)
+        pad[: self._emb_dim] = action
+        noise = self._rng.standard_normal(self._obs_dim).astype(np.float32) * 0.05
+        self._state = (0.9 * self._state + 0.1 * pad + noise).astype(np.float32)
+
+        terminated = False
+        truncated = self._steps >= self._max_steps
+        return self._state.copy(), reward, terminated, truncated, {}
+
+
 class MasterModel:
     """
     PURE SB3 PPO - NO CUSTOM ANYTHING
@@ -60,6 +110,9 @@ class MasterModel:
 
     def __init__(self, embedding_size=4, experiment=None, observation_dim=None, **kwargs):
         # Accept all possible arguments for compatibility
+
+        if "embedding_dim" in kwargs and kwargs["embedding_dim"] is not None:
+                   embedding_size = int(kwargs.pop("embedding_dim"))
         self.embedding_size = embedding_size
         self.experiment = experiment
         self.is_frozen = False
@@ -73,14 +126,8 @@ class MasterModel:
         else:
             self.observation_dim = 20  # Default 5 cars * 4 features
 
-        # Create dummy environment for PPO
-        dummy_env = gym.Env()
-        dummy_env.observation_space = spaces.Box(
-            low=-np.inf, high=np.inf, shape=(self.observation_dim,), dtype=np.float32
-        )
-        dummy_env.action_space = spaces.Box(
-            low=-1.0, high=1.0, shape=(embedding_size,), dtype=np.float32
-        )
+        # Create a real minimal environment (replaces the dummy)
+        env = _MasterEnv(obs_dim=self.observation_dim, emb_dim=embedding_size)
 
         # Get n_steps safely
         try:
@@ -91,49 +138,29 @@ class MasterModel:
         # PURE SB3 PPO - NOTHING CUSTOM
         self.model = PPO(
             "MlpPolicy",
-            dummy_env,
-            learning_rate=1e-2,
+            env,
+            learning_rate=1e-4,
             n_steps=n_steps,
             batch_size=128,
             gamma=0.99,
             gae_lambda=0.95,
-            clip_range=0.9,
+            clip_range=0.2,
             ent_coef=0.01,
             vf_coef=0.5,
             policy_kwargs=dict(
                 features_extractor_class=SimpleResNetExtractor,
                 features_extractor_kwargs=dict(features_dim=128),
-                net_arch=[64, 32]
+                net_arch=[128,256,128]
             ),
             verbose=1,
             device="cpu"
         )
 
-
-
-        # self.model = PPO(
-        #     "MlpPolicy",  # Standard MLP policy
-        #     dummy_env,
-        #     learning_rate=1e-2,
-        #     n_steps=n_steps,
-        #     batch_size=128,
-        #     gamma=0.99,
-        #     gae_lambda=0.95,
-        #     clip_range=0.6,
-        #     ent_coef=0.01,
-        #     vf_coef=0.5,
-        #     policy_kwargs=dict(
-        #         net_arch=[128, 256,128,32]  # Simple 2-layer network
-        #     ),
-        #     verbose=1,
-        #     device="cpu"
-        # )
-
-        # Rollout buffer for compatibility
+        # Rollout buffer for compatibility (kept as-is, just uses env spaces)
         self.rollout_buffer = RolloutBuffer(
             buffer_size=n_steps,
-            observation_space=dummy_env.observation_space,
-            action_space=dummy_env.action_space,
+            observation_space=env.observation_space,
+            action_space=env.action_space,
             gamma=0.99,
             gae_lambda=0.95,
             n_envs=1
@@ -181,11 +208,12 @@ class MasterModel:
             action, value, log_prob = self.model.policy.forward(obs_tensor)
 
             # Convert to numpy for the action (embedding)
-            action_np = action.cpu().numpy()[0]
+            action_np, _ = self.model.predict(obs, deterministic=False)
+            action_np = np.asarray(action_np).reshape(-1)
 
-            # Keep value and log_prob as tensors
-            value_tensor = value.cpu()
-            log_prob_tensor = log_prob.cpu()
+            value_tensor = self.model.policy.predict_values(obs_tensor)
+            dist = self.model.policy.get_distribution(obs_tensor)
+            log_prob_tensor = dist.log_prob(torch.tensor(action_np, dtype=torch.float32).unsqueeze(0))
 
         return action_np, value_tensor, log_prob_tensor
 

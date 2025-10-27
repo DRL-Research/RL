@@ -25,7 +25,7 @@ class Experiment:
     RENDER_MODE: str|None = "rgb_array"
 
     # Model and Training Configuration
-    EPISODE_AMOUNT_FOR_TRAIN: int = 5  # Train after x episodes instead of 1
+    EPISODE_AMOUNT_FOR_TRAIN: int = 2  # Train after x episodes instead of 1
     EPOCHS: int = None
     LEARNING_RATE: float = 0.005  # Reduced from 0.05
     N_STEPS: int = 64  # Increased from 30 to accommodate more steps
