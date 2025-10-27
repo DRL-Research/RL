@@ -104,6 +104,7 @@ def setup_experiment_dirs(experiment_path):
 def initialize_models(experiment_config, env_config):
     """
     Initialize master and agent models, each with tuned architectures and hyperparameters.
+    d
     """
     experiment_config.CONFIG = env_config
 
