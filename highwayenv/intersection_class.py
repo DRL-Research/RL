@@ -89,10 +89,10 @@ class IntersectionEnv(AbstractEnv):
             vehicle for vehicle, flag in zip(self.controlled_vehicles, project_globals.after_is_arrived_flags)
             if not flag
         ]
-        print(f"Active vehicles: {len(active_vehicles)}")
+        #print(f"Active vehicles: {len(active_vehicles)}")
 
         if not active_vehicles:
-            print("No active vehicles left. Reward: 0.0")
+            #print("No active vehicles left. Reward: 0.0")
             return 0.0  # or some default value when all vehicles have arrived
 
         # TODO: do we always want to return one reward shared between all (non crashed) vehicles?
@@ -106,7 +106,7 @@ class IntersectionEnv(AbstractEnv):
             min_reward = min(
                 self._agent_reward(vehicle) for vehicle in active_vehicles
             )
-            print("Min Reward:", min_reward)
+            #print("Min Reward:", min_reward)
             return min_reward
 
 
@@ -151,51 +151,45 @@ class IntersectionEnv(AbstractEnv):
                 project_globals.after_is_arrived_flags[i] = True
 
     def _is_terminated(self) -> bool:
-
+        """
+        Episode ends if ANY vehicle crashes OR ALL controlled vehicles have arrived.
+        (Fixes the precedence bug that prevented 'all arrived' from being detected.)
+        """
         self.update_after_is_arrived_flags()
 
-        # Initialize arrived_vehicles set if not exists
+        # Arrival bookkeeping (keep your existing behavior)
         if not hasattr(self, 'arrived_vehicles'):
             self.arrived_vehicles = set()
+        for v in self.controlled_vehicles:
+            if self.has_arrived(v) and v not in self.arrived_vehicles:
+                v.position = np.array(
+                    [0.0 + len(self.arrived_vehicles) * 20.0,
+                     1000 + len(self.arrived_vehicles) * 20.0],
+                    dtype=np.float64
+                )
+                v.target_speed = 0.0
+                v.MAX_SPEED = 0
+                v.is_arrived = True
+                self.arrived_vehicles.add(v)
 
-        # Check for new arrivals
-        for vehicle in self.controlled_vehicles:
-            if self.has_arrived(vehicle) and vehicle not in self.arrived_vehicles:
-                # New arrival
-                vehicle.position = np.array(
-                    [0.0 + len(self.arrived_vehicles) * 20.0, 1000 + len(self.arrived_vehicles) * 20.0],
-                    dtype=np.float64)
-                vehicle.target_speed = 0.0
-                vehicle.MAX_SPEED = 0
-                vehicle.is_arrived = True
-                self.arrived_vehicles.add(vehicle)
-
-        arrived_count = len(self.arrived_vehicles)
-
-        # Immediate termination when all arrive
-        if arrived_count == len(self.controlled_vehicles):
-            return True
-
-        # TODO: do we want to continue even if there was a crash?
-        return any((vehicle.crashed for vehicle in self.controlled_vehicles) or all(
-            vehicle.is_arrived for vehicle in self.controlled_vehicles))
+        all_arrived = (len(self.arrived_vehicles) == len(self.controlled_vehicles))
+        any_crash = any(v.crashed for v in self.controlled_vehicles)
+        return any_crash or all_arrived
 
     def get_observation(self):
-
+        """
+        Return kinematics for controlled vehicles; arrived vehicles get zeros.
+        (Prevents None from leaking anywhere that calls this.)
+        """
         self.update_after_is_arrived_flags()
-
         obs = []
-
-        for vehicle in self.controlled_vehicles:
-            if hasattr(vehicle, 'is_arrived') and vehicle.is_arrived:
+        for v in self.controlled_vehicles:
+            if getattr(v, 'is_arrived', False):
                 obs.append([0.0, 0.0, 0.0, 0.0])
             else:
-                obs.append([
-                    vehicle.position[0],
-                    vehicle.position[1],
-                    vehicle.velocity[0],
-                    vehicle.velocity[1]
-                ])
+                obs.append([v.position[0], v.position[1], v.velocity[0], v.velocity[1]])
+        return np.asarray(obs, dtype=np.float32)
+
 
     def _agent_is_terminal(self, vehicle: Vehicle) -> bool:
         """The episode is over when a collision occurs or when the access ramp has been passed."""
@@ -206,66 +200,54 @@ class IntersectionEnv(AbstractEnv):
         return self.time >= self.config["duration"]
 
     def _info(self, obs: np.ndarray, action: int) -> dict:
+        """
+        Augment info with explicit flags that the training loop expects.
+        """
         info = super()._info(obs, action)
-        info["agents_rewards"] = tuple(
-            self._agent_reward(vehicle) for vehicle in self.controlled_vehicles
-        )
-        info["agents_terminated"] = tuple(
-            self._agent_is_terminal(vehicle) for vehicle in self.controlled_vehicles
-        )
+        info["agents_rewards"] = tuple(self._agent_reward(v) for v in self.controlled_vehicles)
+        info["agents_terminated"] = tuple(self._agent_is_terminal(v) for v in self.controlled_vehicles)
+
+        all_arrived = all(getattr(v, "is_arrived", False) or self.has_arrived(v)
+                          for v in self.controlled_vehicles)
+        any_crash = any(v.crashed for v in self.controlled_vehicles)
+
+        info["all_exited"] = bool(all_arrived)  # used by run_episode()
+        info["success"] = bool(all_arrived and not any_crash)
+        info["crashed"] = bool(any_crash)
         return info
 
     def _reset(self) -> None:
-
-        # reset after_is_arrived_flags
-        for i, vehicle in enumerate(self.controlled_vehicles):
-            project_globals.after_is_arrived_flags[i] = False
-
+        """
+        Ensure arrival flags are sized correctly every reset, then run your existing reset logic.
+        """
+        # Rebuild world
         self._make_road()
         self._make_vehicles(self.config["initial_vehicle_count"])
-        if hasattr(self, 'arrived_vehicles'):
-            self.arrived_vehicles.clear()
 
+        # Clean, correctly-sized flags
+        self.arrived_vehicles = set()
+        try:
+            # ensure length == number of controlled vehicles
+            project_globals.after_is_arrived_flags = [False] * len(self.controlled_vehicles)
+        except Exception:
+            project_globals.after_is_arrived_flags = [False] * len(self.controlled_vehicles)
+
+        # ---- keep the rest of YOUR current _reset body unchanged below ----
         BASE_LONG = 40
-
         base_complete_scenarios = base_complete_scenarios_3_cars
 
-        # Generate rotations for complete scenarios
         def rotate_complete_scenario(scenario, rotation):
             rotated_agents = [rotate_scenario_clockwise([agent], rotation)[0] for agent in scenario["agents"]]
             rotated_static = [rotate_scenario_clockwise([static], rotation)[0] for static in scenario["static"]]
-            return {
-                "agents": rotated_agents,
-                "static": rotated_static
-            }
+            return {"agents": rotated_agents, "static": rotated_static}
 
-        # Generate all 100 scenarios (25 × 4 rotations)
         all_scenarios = []
         for base_scenario in base_complete_scenarios:
-            # Add original (0° rotation)
             all_scenarios.append(base_scenario)
-
-            # Add 3 rotations (90°, 180°, 270°)
             for rotation in [1, 2, 3]:
                 rotated_scenario = rotate_complete_scenario(base_scenario, rotation)
                 all_scenarios.append(rotated_scenario)
-
-        # Choose scenario (3 options: specific, random, serial)
-
-        # 1. For random
         chosen_scenario = random.choice(all_scenarios)
-
-        # 2. For specific scenarios (uncomment to use)
-        # desired_scenario = 11  # Choose scenario 0-99
-        # chosen_scenario = all_scenarios[desired_scenario]
-
-        # 3. For serial cycling (uncomment to use)
-        # if not hasattr(self, 'scenario_counter'):
-        #     self.scenario_counter = 0
-        # chosen_scenario = all_scenarios[self.scenario_counter % len(all_scenarios)]
-        # self.scenario_counter += 1
-
-        # Place agents
         for i, (lane_key, destination, off) in enumerate(chosen_scenario["agents"]):
             vehicle = self.controlled_vehicles[i]
             lane = self.road.network.get_lane(lane_key)
@@ -277,44 +259,26 @@ class IntersectionEnv(AbstractEnv):
                 vehicle.plan_route_to(destination)
             else:
                 vehicle.route = [lane_key, (destination, 'ir' + destination[1:], 0)]
-
-        # Place static vehicles with safety check (minimum distance = 10m)
         all_vehicles = self.road.vehicles
         controlled_count = len(self.controlled_vehicles)
-
-        # Safety check: Filter out conflicting static vehicles
         safe_static_scenario = []
         for i, (lane_key, destination, off) in enumerate(chosen_scenario["static"]):
             lane = self.road.network.get_lane(lane_key)
             position = np.array(lane.position(BASE_LONG + off, 0))
-
-            # Check distance from controlled vehicles
-            too_close_to_agent = False
-            for controlled_vehicle in self.controlled_vehicles:
-                if np.linalg.norm(controlled_vehicle.position - position) < 10:  # Changed to 10m
-                    too_close_to_agent = True
-                    break
-
-            # Check distance from other static vehicles
+            too_close_to_agent = any(np.linalg.norm(cv.position - position) < 10 for cv in self.controlled_vehicles)
             too_close_to_static = False
             for existing_lane_key, existing_dest, existing_off in safe_static_scenario:
                 existing_lane = self.road.network.get_lane(existing_lane_key)
                 existing_position = np.array(existing_lane.position(BASE_LONG + existing_off, 0))
-
-                if np.linalg.norm(existing_position - position) < 10:  # Changed to 10m minimum distance
+                if np.linalg.norm(existing_position - position) < 10:
                     too_close_to_static = True
                     break
-
-            # Only add if safe
             if not too_close_to_agent and not too_close_to_static:
                 safe_static_scenario.append((lane_key, destination, off))
-
-        # Place the safe static vehicles
         for i in range(controlled_count, min(len(all_vehicles), controlled_count + len(safe_static_scenario))):
             static_index = i - controlled_count
             if static_index >= len(safe_static_scenario):
                 break
-
             lane_key, destination, off = safe_static_scenario[static_index]
             vehicle = all_vehicles[i]
             lane = self.road.network.get_lane(lane_key)
@@ -326,16 +290,12 @@ class IntersectionEnv(AbstractEnv):
                 vehicle.plan_route_to(destination)
             else:
                 vehicle.route = [lane_key, (destination, 'ir' + destination[1:], 0)]
-
-        # Calculate scenario info for display
         scenario_index = all_scenarios.index(chosen_scenario)
         base_scenario_num = scenario_index // 4
         rotation_num = scenario_index % 4
         rotation_names = ["Original", "90° CW", "180° CW", "270° CW"]
-
-        print(f"[IntersectionEnv._reset] Using scenario {scenario_index}/100")
         print(f"  Base scenario {base_scenario_num} ({rotation_names[rotation_num]})")
-        print(f"  Placed {len(safe_static_scenario)}/{len(chosen_scenario['static'])} static vehicles safely")
+
 
     def step(self, action: int) -> tuple[np.ndarray, float, bool, bool, dict]:
         obs, reward, terminated, truncated, info = super().step(action)
