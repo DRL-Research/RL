@@ -5,7 +5,7 @@ from typing import Tuple, List, Dict, Any
 import numpy as np
 import torch
 
-from src.training.general_utils import ensure_tensor, flatten_obs, combine_agent_obs
+from src.training.general_utils import ensure_tensor
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -102,11 +102,21 @@ def train_agent_and_reset_buffer(master_model, agent_model, last_master_tensor):
             with torch.no_grad():
                 shaped_tensor = ensure_tensor(last_master_tensor)
                 embedding, _, _ = master_model.get_proto_action(shaped_tensor)
-                car_state = flatten_obs(last_master_tensor)
-                expected_dim = agent_model.policy.observation_space.shape[0]
-                agent_obs = combine_agent_obs(car_state, embedding, expected_dim)
+                num_cars = len(agent_model.action_space.nvec)
+                master_state_np = np.array(last_master_tensor, dtype=np.float32).reshape(-1)
+                expected_state_size = num_cars * 4
+                if master_state_np.size < expected_state_size:
+                    padded_state = np.zeros(expected_state_size, dtype=np.float32)
+                    padded_state[: master_state_np.size] = master_state_np
+                    master_state_np = padded_state
+                elif master_state_np.size > expected_state_size:
+                    master_state_np = master_state_np[:expected_state_size]
+                car_states = master_state_np.reshape(num_cars, 4)
+                embedding_array = np.asarray(embedding, dtype=np.float32)
+                per_agent_obs = [np.concatenate((car_states[idx], embedding_array)) for idx in range(num_cars)]
+                agent_obs = np.stack(per_agent_obs, axis=0).astype(np.float32).reshape(-1)
                 agent_obs_tensor = torch.tensor(agent_obs, dtype=torch.float32).unsqueeze(0)
-                last_value = agent_model.policy.predict_values(agent_obs_tensor)
+                last_value = agent_model.policy.predict_values(agent_obs_tensor).detach().cpu().numpy().reshape(-1)
 
             if current_rollout_buffer.pos == 0:
                 print("Agent model: No data to train on")
@@ -136,8 +146,8 @@ def train_agent_and_reset_buffer(master_model, agent_model, last_master_tensor):
                 if rollout_data is not None:
                     steps_trained = len(rollout_data.observations)
                     print(f"Agent model trained on {steps_trained} steps")
-                    observations_tensor = torch.FloatTensor(rollout_data.observations)
-                    actions_tensor = torch.FloatTensor(rollout_data.actions)
+                    observations_tensor = torch.tensor(rollout_data.observations, dtype=torch.float32)
+                    actions_tensor = torch.tensor(rollout_data.actions, dtype=torch.int64)
                     policy = agent_model.policy
                     optimizer = policy.optimizer
                     values, log_probs, entropy = policy.evaluate_actions(observations_tensor, actions_tensor)

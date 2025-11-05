@@ -29,28 +29,28 @@ def training_loop(experiment, env, agent_model, master_model):
     Main training loop that orchestrates cycles and episodes.
     """
 
-    # Add rollout buffer per controlled car
-    for _ in env.env.config["controlled_cars"]:
-        obs_low = np.full(
-            (experiment.STATE_INPUT_SIZE,),
-            -np.finfo(np.float32).max,
-            dtype=np.float32,
-        )
-        obs_high = np.full(
-            (experiment.STATE_INPUT_SIZE,),
-            np.finfo(np.float32).max,
-            dtype=np.float32,
-        )
+    # Prepare a single rollout buffer for the joint observation/action pair
+    rollout_buffers.clear()
+    base_env = env.envs[0] if hasattr(env, "envs") else env
+    num_cars = getattr(base_env, "num_cars", experiment.CARS_AMOUNT)
+    obs_dim = experiment.STATE_INPUT_SIZE * num_cars
 
-        new_rollout_buffer_instance = RolloutBuffer(
-            buffer_size=experiment.N_STEPS,
-            observation_space=spaces.Box(low=obs_low, high=obs_high, dtype=np.float32),
-            action_space=spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32),
-            gamma=0.99,
-            gae_lambda=0.95,
-            n_envs=1
-        )
-        rollout_buffers.append(new_rollout_buffer_instance)
+    obs_low = np.full((obs_dim,), -np.finfo(np.float32).max, dtype=np.float32)
+    obs_high = np.full((obs_dim,), np.finfo(np.float32).max, dtype=np.float32)
+
+    joint_action_space = spaces.MultiDiscrete(
+        np.full(num_cars, experiment.ACTION_SPACE_SIZE, dtype=np.int64)
+    )
+
+    new_rollout_buffer_instance = RolloutBuffer(
+        buffer_size=experiment.N_STEPS,
+        observation_space=spaces.Box(low=obs_low, high=obs_high, dtype=np.float32),
+        action_space=joint_action_space,
+        gamma=0.99,
+        gae_lambda=0.95,
+        n_envs=1
+    )
+    rollout_buffers.append(new_rollout_buffer_instance)
 
 
     collision_counter, episode_counter, total_steps = 0, 0, 0
@@ -148,9 +148,10 @@ def run_evaluation(experiment_config, env, agent_model):
 
         while not done and not truncated:
             action, _ = agent_model.predict(obs, deterministic=True)
-            obs, reward, done, truncated, info = env.step(action)
+            joint_action = np.asarray(action).astype(np.int64).flatten()
+            obs, reward, done, truncated, info = env.step(tuple(int(a) for a in joint_action))
             episode_reward += reward
-            actions.append(action[0])
+            actions.append(joint_action.tolist())
             env.render()
 
         eval_rewards.append(episode_reward)

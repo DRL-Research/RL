@@ -4,11 +4,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 import numpy as np
+import torch
 
 from src import project_globals
 from src.model.agent_handler import Driver
 from src.project_globals import rollout_buffers
-from src.training.general_utils import ensure_tensor, get_agent_values_from_observation, get_scaler_action_and_action_array
+from src.training.general_utils import ensure_tensor
 from src.training.rollout_buffer_utils import reset_all_buffers
 
 
@@ -22,6 +23,7 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
     crashed = False
 
     car_observations, _ = env.reset()
+    car_observations = np.asarray(car_observations, dtype=np.float32)
     done, truncated = False, False
 
     while not done and not truncated:
@@ -33,50 +35,26 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
         # Master embedding (and its value/log_prob if needed)
         embedding, _, _ = master_model.get_proto_action(ensure_tensor(all_drivers_states))
 
-        # Agent actions
-        actions = Driver.get_action(
+        # Agent actions (joint for all vehicles)
+        joint_actions = Driver.get_action(
             agent_model,
             car_observations,
             total_steps,
             experiment.EXPLORATION_EXPLOITATION_THRESHOLD
         )
+        actions_per_episode.append(joint_actions.tolist())
 
-        cars_scalar_action, cars_action_arrays = [], []
-        for action in actions:
-            car_scalar_action, car_action_array = get_scaler_action_and_action_array(action)
-            cars_scalar_action.append(car_scalar_action)
-            cars_action_arrays.append(car_action_array)
-
-        # Build per-car observations consistent with training: [car_state, embedding]
-        agent_obs_list = []
-        expected_dim = agent_model.policy.observation_space.shape[0]
-        for car_index in range(len(car_observations)):
-            # take first 4 features of this car (as elsewhere in code)
-            car_state = np.array(car_observations[car_index]).flatten()[:4]
-            agent_obs = np.concatenate((car_state, np.asarray(embedding).flatten()))
-            if agent_obs.shape[0] != expected_dim:
-                if agent_obs.shape[0] > expected_dim:
-                    agent_obs = agent_obs[:expected_dim]
-                else:
-                    pad = np.zeros(expected_dim - agent_obs.shape[0], dtype=np.float32)
-                    agent_obs = np.concatenate([agent_obs, pad])
-            agent_obs_list.append(agent_obs.astype(np.float32))
-
-        # Values / log-probs for agent (only when needed)
-        cars_values, cars_log_probas = [], []
+        joint_values = joint_log_probs = None
         if train_both or not training_master:
-            for car_index in range(len(car_observations)):
-                car_values, car_log_prob = get_agent_values_from_observation(
-                    agent_obs_list[car_index],
-                    cars_action_arrays[car_index],
-                    agent_model
-                )
-                cars_values.append(car_values)
-                cars_log_probas.append(car_log_prob)
+            obs_tensor = torch.tensor(car_observations, dtype=torch.float32).unsqueeze(0)
+            joint_values = agent_model.policy.predict_values(obs_tensor).detach().cpu().numpy().flatten()
+            dist = agent_model.policy.get_distribution(obs_tensor)
+            action_tensor = torch.tensor(joint_actions, dtype=torch.int64).unsqueeze(0)
+            joint_log_probs = dist.log_prob(action_tensor).detach().cpu().numpy().flatten()
 
         env.render()
 
-        action_tuple = tuple(cars_scalar_action)
+        action_tuple = tuple(int(a) for a in joint_actions)
         cars_next_obs, reward, done, truncated, info = env.step(action_tuple)
         episode_sum_of_rewards += reward
         all_rewards.append(reward)
@@ -98,20 +76,18 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
                 done_flag,
             )
 
-        # Add to agent rollout buffers
+        # Add to agent rollout buffer
         if train_both or not training_master:
-            for car_index in range(len(project_globals.after_is_arrived_flags)):
-                if not project_globals.after_is_arrived_flags[car_index]:
-                    rollout_buffers[car_index].add(
-                        agent_obs_list[car_index],
-                        cars_action_arrays[car_index],
-                        reward,
-                        done_flag,
-                        cars_values[car_index],
-                        cars_log_probas[car_index]
-                    )
+            rollout_buffers[0].add(
+                car_observations,
+                np.asarray(joint_actions, dtype=np.int64),
+                reward,
+                done_flag,
+                joint_values,
+                joint_log_probs
+            )
 
-        car_observations = cars_next_obs
+        car_observations = np.asarray(cars_next_obs, dtype=np.float32)
 
     return episode_sum_of_rewards, actions_per_episode, steps_counter, crashed
 
