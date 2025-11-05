@@ -83,9 +83,12 @@ class AttentionPolicyNetwork(nn.Module):
         batch_size = observations.shape[0]
         reshaped = observations.view(batch_size, self.num_agents, self.per_agent_obs_dim)
         encoded = self.entity_encoder(reshaped)
+        attention_inputs = self.encoder_to_attention(encoded)
 
         # Each agent attends to every other agent and itself
-        attention_context, attention_weights = self.attention(encoded, encoded, encoded, need_weights=True)
+        attention_context, attention_weights = self.attention(
+            attention_inputs, attention_inputs, attention_inputs, need_weights=True
+        )
         self._last_attention_weights = attention_weights.detach()
 
         actions = self.decoder(attention_context)
