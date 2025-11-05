@@ -3,7 +3,7 @@ import random
 import gymnasium as gym
 import numpy as np
 import torch
-from gymnasium import spaces
+from gym import spaces as gym_spaces
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -28,11 +28,17 @@ class Driver(gym.Env):
 
         # Define action and observation spaces
         # Highway environment uses discrete actions
-        self.action_space = spaces.Discrete(experiment.ACTION_SPACE_SIZE)
+        # Stable-Baselines3 (v1.6) expects classic gym space instances for
+        # compatibility checks.  When we rely solely on gymnasium's spaces,
+        # SB3 raises an assertion error because the objects are not instances
+        # of ``gym.spaces.Space``.  To keep the environment gymnasium-based
+        # while staying compatible with SB3 we instantiate equivalent spaces
+        # from the legacy ``gym`` package.
+        self.action_space = gym_spaces.Discrete(experiment.ACTION_SPACE_SIZE)
 
         # Observation space: combined car state and embedding
         # Car state is 4-dimensional (x, y, vx, vy) and embedding is 4-dimensional
-        self.observation_space = spaces.Box(
+        self.observation_space = gym_spaces.Box(
             low=-np.inf,
             high=np.inf,
             shape=(experiment.STATE_INPUT_SIZE,),  # Default is 8 (4 car state + 4 embedding)
