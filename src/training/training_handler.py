@@ -31,9 +31,20 @@ def training_loop(experiment, env, agent_model, master_model):
 
     # Add rollout buffer per controlled car
     for _ in env.env.config["controlled_cars"]:
+        obs_low = np.full(
+            (experiment.STATE_INPUT_SIZE,),
+            -np.finfo(np.float32).max,
+            dtype=np.float32,
+        )
+        obs_high = np.full(
+            (experiment.STATE_INPUT_SIZE,),
+            np.finfo(np.float32).max,
+            dtype=np.float32,
+        )
+
         new_rollout_buffer_instance = RolloutBuffer(
             buffer_size=experiment.N_STEPS,
-            observation_space=spaces.Box(low=-np.inf, high=np.inf, shape=(experiment.STATE_INPUT_SIZE,)),
+            observation_space=spaces.Box(low=obs_low, high=obs_high, dtype=np.float32),
             action_space=spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32),
             gamma=0.99,
             gae_lambda=0.95,
