@@ -47,10 +47,10 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
         joint_values = joint_log_probs = None
         if train_both or not training_master:
             obs_tensor = torch.tensor(car_observations, dtype=torch.float32).unsqueeze(0)
-            joint_values = agent_model.policy.predict_values(obs_tensor).detach().cpu().numpy().flatten()
+            joint_values = agent_model.policy.predict_values(obs_tensor).detach().squeeze(0)
             dist = agent_model.policy.get_distribution(obs_tensor)
             action_tensor = torch.tensor(joint_actions, dtype=torch.int64).unsqueeze(0)
-            joint_log_probs = dist.log_prob(action_tensor).detach().cpu().numpy().flatten()
+            joint_log_probs = dist.log_prob(action_tensor).detach().squeeze(0)
 
         env.render()
 
