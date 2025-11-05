@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 from highway_env.envs.common.abstract import AbstractEnv
-from highway_env.envs.common.action import ActionType, ContinuousAction, DiscreteAction, DiscreteMetaAction, \
-    MultiAgentAction
+from highway_env.envs.common.action import (
+    ActionType,
+    ContinuousAction,
+    DiscreteAction,
+    DiscreteMetaAction,
+    MultiAgentAction,
+)
 
 import functools
 import itertools
-from typing import TYPE_CHECKING, Callable, Union
+from typing import TYPE_CHECKING, Callable, Iterable, Union
 
 import numpy as np
 from gymnasium import spaces
@@ -75,16 +80,17 @@ def action_factory(env: AbstractEnv, config: dict) -> ActionType:
         return ContinuousAction(env, **config)
     if config["type"] == "DiscreteAction":
         return DiscreteAction(env, **config)
-    elif config["type"] == "DiscreteMetaAction":
+    if config["type"] == "DiscreteMetaAction":
         return DiscreteMetaAction(env, **config)
-    elif config["type"] == "MultiAgentAction":
+    if config["type"] == "MultiAgentAction":
         return MultiAgentAction(env, **config)
-    elif config["type"] == "CustomDiscreteAction":
+    if config["type"] == "CustomDiscreteAction":
         return CustomDiscreteAction(env, **config)
-    elif config["type"] == "CustomMultiAgentAction":
+    if config["type"] == "CustomMultiAgentAction":
         return CustomMultiAgentAction(env, **config)
-    else:
-        raise ValueError("Unknown action type")
+    if config["type"] == "ExpectedVelocityMultiAgentAction":
+        return ExpectedVelocityMultiAgentAction(env, **config)
+    raise ValueError("Unknown action type")
 
 
 class CustomMultiAgentAction(ActionType):
@@ -135,3 +141,69 @@ class CustomMultiAgentAction(ActionType):
     #     return itertools.product(
     #         *[action_type.get_available_actions() for action_type in self.agents_action_types]
     #     )
+
+
+class ExpectedVelocityAction(ActionType):
+    """Control a single vehicle using desired velocity commands."""
+
+    def __init__(self, env: AbstractEnv, *, min_velocity: float, max_velocity: float) -> None:
+        super().__init__(env)
+        self.min_velocity = float(min_velocity)
+        self.max_velocity = float(max_velocity)
+
+    def space(self) -> spaces.Space:
+        return spaces.Box(
+            low=np.array([self.min_velocity], dtype=np.float32),
+            high=np.array([self.max_velocity], dtype=np.float32),
+            dtype=np.float32,
+        )
+
+    @property
+    def vehicle_class(self) -> Callable:
+        return CustomDiscreteAction(self.env, target_speeds=[self.max_velocity]).vehicle_class
+
+    def act(self, action: np.ndarray | float) -> None:
+        desired = np.clip(float(np.asarray(action).squeeze()), self.min_velocity, self.max_velocity)
+        vehicle = self.controlled_vehicle
+        vehicle.target_speed = desired
+        vehicle.max_speed = max(vehicle.max_speed, desired)
+        vehicle.act(None)
+
+
+class ExpectedVelocityMultiAgentAction(ActionType):
+    """Apply expected velocity control to all controlled vehicles."""
+
+    def __init__(self, env: AbstractEnv, config: dict | None = None, **kwargs) -> None:
+        super().__init__(env)
+        cfg = dict(config or {})
+        cfg.update(kwargs)
+        self.min_velocity = float(cfg.get("min_velocity", 0.0))
+        self.max_velocity = float(cfg.get("max_velocity", 15.0))
+        self.actions: list[ExpectedVelocityAction] = []
+        for vehicle in self.env.controlled_vehicles:
+            action = ExpectedVelocityAction(
+                env,
+                min_velocity=self.min_velocity,
+                max_velocity=self.max_velocity,
+            )
+            action.controlled_vehicle = vehicle
+            self.actions.append(action)
+
+    def space(self) -> spaces.Space:
+        lows = np.full(len(self.actions), self.min_velocity, dtype=np.float32)
+        highs = np.full(len(self.actions), self.max_velocity, dtype=np.float32)
+        return spaces.Box(low=lows, high=highs, dtype=np.float32)
+
+    @property
+    def vehicle_class(self) -> Callable:
+        return ExpectedVelocityAction(
+            self.env,
+            min_velocity=self.min_velocity,
+            max_velocity=self.max_velocity,
+        ).vehicle_class
+
+    def act(self, action: np.ndarray | Iterable[float]) -> None:
+        values = np.asarray(action, dtype=np.float32).reshape(-1)
+        assert values.shape[0] == len(self.actions), "Expected velocity per controlled vehicle"
+        for value, action_type in zip(values, self.actions):
+            action_type.act(value)

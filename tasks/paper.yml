@@ -1,0 +1,54 @@
+- id: safe_env_wrapper
+  title: "Wrap intersection environment with SafeR-ADAIM signals"
+  description: |
+    Implement a gym-compatible wrapper that converts the existing
+    IntersectionEnv observations into SafeR-ADAIM state vectors and exposes
+    continuous desired-velocity actions. The wrapper must compute dense
+    distance-based costs, sparse collision costs, and the three reward
+    components defined in the paper.
+  acceptance:
+    - SafeIntersectionEnv returns observations shaped `(num_cars * 5,)` with
+      per-vehicle `[distance, speed, beta_onehot]` ordering.
+    - Actions supplied as an array of desired velocities are executed without
+      errors for at least one rollout of `steps_per_epoch` steps.
+    - `info` from `step()` contains `risk_cost`, `dense_cost`,
+      `collision_cost`, and the reward breakdown.
+  tests:
+    - name: smoke
+      command: "python -m compileall src/safe_radaim/env_wrapper.py"
+
+- id: rscpo_core
+  title: "Implement RSCPO policy update"
+  description: |
+    Implement the SafeR-ADAIM policy update that classifies the current
+    policy into risk regimes (risk-free, moderate, high) and applies the
+    corresponding update rule. The implementation should use conjugate
+    gradients for the Hessian-vector product, solve the dual variables in the
+    moderate-risk case, and perform KL- plus cost-constrained line search.
+  acceptance:
+    - Policy gradients and cost gradients are computed from a trajectory
+      batch and converted into a flat parameter vector.
+    - Risk classification matches the definitions `c_hat < 0`, `F > 0` and
+      `F = δ - c_hat^2/(b^T H^{-1} b)`.
+    - Line search enforces `KL <= max_kl` and `mean_cost <= cost_limit` when
+      a step is accepted.
+  tests:
+    - name: syntax
+      command: "python -m compileall src/safe_radaim/algorithm.py"
+
+- id: training_loop
+  title: "Add SafeR-ADAIM trainer"
+  description: |
+    Build a trainer that gathers on-policy trajectories, computes Generalised
+    Advantage Estimates for both reward and cost, updates value networks, and
+    invokes the policy update each epoch. Provide a CLI entrypoint that runs
+    the training loop and saves the resulting weights.
+  acceptance:
+    - Trainer executes for at least one epoch without raising exceptions.
+    - Saved artifacts `safe_radaim_policy.pt`, `safe_radaim_value.pt`,
+      `safe_radaim_cost_value.pt` appear in `experiments/` after running the
+      CLI with default arguments.
+    - CLI prints epoch-level reward, cost, KL, and risk-case diagnostics.
+  tests:
+    - name: compile
+      command: "python -m compileall src/safe_radaim/training.py safe_radaim_main.py"
