@@ -5,6 +5,9 @@ import numpy as np
 import torch
 from gym import spaces as gym_spaces
 import warnings
+
+from gymnasium import spaces
+
 warnings.filterwarnings("ignore")
 
 class Driver(gym.Env):
@@ -34,7 +37,7 @@ class Driver(gym.Env):
         # of ``gym.spaces.Space``.  To keep the environment gymnasium-based
         # while staying compatible with SB3 we instantiate equivalent spaces
         # from the legacy ``gym`` package.
-        self.action_space = gym_spaces.Discrete(experiment.ACTION_SPACE_SIZE)
+        self.action_space = spaces.Discrete(experiment.ACTION_SPACE_SIZE)
 
         # Observation space: combined car state and embedding
         # Car state is 4-dimensional (x, y, vx, vy) and embedding is 4-dimensional
@@ -42,20 +45,11 @@ class Driver(gym.Env):
         # underlying observation does not have hard physical limits, we can use
         # the maximum finite value representable in float32 to approximate
         # unbounded ranges while satisfying the API contract.
-        obs_low = np.full(
-            experiment.STATE_INPUT_SIZE,
-            -np.finfo(np.float32).max,
-            dtype=np.float32,
-        )
-        obs_high = np.full(
-            experiment.STATE_INPUT_SIZE,
-            np.finfo(np.float32).max,
-            dtype=np.float32,
-        )
-        self.observation_space = gym_spaces.Box(
-            low=obs_low,
-            high=obs_high,
-            dtype=np.float32,
+        self.observation_space = spaces.Box(
+            low=-np.inf,
+            high=np.inf,
+            shape=(experiment.STATE_INPUT_SIZE,),  # Default is 8 (4 car state + 4 embedding)
+            dtype=np.float32
         )
 
         # Track episode information

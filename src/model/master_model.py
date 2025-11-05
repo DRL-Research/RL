@@ -45,21 +45,33 @@ class AttentionPolicyNetwork(nn.Module):
         self.num_agents = num_agents
         self.action_dim = action_dim
 
+        # Based on Section IV-B and Table II of the paper:
+
+        # Encoder block - Two linear layers with ReLU, layer size 64x64
         self.entity_encoder = nn.Sequential(
-            nn.Linear(per_agent_obs_dim, hidden_dim),
+            nn.Linear(per_agent_obs_dim, 64),
             nn.ReLU(),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.ReLU(),
+            nn.Linear(64, 64),
         )
 
+        # Attention block - 2 heads, feature size (embed_dim) = 128
         self.attention = nn.MultiheadAttention(
-            embed_dim=hidden_dim, num_heads=num_heads, batch_first=True
+            embed_dim=128,
+            num_heads=2,
+            batch_first=True
         )
 
+        # Note: You need a projection layer to go from encoder output (64) to attention input (128)
+        self.encoder_to_attention = nn.Linear(64, 128)
+
+        # Decoder block - Two linear layers with ReLU, layer size 64x64
+        # Output is action_dim, with Tanh activation
         self.decoder = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim),
+            nn.Linear(128, 64),  # First map from attention output (128) to 64
             nn.ReLU(),
-            nn.Linear(hidden_dim, action_dim),
+            nn.Linear(64, 64),
+            nn.ReLU(),
+            nn.Linear(64, action_dim),
             nn.Tanh(),
         )
 
