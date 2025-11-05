@@ -71,69 +71,23 @@ def record_losses(
 
 
 def train_master_and_reset_buffer(master_model, full_obs):
-    """Trains the master model and resets its buffer - Returns loss values"""
-    policy_loss_val = value_loss_val = total_loss_val = None
+    """Train the MADDPG master model once."""
+    _ = full_obs  # kept for compatibility with previous signature
     try:
-        with torch.no_grad():
-            last_master_tensor = ensure_tensor(full_obs)
-            last_value = master_model.model.policy.predict_values(last_master_tensor)
-        if master_model.rollout_buffer.pos == 0:
-            print("Master model: No data to train on")
+        losses = master_model.train_step()
+        if losses is None:
+            print("Master model: Not enough data for training")
             return None
-        master_model.rollout_buffer.compute_returns_and_advantage(last_value, np.array([True]))
-        orig_get = master_model.rollout_buffer.get
-
-        def modified_get(batch_size):
-            if not master_model.rollout_buffer.full:
-                orig_full = master_model.rollout_buffer.full
-                master_model.rollout_buffer.full = True
-                try:
-                    indices = np.arange(master_model.rollout_buffer.pos)
-                    if len(indices) > 0:
-                        return master_model.rollout_buffer._get_samples(indices)
-                    else:
-                        return None
-                finally:
-                    master_model.rollout_buffer.full = orig_full
-            else:
-                return next(orig_get(batch_size))
-
-        try:
-            master_model.rollout_buffer.get = modified_get
-            rollout_data = master_model.rollout_buffer.get(batch_size=None)
-            if rollout_data is not None:
-                steps_trained = len(rollout_data.observations)
-                print(f"Master model trained on {steps_trained} steps")
-                observations_tensor = torch.FloatTensor(rollout_data.observations)
-                actions_tensor = torch.FloatTensor(rollout_data.actions)
-                policy = master_model.model.policy
-                optimizer = policy.optimizer
-                values, log_probs, entropy = policy.evaluate_actions(observations_tensor, actions_tensor)
-                value_loss = ((values - torch.FloatTensor(rollout_data.returns)) ** 2).mean()
-                policy_loss = -log_probs.mean()
-                entropy_loss = -entropy.mean()
-                loss = policy_loss + 0.5 * value_loss + 0.01 * entropy_loss
-                optimizer.zero_grad()
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(policy.parameters(), 0.5)
-                optimizer.step()
-                policy_loss_val = policy_loss.item()
-                value_loss_val = value_loss.item()
-                total_loss_val = loss.item()
-                #print(
-                #    f"Master loss - Policy: {policy_loss_val:.4f}, Value: {value_loss_val:.4f}, Total: {total_loss_val:.4f}")
-            else:
-                print("Master model: No valid data for training")
-        finally:
-            master_model.rollout_buffer.get = orig_get
-    except Exception as e:
-        print(f"Error during master training: {str(e)}")
+        actor_loss, critic_loss = losses
+        total_loss = actor_loss + critic_loss
+        print(
+            f"Master model update - Actor loss: {actor_loss:.4f}, Critic loss: {critic_loss:.4f}"
+        )
+        return [actor_loss, critic_loss, total_loss]
+    except Exception as exc:  # pragma: no cover - defensive logging
+        print(f"Error during master training: {exc}")
         traceback.print_exc()
-    master_model.rollout_buffer.reset()
-    print("Master buffer reset")
-    if policy_loss_val is not None:
-        return [policy_loss_val, value_loss_val, total_loss_val]
-    return None
+        return None
 
 
 

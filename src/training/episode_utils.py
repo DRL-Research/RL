@@ -31,7 +31,7 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
         all_drivers_states = env.env.current_state
 
         # Master embedding (and its value/log_prob if needed)
-        embedding, value, log_prob = master_model.get_proto_action(ensure_tensor(all_drivers_states))
+        embedding, _, _ = master_model.get_proto_action(ensure_tensor(all_drivers_states))
 
         # Agent actions
         actions = Driver.get_action(
@@ -85,27 +85,21 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
             crashed = True
 
         # flags for buffers
-        episode_start = (steps_counter == 1)
         done_flag = bool(done or truncated)
 
-        # Add to rollout buffers
-        all_drivers_states = all_drivers_states.reshape(-1) if isinstance(all_drivers_states, np.ndarray) and len(all_drivers_states.shape) == 2 else all_drivers_states
+        # Store experience for the master model
+        if master_model.last_joint_action is not None:
+            next_state_snapshot = env.env.current_state
+            master_model.store_transition(
+                all_drivers_states,
+                master_model.last_joint_action,
+                reward,
+                next_state_snapshot,
+                done_flag,
+            )
 
-        if train_both:
-            for car_index in range(len(project_globals.after_is_arrived_flags)):
-                if not project_globals.after_is_arrived_flags[car_index]:
-                    rollout_buffers[car_index].add(
-                        agent_obs_list[car_index],
-                        cars_action_arrays[car_index],
-                        reward,
-                        done_flag,
-                        cars_values[car_index],
-                        cars_log_probas[car_index]
-                    )
-            master_model.rollout_buffer.add(all_drivers_states, embedding, reward, done_flag, value, log_prob)
-        elif training_master:
-            master_model.rollout_buffer.add(all_drivers_states, embedding, reward, done_flag, value, log_prob)
-        else:
+        # Add to agent rollout buffers
+        if train_both or not training_master:
             for car_index in range(len(project_globals.after_is_arrived_flags)):
                 if not project_globals.after_is_arrived_flags[car_index]:
                     rollout_buffers[car_index].add(
@@ -199,7 +193,6 @@ def process_episode(episode_idx, total_steps, env, master_model, agent_model, ex
     Returns: (reward, actions, steps, crashed)
     """
     logger.info("Episode %d", episode_idx)
-    master_model.rollout_buffer.reset()
     reset_all_buffers()  # reset all buffers (for each Driver)
 
     # TODO: Create an assert here to see that they are reset propely

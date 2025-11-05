@@ -175,38 +175,37 @@ def close_everything(env, agent_logger, master_logger):
 
 
 def monitor_episode_results(master_model, agent_model):
-    """Prints minimal statistics about the rollout buffers"""
-    master_buffer_size = master_model.rollout_buffer.pos
+    """Print minimal statistics about the replay/rollout buffers."""
+    master_buffer_size = len(master_model.replay_buffer)
     agent_buffer_size = agent_model.rollout_buffer.pos
 
-    print(f"Current buffer sizes - Master: {master_buffer_size}, Agent: {agent_buffer_size}")
+    print(
+        f"Current buffer sizes - Master replay: {master_buffer_size}, Agent rollout: {agent_buffer_size}"
+    )
 
-    if master_buffer_size > 0 and hasattr(master_model.rollout_buffer, 'rewards'):
-        rewards = master_model.rollout_buffer.rewards[:master_buffer_size]
-        print(f"Episode rewards - Min: {rewards.min():.2f}, Max: {rewards.max():.2f}, Avg: {rewards.mean():.2f}")
+    if master_buffer_size > 0:
+        rewards = master_model.replay_buffer.rewards[:master_buffer_size]
+        print(
+            f"Episode rewards - Min: {rewards.min():.2f}, Max: {rewards.max():.2f}, Avg: {rewards.mean():.2f}"
+        )
 
 
 def monitor_rollout_buffers(master_model, agent_model):
-    """Prints statistics about the rollout buffers for debugging"""
-    print("\n--- Rollout Buffer Statistics ---")
+    """Print statistics about the replay and rollout buffers for debugging."""
+    print("\n--- Buffer Statistics ---")
 
-    # Master buffer stats
-    print("Master rollout buffer:")
-    print(f"  Buffer size: {master_model.rollout_buffer.buffer_size}")
-    print(f"  Current position: {master_model.rollout_buffer.pos}")
-    print(f"  Is full: {master_model.rollout_buffer.full}")
-
-    if hasattr(master_model.rollout_buffer, 'observations') and master_model.rollout_buffer.observations is not None:
-        print(f"  Observations shape: {master_model.rollout_buffer.observations.shape}")
-
-    if hasattr(master_model.rollout_buffer, 'actions') and master_model.rollout_buffer.actions is not None:
-        print(f"  Actions shape: {master_model.rollout_buffer.actions.shape}")
-
-    if hasattr(master_model.rollout_buffer, 'rewards') and master_model.rollout_buffer.rewards is not None:
-        rewards = master_model.rollout_buffer.rewards[:master_model.rollout_buffer.pos]
-        if len(rewards) > 0:
-            print(f"  Rewards stats: min={rewards.min():.4f}, max={rewards.max():.4f}, mean={rewards.mean():.4f}")
-            print(f"  Rewards: {rewards}")
+    print("Master replay buffer:")
+    print(f"  Capacity: {master_model.replay_buffer.capacity}")
+    print(f"  Current size: {len(master_model.replay_buffer)}")
+    print(f"  Observation dim: {master_model.replay_buffer.observation_dim}")
+    print(
+        f"  Action shape: ({master_model.replay_buffer.num_agents}, {master_model.replay_buffer.action_dim})"
+    )
+    if len(master_model.replay_buffer) > 0:
+        rewards = master_model.replay_buffer.rewards[: len(master_model.replay_buffer)]
+        print(
+            f"  Rewards stats: min={rewards.min():.4f}, max={rewards.max():.4f}, mean={rewards.mean():.4f}"
+        )
 
     # Agent buffer stats
     print("\nAgent rollout buffer:")
