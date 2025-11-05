@@ -38,11 +38,24 @@ class Driver(gym.Env):
 
         # Observation space: combined car state and embedding
         # Car state is 4-dimensional (x, y, vx, vy) and embedding is 4-dimensional
+        # Stable-Baselines3 requires finite bounds for Box spaces.  While the
+        # underlying observation does not have hard physical limits, we can use
+        # the maximum finite value representable in float32 to approximate
+        # unbounded ranges while satisfying the API contract.
+        obs_low = np.full(
+            experiment.STATE_INPUT_SIZE,
+            -np.finfo(np.float32).max,
+            dtype=np.float32,
+        )
+        obs_high = np.full(
+            experiment.STATE_INPUT_SIZE,
+            np.finfo(np.float32).max,
+            dtype=np.float32,
+        )
         self.observation_space = gym_spaces.Box(
-            low=-np.inf,
-            high=np.inf,
-            shape=(experiment.STATE_INPUT_SIZE,),  # Default is 8 (4 car state + 4 embedding)
-            dtype=np.float32
+            low=obs_low,
+            high=obs_high,
+            dtype=np.float32,
         )
 
         # Track episode information
