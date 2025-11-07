@@ -42,6 +42,17 @@ class AttentionObservationEncoder(BaseFeaturesExtractor):
 
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
         batch_size = observations.shape[0]
+        expected_dim = self.num_agents * self.per_agent_obs_dim
+        current_dim = observations.shape[1]
+
+        if current_dim != expected_dim:
+            if current_dim > expected_dim:
+                observations = observations[:, :expected_dim]
+            else:
+                pad_size = expected_dim - current_dim
+                padding = torch.zeros((batch_size, pad_size), dtype=observations.dtype, device=observations.device)
+                observations = torch.cat([observations, padding], dim=1)
+
         reshaped = observations.view(batch_size, self.num_agents, self.per_agent_obs_dim)
         encoded = self.encoder(reshaped)
         attn_input = self.to_attention(encoded)

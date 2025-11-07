@@ -104,11 +104,17 @@ def initialize_models(experiment_config, env_config):
     """Initialize the agent model and wrapped environment."""
     experiment_config.CONFIG = env_config
 
-    num_agents = experiment_config.CARS_AMOUNT
-    per_agent_obs_dim = experiment_config.AGENT_STATE_SIZE
-
     env_fn = lambda: Driver(experiment_config)
     wrapped_env = DummyVecEnv([env_fn])
+
+    per_agent_obs_dim = experiment_config.AGENT_STATE_SIZE
+    observation_dim = int(np.prod(wrapped_env.observation_space.shape))
+    if observation_dim % per_agent_obs_dim != 0:
+        raise ValueError(
+            "Observation dimension is not divisible by per-agent observation size. "
+            f"Got observation_dim={observation_dim} and per_agent_obs_dim={per_agent_obs_dim}."
+        )
+    num_agents = observation_dim // per_agent_obs_dim
 
     agent_additional_model_params = {
         'n_steps': 2048,
