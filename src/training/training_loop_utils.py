@@ -11,18 +11,13 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def init_training_results() -> Dict[str, List[Any]]:
-    """
-    Initialize the structure for tracking training results.
-    """
+    """Initialize the structure for tracking training results."""
     return {
         "episode_rewards": [],
-        "master_policy_losses": [],
-        "master_value_losses": [],
-        "master_total_losses": [],
         "agent_policy_losses": [],
         "agent_value_losses": [],
         "agent_total_losses": [],
-        "all_actions": []
+        "all_actions": [],
     }
 
 
@@ -37,11 +32,15 @@ def prepare_models_for_cycle(
     Returns flags: (train_both, training_master, training_agent)
     """
     logger.info("Cycle %d/%d", cycle_num, total_cycles)
+
+    if master_model is None:
+        agent_model.policy.set_training_mode(True)
+        return False, False, True
+
     train_both = cycle_num == 1
     training_master = not train_both and (cycle_num % 2 == 0)
     training_agent = not train_both and (cycle_num % 2 == 1)
 
-    # Freeze/unfreeze master and set agent training mode
     if train_both or training_master:
         master_model.unfreeze()
     else:
@@ -91,8 +90,8 @@ def train_master_and_reset_buffer(master_model, full_obs):
 
 
 
-def train_agent_and_reset_buffer(master_model, agent_model, last_master_tensor):
-    """Trains the agent model and resets its buffer - Returns loss values"""
+def train_agent_and_reset_buffer(agent_model, last_observation_tensor):
+    """Train the agent model and reset buffers - returns loss values."""
     from src.project_globals import rollout_buffers
 
     for current_rollout_buffer in rollout_buffers:
@@ -100,23 +99,14 @@ def train_agent_and_reset_buffer(master_model, agent_model, last_master_tensor):
         policy_loss_val = value_loss_val = total_loss_val = None
         try:
             with torch.no_grad():
-                shaped_tensor = ensure_tensor(last_master_tensor)
-                embedding, _, _ = master_model.get_proto_action(shaped_tensor)
-                num_cars = len(agent_model.action_space.nvec)
-                master_state_np = np.array(last_master_tensor, dtype=np.float32).reshape(-1)
-                expected_state_size = num_cars * 4
-                if master_state_np.size < expected_state_size:
-                    padded_state = np.zeros(expected_state_size, dtype=np.float32)
-                    padded_state[: master_state_np.size] = master_state_np
-                    master_state_np = padded_state
-                elif master_state_np.size > expected_state_size:
-                    master_state_np = master_state_np[:expected_state_size]
-                car_states = master_state_np.reshape(num_cars, 4)
-                embedding_array = np.asarray(embedding, dtype=np.float32)
-                per_agent_obs = [np.concatenate((car_states[idx], embedding_array)) for idx in range(num_cars)]
-                agent_obs = np.stack(per_agent_obs, axis=0).astype(np.float32).reshape(-1)
-                agent_obs_tensor = torch.tensor(agent_obs, dtype=torch.float32).unsqueeze(0)
-                last_value = agent_model.policy.predict_values(agent_obs_tensor).detach().cpu().numpy().reshape(-1)
+                obs_tensor = ensure_tensor(last_observation_tensor)
+                last_value = (
+                    agent_model.policy.predict_values(obs_tensor)
+                    .detach()
+                    .cpu()
+                    .numpy()
+                    .reshape(-1)
+                )
 
             if current_rollout_buffer.pos == 0:
                 print("Agent model: No data to train on")
@@ -261,29 +251,22 @@ def perform_training_phase(
     training_agent: bool,
     master_model,
     agent_model,
-    full_state: Any,
+    last_observation: Any,
     state_tensor: torch.Tensor,
-    results: Dict[str, List[Any]]) -> None:
-    """
-    Execute training for master and/or agent and update results.
-    """
-    master_losses = None
-    agent_losses = None
-    if train_both or training_master:
-        master_losses = train_master_and_reset_buffer(master_model, full_state)
-    if train_both or training_agent:
-        agent_losses = train_agent_and_reset_buffer(master_model, agent_model, state_tensor)
+    results: Dict[str, List[Any]],
+) -> None:
+    """Execute training for the agent and update tracked losses."""
 
-    record_losses(
-        master_losses,
-        results["master_policy_losses"],
-        results["master_value_losses"],
-        results["master_total_losses"]
-    )
-    record_losses(
-        agent_losses,
-        results["agent_policy_losses"],
-        results["agent_value_losses"],
-        results["agent_total_losses"]
-    )
+    if master_model is not None and (train_both or training_master):
+        # Retain compatibility if a master model is provided in future experiments.
+        train_master_and_reset_buffer(master_model, last_observation)
+
+    if train_both or training_agent or master_model is None:
+        agent_losses = train_agent_and_reset_buffer(agent_model, state_tensor)
+        record_losses(
+            agent_losses,
+            results["agent_policy_losses"],
+            results["agent_value_losses"],
+            results["agent_total_losses"],
+        )
 

@@ -1,30 +1,64 @@
 import random
+import warnings
 
 import gymnasium as gym
 import numpy as np
 import torch
-from gym import spaces as gym_spaces
-import warnings
-
+import torch.nn as nn
 from gymnasium import spaces
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
 warnings.filterwarnings("ignore")
 
+
+class AttentionObservationEncoder(BaseFeaturesExtractor):
+    """Attention-based feature extractor mirroring the master architecture."""
+
+    def __init__(
+        self,
+        observation_space: spaces.Box,
+        *,
+        num_agents: int,
+        per_agent_obs_dim: int,
+        attention_embed_dim: int = 128,
+        encoder_hidden_dim: int = 64,
+        num_heads: int = 2,
+    ) -> None:
+        super().__init__(observation_space, features_dim=num_agents * attention_embed_dim)
+        self.num_agents = num_agents
+        self.per_agent_obs_dim = per_agent_obs_dim
+        self.encoder = nn.Sequential(
+            nn.Linear(per_agent_obs_dim, encoder_hidden_dim),
+            nn.ReLU(),
+            nn.Linear(encoder_hidden_dim, encoder_hidden_dim),
+            nn.ReLU(),
+        )
+        self.to_attention = nn.Linear(encoder_hidden_dim, attention_embed_dim)
+        self.attention = nn.MultiheadAttention(
+            embed_dim=attention_embed_dim,
+            num_heads=num_heads,
+            batch_first=True,
+        )
+
+    def forward(self, observations: torch.Tensor) -> torch.Tensor:
+        batch_size = observations.shape[0]
+        reshaped = observations.view(batch_size, self.num_agents, self.per_agent_obs_dim)
+        encoded = self.encoder(reshaped)
+        attn_input = self.to_attention(encoded)
+        attn_output, _ = self.attention(attn_input, attn_input, attn_input)
+        return attn_output.reshape(batch_size, -1)
+
 class Driver(gym.Env):
-    """
-    Agent environment wrapper for Highway intersection.
+    """Agent environment wrapper for the Highway intersection task.
 
-    This wrapper interfaces with the Highway environment and integrates
-    the master model's embedding into the agent's observation.
-
-    The agent controls only one car (car1) and receives information about
-    all cars in the environment through the master embedding.
+    The wrapper exposes per-vehicle kinematic states for all controlled cars,
+    allowing attention-based policies to learn interactions directly from the
+    raw observations without requiring a separate master model.
     """
 
-    def __init__(self, experiment, master_model=None):
+    def __init__(self, experiment):
         super().__init__()
         self.experiment = experiment
-        self.master_model = master_model
 
         # Load environment configuration
         self.config = experiment.CONFIG if hasattr(experiment, 'CONFIG') else None
@@ -41,8 +75,8 @@ class Driver(gym.Env):
             np.full(self.num_cars, experiment.ACTION_SPACE_SIZE, dtype=np.int64)
         )
 
-        # Observation space: concatenated per-vehicle observation (4-dim state +
-        # shared embedding) for all controlled vehicles.
+        # Observation space: concatenated per-vehicle kinematic state for all
+        # controlled vehicles (flattened for compatibility with vector policies).
         per_vehicle_obs_dim = experiment.AGENT_STATE_SIZE
         observation_dim = self.num_cars * per_vehicle_obs_dim
         self.observation_space = spaces.Box(
@@ -58,8 +92,6 @@ class Driver(gym.Env):
 
         # Environment state
         self.current_state = None
-        self.current_embedding = None
-
         # Create the underlying Highway environment
         self.highway_env = gym.make('RELintersection-v0', render_mode=experiment.RENDER_MODE, config=self.config)
 
@@ -85,7 +117,7 @@ class Driver(gym.Env):
         return joint_action
 
 
-    def _prepare_state_for_master(self, state):
+    def _prepare_state(self, state):
         if isinstance(state, tuple):
             state = np.array(state)
         elif not isinstance(state, np.ndarray):
@@ -129,18 +161,10 @@ class Driver(gym.Env):
                 if hasattr(vehicle, 'is_arrived'):
                     delattr(vehicle, 'is_arrived')
 
-        current_state = self._prepare_state_for_master(current_state)
-
-        if self.master_model is not None:
-            master_input = torch.tensor(current_state.reshape(1, -1), dtype=torch.float32)
-            embedding, _, _ = self.master_model.get_proto_action(master_input)
-            self.current_embedding = embedding
-        else:
-            raise ValueError("master not available")
+        current_state = self._prepare_state(current_state)
 
         # Build agent_observations
         self.num_cars = len(env.controlled_vehicles)
-        embedding_array = np.asarray(self.current_embedding, dtype=np.float32)
         agent_observations = []  # TODO: duplicate code, move to utils
 
         for car_index in range(self.num_cars):
@@ -155,7 +179,6 @@ class Driver(gym.Env):
                     car_state = current_state[car_index]
                 car_state = np.asarray(car_state, dtype=np.float32)
 
-            # agent_observations.append(np.concatenate((car_state, embedding_array)))
             agent_observations.append(car_state)
 
         stacked_obs = np.stack(agent_observations, axis=0).astype(np.float32)
@@ -168,20 +191,12 @@ class Driver(gym.Env):
         self.episode_step += 1
 
         next_state, reward, done, truncated, info = self.highway_env.step(action_tuple)
-        next_state = self._prepare_state_for_master(next_state)
-
-        if self.master_model is not None:
-            master_input = torch.tensor(next_state.reshape(1, -1), dtype=torch.float32)
-            embedding, _, _ = self.master_model.get_proto_action(master_input)
-            self.current_embedding = embedding
-        else:
-            self.current_embedding = np.zeros(4)
+        next_state = self._prepare_state(next_state)
 
         env = self._get_unwrapped_env()
 
         # Build agent_observations
         agent_next_observations = []  # TODO: duplicate code, move to utils
-        embedding_array = np.asarray(self.current_embedding, dtype=np.float32)
 
         for car_index in range(len(env.controlled_vehicles)):
 
@@ -197,7 +212,6 @@ class Driver(gym.Env):
                     car_state = next_state[car_index]
                 car_state = np.asarray(car_state, dtype=np.float32)
 
-            # agent_next_observations.append(np.concatenate((car_state, embedding_array)))
             agent_next_observations.append(car_state)
 
         stacked_next_obs = np.stack(agent_next_observations, axis=0).astype(np.float32)

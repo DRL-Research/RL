@@ -75,10 +75,11 @@ class Model:
 
 
 def load_models(agent_model, master_model, load_dir):
-    """Try loading agent and master model weights."""
+    """Try loading agent (and optionally master) model weights."""
     try:
         agent_model.load(f"{load_dir}_agent.pth")
-        master_model.load(f"{load_dir}_master.pth")
+        if master_model is not None:
+            master_model.load(f"{load_dir}_master.pth")
         print(f"Loaded weights from {load_dir}.")
         return True
     except Exception as e:
@@ -86,7 +87,8 @@ def load_models(agent_model, master_model, load_dir):
         return False
 
 def save_models(agent_model, master_model, save_dir):
-    """Save agent and master model weights."""
+    """Save agent (and optionally master) model weights."""
     agent_model.save(f"{save_dir}_agent.pth")
-    master_model.save(f"{save_dir}_master.pth")
+    if master_model is not None:
+        master_model.save(f"{save_dir}_master.pth")
     print("Models saved.")

@@ -4,8 +4,7 @@ import numpy as np
 import torch
 from stable_baselines3.common.logger import configure
 
-from src.model.agent_handler import Driver, DummyVecEnv
-from src.model.master_model import MasterModel
+from src.model.agent_handler import AttentionObservationEncoder, Driver, DummyVecEnv
 from src.model.model_handler import Model
 
 
@@ -102,33 +101,17 @@ def setup_experiment_dirs(experiment_path):
     os.makedirs(experiment_path, exist_ok=True)
 
 def initialize_models(experiment_config, env_config):
-    """
-    Initialize master and agent models, each with tuned architectures and hyperparameters.
-    d
-    """
+    """Initialize the agent model and wrapped environment."""
     experiment_config.CONFIG = env_config
 
-    # === MASTER MODEL CONFIGURATION ===
-    obs_dim = experiment_config.CARS_AMOUNT * 4
-    emb_dim = experiment_config.EMBEDDING_SIZE
+    num_agents = experiment_config.CARS_AMOUNT
+    per_agent_obs_dim = experiment_config.AGENT_STATE_SIZE
 
-    master_model = MasterModel(
-        observation_dim=obs_dim,
-        embedding_dim=emb_dim,
-    )
-
-    # === AGENT MODEL CONFIGURATION (FIXED) ===
-    AGENT_NETWORK_ARCH = {
-        'pi': [32,32],
-        'vf': [32,32]
-    }
-    AGENT_LR = 7e-4
-    AGENT_BATCH_SIZE = 128
-    env_fn = lambda: Driver(experiment_config, master_model=master_model)
+    env_fn = lambda: Driver(experiment_config)
     wrapped_env = DummyVecEnv([env_fn])
 
     agent_additional_model_params = {
-        'n_steps': 2048,         # must be divisible by batch_size
+        'n_steps': 2048,
         'gamma': 0.99,
         'gae_lambda': 0.95,
         'ent_coef': 0.0,
@@ -138,91 +121,41 @@ def initialize_models(experiment_config, env_config):
         'n_epochs': 10
     }
 
+    attention_policy_kwargs = dict(
+        features_extractor_class=AttentionObservationEncoder,
+        features_extractor_kwargs=dict(
+            num_agents=num_agents,
+            per_agent_obs_dim=per_agent_obs_dim,
+        ),
+        net_arch=[dict(pi=[64, 64], vf=[64, 64])],
+        activation_fn=torch.nn.ReLU,
+    )
+
     original_define_model_params = Model.define_model_params
 
     @staticmethod
     def improved_define_model_params(experiment):
         params = original_define_model_params(experiment)
         params.update(agent_additional_model_params)
-        params['learning_rate'] = AGENT_LR
-        params['batch_size']    = AGENT_BATCH_SIZE
-        params['policy_kwargs'] = dict(
-            activation_fn=torch.nn.ReLU,
-            net_arch=[dict(pi=AGENT_NETWORK_ARCH['pi'],
-                           vf=AGENT_NETWORK_ARCH['vf'])]
-        )
+        params['learning_rate'] = 7e-4
+        params['batch_size'] = 128
+        params['policy_kwargs'] = attention_policy_kwargs
         return params
 
     Model.define_model_params = improved_define_model_params
     agent_model = Model(wrapped_env, experiment_config).model
     Model.define_model_params = original_define_model_params
 
-    return master_model, agent_model, wrapped_env
+    return agent_model, wrapped_env
 
 
 def setup_loggers(base_path):
-    """Setup and return agent and master loggers."""
+    """Setup and return the agent logger."""
     agent_logger = configure(os.path.join(base_path, "agent_logs"), ["stdout", "csv", "tensorboard"])
-    master_logger = configure(os.path.join(base_path, "master_logs"), ["stdout", "csv", "tensorboard"])
-    return agent_logger, master_logger
+    return agent_logger
 
 
-def close_everything(env, agent_logger, master_logger):
+def close_everything(env, agent_logger):
     """Close environment and loggers."""
     env.close()
     agent_logger.close()
-    master_logger.close()
-
-
-def monitor_episode_results(master_model, agent_model):
-    """Print minimal statistics about the replay/rollout buffers."""
-    master_buffer_size = len(master_model.replay_buffer)
-    agent_buffer_size = agent_model.rollout_buffer.pos
-
-    print(
-        f"Current buffer sizes - Master replay: {master_buffer_size}, Agent rollout: {agent_buffer_size}"
-    )
-
-    if master_buffer_size > 0:
-        rewards = master_model.replay_buffer.rewards[:master_buffer_size]
-        print(
-            f"Episode rewards - Min: {rewards.min():.2f}, Max: {rewards.max():.2f}, Avg: {rewards.mean():.2f}"
-        )
-
-
-def monitor_rollout_buffers(master_model, agent_model):
-    """Print statistics about the replay and rollout buffers for debugging."""
-    print("\n--- Buffer Statistics ---")
-
-    print("Master replay buffer:")
-    print(f"  Capacity: {master_model.replay_buffer.capacity}")
-    print(f"  Current size: {len(master_model.replay_buffer)}")
-    print(f"  Observation dim: {master_model.replay_buffer.observation_dim}")
-    print(
-        f"  Action shape: ({master_model.replay_buffer.num_agents}, {master_model.replay_buffer.action_dim})"
-    )
-    if len(master_model.replay_buffer) > 0:
-        rewards = master_model.replay_buffer.rewards[: len(master_model.replay_buffer)]
-        print(
-            f"  Rewards stats: min={rewards.min():.4f}, max={rewards.max():.4f}, mean={rewards.mean():.4f}"
-        )
-
-    # Agent buffer stats
-    print("\nAgent rollout buffer:")
-    print(f"  Buffer size: {agent_model.rollout_buffer.buffer_size}")
-    print(f"  Current position: {agent_model.rollout_buffer.pos}")
-    print(f"  Is full: {agent_model.rollout_buffer.full}")
-
-    if hasattr(agent_model.rollout_buffer, 'observations') and agent_model.rollout_buffer.observations is not None:
-        print(f"  Observations shape: {agent_model.rollout_buffer.observations.shape}")
-
-    if hasattr(agent_model.rollout_buffer, 'actions') and agent_model.rollout_buffer.actions is not None:
-        print(f"  Actions shape: {agent_model.rollout_buffer.actions.shape}")
-
-    if hasattr(agent_model.rollout_buffer, 'rewards') and agent_model.rollout_buffer.rewards is not None:
-        rewards = agent_model.rollout_buffer.rewards[:agent_model.rollout_buffer.pos]
-        if len(rewards) > 0:
-            print(f"  Rewards stats: min={rewards.min():.4f}, max={rewards.max():.4f}, mean={rewards.mean():.4f}")
-            print(f"  Rewards: {rewards}")
-
-    print("-------------------------------\n")

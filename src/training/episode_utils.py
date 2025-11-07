@@ -6,10 +6,8 @@ logger = logging.getLogger(__name__)
 import numpy as np
 import torch
 
-from src import project_globals
 from src.model.agent_handler import Driver
 from src.project_globals import rollout_buffers
-from src.training.general_utils import ensure_tensor
 from src.training.rollout_buffer_utils import reset_all_buffers
 
 
@@ -17,7 +15,7 @@ def reshape_drivers_states(all_drivers_states):
     all_drivers_states = all_drivers_states.reshape(-1) if isinstance(all_drivers_states, np.ndarray) and len(all_drivers_states.shape) == 2 else all_drivers_states
     return all_drivers_states
 
-def run_episode(experiment, total_steps, env, master_model, agent_model, train_both, training_master):
+def run_episode(experiment, total_steps, env, agent_model, train_both, training_master):
     all_rewards, actions_per_episode = [], []
     steps_counter, episode_sum_of_rewards = 0, 0
     crashed = False
@@ -28,12 +26,6 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
 
     while not done and not truncated:
         steps_counter += 1
-
-        # Get all drivers states (without master embedding) from environment
-        all_drivers_states = env.env.current_state
-
-        # Master embedding (and its value/log_prob if needed)
-        embedding, _, _ = master_model.get_proto_action(ensure_tensor(all_drivers_states))
 
         # Agent actions (joint for all vehicles)
         joint_actions = Driver.get_action(
@@ -64,17 +56,6 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
 
         # flags for buffers
         done_flag = bool(done or truncated)
-
-        # Store experience for the master model
-        if master_model.last_joint_action is not None:
-            next_state_snapshot = env.env.current_state
-            master_model.store_transition(
-                all_drivers_states,
-                master_model.last_joint_action,
-                reward,
-                next_state_snapshot,
-                done_flag,
-            )
 
         # Add to agent rollout buffer
         if train_both or not training_master:
@@ -163,7 +144,7 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
 #     return episode_sum_of_rewards, actions_per_episode, steps_counter, crashed
 
 
-def process_episode(episode_idx, total_steps, env, master_model, agent_model, experiment, train_both, training_master):
+def process_episode(episode_idx, total_steps, env, agent_model, experiment, train_both, training_master):
     """
     Run an episode and log results.
     Returns: (reward, actions, steps, crashed)
@@ -173,8 +154,14 @@ def process_episode(episode_idx, total_steps, env, master_model, agent_model, ex
 
     # TODO: Create an assert here to see that they are reset propely
 
-    reward, actions, steps, crashed = run_episode(experiment, total_steps, env, master_model, agent_model,
-                                                  train_both=train_both, training_master=training_master)
+    reward, actions, steps, crashed = run_episode(
+        experiment,
+        total_steps,
+        env,
+        agent_model,
+        train_both=train_both,
+        training_master=training_master,
+    )
     status = "Collision" if crashed else "Success"
     if crashed:
         logger.warning("Episode %d ended with %s", episode_idx, status)

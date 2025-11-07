@@ -18,12 +18,9 @@ def plot_training_results(experiment, results, show_plots=True):
 
     # Unpack the results
     episode_rewards = results["episode_rewards"]
-    master_policy_losses = results["master_policy_losses"]
-    master_value_losses = results["master_value_losses"]
-    master_total_losses = results["master_total_losses"]
-    agent_policy_losses = results["agent_policy_losses"]
-    agent_value_losses = results["agent_value_losses"]
-    agent_total_losses = results["agent_total_losses"]
+    agent_policy_losses = results.get("agent_policy_losses", [])
+    agent_value_losses = results.get("agent_value_losses", [])
+    agent_total_losses = results.get("agent_total_losses", [])
 
     # Create x-axis for episodes
     episodes = np.arange(1, len(episode_rewards) + 1)
@@ -46,47 +43,7 @@ def plot_training_results(experiment, results, show_plots=True):
     else:
         plt.close()
 
-    # 2. Plot Master value loss
-    plt.figure(figsize=(10, 6))
-    valid_indices = [i for i, val in enumerate(master_value_losses) if val is not None]
-    valid_episodes = [episodes[i] for i in valid_indices]
-    valid_losses = [master_value_losses[i] for i in valid_indices]
-
-    if valid_losses:
-        plt.plot(valid_episodes, valid_losses, 'o-', color='#D95F02', linewidth=2, markersize=6)
-        plt.grid(True, alpha=0.3)
-        plt.title('Master Value Loss', fontsize=16)
-        plt.xlabel('Episode', fontsize=14)
-        plt.ylabel('Loss', fontsize=14)
-        plt.yscale('log')  # Use log scale since losses can vary greatly
-        plt.tight_layout()
-        plt.savefig(os.path.join(plots_dir, 'master_value_loss.png'))
-        if show_plots:
-            plt.show()
-        else:
-            plt.close()
-
-    # 3. Plot Master total loss
-    plt.figure(figsize=(10, 6))
-    valid_indices = [i for i, val in enumerate(master_total_losses) if val is not None]
-    valid_episodes = [episodes[i] for i in valid_indices]
-    valid_losses = [master_total_losses[i] for i in valid_indices]
-
-    if valid_losses:
-        plt.plot(valid_episodes, valid_losses, 'o-', color='#7570B3', linewidth=2, markersize=6)
-        plt.grid(True, alpha=0.3)
-        plt.title('Master Total Loss', fontsize=16)
-        plt.xlabel('Episode', fontsize=14)
-        plt.ylabel('Loss', fontsize=14)
-        plt.yscale('log')  # Use log scale since losses can vary greatly
-        plt.tight_layout()
-        plt.savefig(os.path.join(plots_dir, 'master_total_loss.png'))
-        if show_plots:
-            plt.show()
-        else:
-            plt.close()
-
-    # 4. Plot Agent value loss
+    # 2. Plot Agent value loss
     plt.figure(figsize=(10, 6))
     valid_indices = [i for i, val in enumerate(agent_value_losses) if val is not None]
     valid_episodes = [episodes[i] for i in valid_indices]
@@ -106,7 +63,7 @@ def plot_training_results(experiment, results, show_plots=True):
         else:
             plt.close()
 
-    # 5. Plot Agent total loss
+    # 3. Plot Agent total loss
     plt.figure(figsize=(10, 6))
     valid_indices = [i for i, val in enumerate(agent_total_losses) if val is not None]
     valid_episodes = [episodes[i] for i in valid_indices]
@@ -126,13 +83,27 @@ def plot_training_results(experiment, results, show_plots=True):
         else:
             plt.close()
 
-    plt.figure(figsize=(12, 8))
+    # 4. Plot Agent policy loss
+    plt.figure(figsize=(10, 6))
+    valid_indices = [i for i, val in enumerate(agent_policy_losses) if val is not None]
+    valid_episodes = [episodes[i] for i in valid_indices]
+    valid_losses = [agent_policy_losses[i] for i in valid_indices]
 
-    # Master losses
-    master_valid_indices = [i for i, val in enumerate(master_total_losses) if val is not None]
-    master_valid_episodes = [episodes[i] for i in master_valid_indices]
-    master_valid_total_losses = [master_total_losses[i] for i in master_valid_indices]
-    master_valid_value_losses = [master_value_losses[i] for i in master_valid_indices]
+    if valid_losses:
+        plt.plot(valid_episodes, valid_losses, 'o-', color='#66A61E', linewidth=2, markersize=6)
+        plt.grid(True, alpha=0.3)
+        plt.title('Agent Policy Loss', fontsize=16)
+        plt.xlabel('Episode', fontsize=14)
+        plt.ylabel('Loss', fontsize=14)
+        plt.yscale('log')
+        plt.tight_layout()
+        plt.savefig(os.path.join(plots_dir, 'agent_policy_loss.png'))
+        if show_plots:
+            plt.show()
+        else:
+            plt.close()
+
+    plt.figure(figsize=(12, 8))
 
     # Agent losses
     agent_valid_indices = [i for i, val in enumerate(agent_total_losses) if val is not None]
@@ -140,17 +111,18 @@ def plot_training_results(experiment, results, show_plots=True):
     agent_valid_total_losses = [agent_total_losses[i] for i in agent_valid_indices]
     agent_valid_value_losses = [agent_value_losses[i] for i in agent_valid_indices]
 
-    if master_valid_total_losses:
-        plt.plot(master_valid_episodes, master_valid_total_losses, 'o-', label='Master Total Loss',
-                 color='#7570B3', linewidth=2, markersize=6)
-        plt.plot(master_valid_episodes, master_valid_value_losses, 's-', label='Master Value Loss',
-                 color='#D95F02', linewidth=2, markersize=6)
-
     if agent_valid_total_losses:
         plt.plot(agent_valid_episodes, agent_valid_total_losses, 'o-', label='Agent Total Loss',
                  color='#E7298A', linewidth=2, markersize=6)
         plt.plot(agent_valid_episodes, agent_valid_value_losses, 's-', label='Agent Value Loss',
                  color='#1B9E77', linewidth=2, markersize=6)
+
+    agent_valid_policy_indices = [i for i, val in enumerate(agent_policy_losses) if val is not None]
+    if agent_valid_policy_indices:
+        agent_valid_policy_episodes = [episodes[i] for i in agent_valid_policy_indices]
+        agent_valid_policy_losses = [agent_policy_losses[i] for i in agent_valid_policy_indices]
+        plt.plot(agent_valid_policy_episodes, agent_valid_policy_losses, '^-', label='Agent Policy Loss',
+                 color='#66A61E', linewidth=2, markersize=6)
 
     plt.grid(True, alpha=0.3)
     plt.title('Training Losses', fontsize=16)
@@ -176,13 +148,12 @@ def plot_training_results(experiment, results, show_plots=True):
     ax1.grid(True, alpha=0.3)
 
     # Plot losses on second axis
-    if master_valid_total_losses:
-        ax2.plot(master_valid_episodes, master_valid_total_losses, 'o-', label='Master Loss',
-                 color='#7570B3', linewidth=2, markersize=6)
-
     if agent_valid_total_losses:
         ax2.plot(agent_valid_episodes, agent_valid_total_losses, 'o-', label='Agent Loss',
                  color='#E7298A', linewidth=2, markersize=6)
+    if agent_valid_policy_indices:
+        ax2.plot(agent_valid_policy_episodes, agent_valid_policy_losses, '^-', label='Agent Policy Loss',
+                 color='#66A61E', linewidth=2, markersize=6)
 
     ax2.set_title('Training Losses', fontsize=16)
     ax2.set_xlabel('Episode', fontsize=14)
