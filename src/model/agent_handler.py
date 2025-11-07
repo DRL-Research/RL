@@ -43,7 +43,7 @@ class Driver(gym.Env):
 
         # Observation space: concatenated per-vehicle observation (4-dim state +
         # shared embedding) for all controlled vehicles.
-        per_vehicle_obs_dim = experiment.STATE_INPUT_SIZE
+        per_vehicle_obs_dim = experiment.AGENT_STATE_SIZE
         observation_dim = self.num_cars * per_vehicle_obs_dim
         self.observation_space = spaces.Box(
             low=-np.inf,
@@ -155,7 +155,8 @@ class Driver(gym.Env):
                     car_state = current_state[car_index]
                 car_state = np.asarray(car_state, dtype=np.float32)
 
-            agent_observations.append(np.concatenate((car_state, embedding_array)))
+            # agent_observations.append(np.concatenate((car_state, embedding_array)))
+            agent_observations.append(car_state)
 
         stacked_obs = np.stack(agent_observations, axis=0).astype(np.float32)
         flat_obs = stacked_obs.reshape(-1)
@@ -196,7 +197,8 @@ class Driver(gym.Env):
                     car_state = next_state[car_index]
                 car_state = np.asarray(car_state, dtype=np.float32)
 
-            agent_next_observations.append(np.concatenate((car_state, embedding_array)))
+            # agent_next_observations.append(np.concatenate((car_state, embedding_array)))
+            agent_next_observations.append(car_state)
 
         stacked_next_obs = np.stack(agent_next_observations, axis=0).astype(np.float32)
         flat_next_obs = stacked_next_obs.reshape(-1)

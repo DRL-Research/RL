@@ -33,7 +33,7 @@ def training_loop(experiment, env, agent_model, master_model):
     rollout_buffers.clear()
     base_env = env.envs[0] if hasattr(env, "envs") else env
     num_cars = getattr(base_env, "num_cars", experiment.CARS_AMOUNT)
-    obs_dim = experiment.STATE_INPUT_SIZE * num_cars
+    obs_dim = experiment.AGENT_STATE_SIZE * num_cars
 
     obs_low = np.full((obs_dim,), -np.finfo(np.float32).max, dtype=np.float32)
     obs_high = np.full((obs_dim,), np.finfo(np.float32).max, dtype=np.float32)
