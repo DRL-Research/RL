@@ -42,22 +42,22 @@ class AttentionObservationEncoder(BaseFeaturesExtractor):
 
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
         batch_size = observations.shape[0]
-        reshaped = observations.view(batch_size, 3, self.per_agent_obs_dim)
-        print("reshaped size:", reshaped.shape)  # Should be (batch_size, num_agents, per_agent_obs_dim)
+        expected_dim = self.num_agents * self.per_agent_obs_dim
+        current_dim = observations.shape[1]
 
+        if current_dim != expected_dim:
+            if current_dim > expected_dim:
+                observations = observations[:, :expected_dim]
+            else:
+                pad_size = expected_dim - current_dim
+                padding = torch.zeros((batch_size, pad_size), dtype=observations.dtype, device=observations.device)
+                observations = torch.cat([observations, padding], dim=1)
+
+        reshaped = observations.view(batch_size, self.num_agents, self.per_agent_obs_dim)
         encoded = self.encoder(reshaped)
-        print("encoded size:", encoded.shape)  # Should be (batch_size, num_agents, encoder_hidden_dim)
-
         attn_input = self.to_attention(encoded)
-        print("attn_input size:", attn_input.shape)  # Should be (batch_size, num_agents, attention_embed_dim)
-
         attn_output, _ = self.attention(attn_input, attn_input, attn_input)
-        print("attn_output size:", attn_output.shape)  # Should be (batch_size, num_agents, attention_embed_dim)
-
-        output = attn_output.reshape(batch_size, -1)
-        print("output size:", output.shape)  # Should be (batch_size, num_agents * attention_embed_dim)
-
-        return output
+        return attn_output.reshape(batch_size, -1)
 
 class Driver(gym.Env):
     """Agent environment wrapper for the Highway intersection task.
