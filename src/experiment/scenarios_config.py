@@ -127,7 +127,9 @@ CONFIG_EXP5_3_controlled_cars = {
     }
 }
 
-CONFIG_EXP5_4_controlled_cars = {
+
+
+CONFIG_EXP5_3_controlled_cars = {
 
     "controlled_cars": {
         "car1": {
@@ -160,6 +162,8 @@ CONFIG_EXP5_4_controlled_cars = {
             },
             "color": (204, 0, 0)
         },
+    },
+    "static_cars": {
         "car4": {
             "start_lane": Experiment.NORTH_TO_SOUTH,
             "destination": Experiment.OUTER_WEST,
@@ -169,9 +173,7 @@ CONFIG_EXP5_4_controlled_cars = {
                 "lateral": Experiment.LATERAL
             },
             "color": (0, 0, 50)
-        }
-    },
-    "static_cars": {
+        },
         "car5": {
             "start_lane": Experiment.NORTH_TO_SOUTH,
             "destination": Experiment.OUTER_WEST,
@@ -185,7 +187,66 @@ CONFIG_EXP5_4_controlled_cars = {
     }
 }
 
+# CONFIG_EXP5_4_controlled_cars = {
+#
+#     "controlled_cars": {
+#         "car1": {
+#             "start_lane": Experiment.SOUTH_TO_NORTH,
+#             "destination": Experiment.OUTER_NORTH,
+#             "speed": Experiment.THROTTLE_SLOW,
+#             "init_location": {
+#                 "longitudinal": Experiment.LONGITUDINAL,
+#                 "lateral": Experiment.LATERAL
+#             },
+#             "color": (0, 204, 0)  # Green car
+#         },
+#         "car2": {
+#             "start_lane": Experiment.EAST_TO_WEST,
+#             "destination": Experiment.OUTER_WEST,
+#             "speed": Experiment.THROTTLE_SLOW,
+#             "init_location": {
+#                 "longitudinal": Experiment.LONGITUDINAL + 20,
+#                 "lateral": Experiment.LATERAL
+#             },
+#             "color": (0, 0, 204)  # car
+#         },
+#         "car3": {
+#             "start_lane": Experiment.EAST_TO_WEST,
+#             "destination": Experiment.OUTER_WEST,
+#             "speed": Experiment.THROTTLE_SLOW,
+#             "init_location": {
+#                 "longitudinal": Experiment.LONGITUDINAL - 20,
+#                 "lateral": Experiment.LATERAL
+#             },
+#             "color": (204, 0, 0)
+#         },
+#         "car4": {
+#             "start_lane": Experiment.NORTH_TO_SOUTH,
+#             "destination": Experiment.OUTER_WEST,
+#             "speed": Experiment.THROTTLE_SLOW,
+#             "init_location": {
+#                 "longitudinal": Experiment.LONGITUDINAL - 40,
+#                 "lateral": Experiment.LATERAL
+#             },
+#             "color": (0, 0, 50)
+#         }
+#     },
+#     "static_cars": {
+#         "car5": {
+#             "start_lane": Experiment.NORTH_TO_SOUTH,
+#             "destination": Experiment.OUTER_WEST,
+#             "speed": Experiment.FIXED_THROTTLE,
+#             "init_location": {
+#                 "longitudinal": Experiment.LONGITUDINAL - 10,
+#                 "lateral": Experiment.LATERAL
+#             },
+#             "color": (0, 50, 0)  # Green car
+#         }
+#     }
+# }
+
 current_experiment = CONFIG_EXP5_3_controlled_cars
+# current_experiment = CONFIG_EXP5_4_controlled_cars
 
 full_env_config_exp5 = create_full_environment_config(current_experiment)
 

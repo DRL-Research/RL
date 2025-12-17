@@ -90,10 +90,10 @@ class Experiment:
 
 
     # Simulations Graphics
-    # SCREEN_WIDTH: int = 600
-    SCREEN_WIDTH: int = 900
-    # SCREEN_HEIGHT: int = 600
-    SCREEN_HEIGHT: int = 800
+    SCREEN_WIDTH: int = 600
+    # SCREEN_WIDTH: int = 900
+    SCREEN_HEIGHT: int = 600
+    # SCREEN_HEIGHT: int = 800
     CENTERING_POSITION: List[float] = field(default_factory=lambda: [0.5, 0.6])  # Do not change, this centers the simulation
     # SCALING: float = 5.5 * 1.3
     SCALING: float = 3 * 1.3

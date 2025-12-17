@@ -84,7 +84,6 @@ class IntersectionEnv(AbstractEnv):
         mean_reward_type = False
 
         # Work with vehicles that haven't arrived yet
-        # TODO: do we want to filter only not arrived? or do we need to filter not crashed also?
         active_vehicles = [
             vehicle for vehicle, flag in zip(self.controlled_vehicles, project_globals.after_is_arrived_flags)
             if not flag
@@ -95,7 +94,6 @@ class IntersectionEnv(AbstractEnv):
             print("No active vehicles left. Reward: 0.0")
             return 0.0  # or some default value when all vehicles have arrived
 
-        # TODO: do we always want to return one reward shared between all (non crashed) vehicles?
         if mean_reward_type:
             mean_reward = sum(
                 self._agent_reward(vehicle) for vehicle in active_vehicles
@@ -229,6 +227,7 @@ class IntersectionEnv(AbstractEnv):
         BASE_LONG = 40
 
         base_complete_scenarios = base_complete_scenarios_3_cars
+        # base_complete_scenarios = base_complete_scenarios_4_cars
 
         # Generate rotations for complete scenarios
         def rotate_complete_scenario(scenario, rotation):
