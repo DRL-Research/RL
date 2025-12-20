@@ -1,0 +1,44 @@
+2025-12-19 00:50:49,114 - VN_MADDPG - INFO - [ScenarioManager] Generated 100 scenarios
+2025-12-19 00:50:49,114 - VN_MADDPG - INFO - Initializing Training Environment (Headless)...
+2025-12-19 00:50:49,239 - VN_MADDPG - INFO - [Env] IntersectionWrapper Initialized (Mode: None)
+2025-12-19 00:50:49,239 - VN_MADDPG - INFO - [VN_MADDPG] Initializing 2 agents on cpu
+2025-12-19 00:50:52,465 - VN_MADDPG - INFO - ========================================
+2025-12-19 00:50:52,465 - VN_MADDPG - INFO - STARTING VN-MADDPG TRAINING
+2025-12-19 00:50:52,465 - VN_MADDPG - INFO - ========================================
+2025-12-19 00:50:52,466 - VN_MADDPG - INFO - [CSV] Logging episode data to: results/vn_maddpg_20251219_005049\training_log.csv
+2025-12-19 00:50:52,466 - VN_MADDPG - INFO - [Stage: Noise Update] Decay 1.000 -> 1.000
+2025-12-19 00:52:27,717 - VN_MADDPG - INFO - Episode 100/900 | Rew: -75.0 | Success: 64.0% | Noise: 0.89 | Time: 0:01:35.250986
+2025-12-19 00:52:27,719 - VN_MADDPG - INFO - [Stage: Noise Update] Decay 0.890 -> 0.889
+2025-12-19 00:53:58,263 - VN_MADDPG - INFO - Episode 200/900 | Rew: -59.0 | Success: 68.0% | Noise: 0.78 | Time: 0:03:05.796452
+2025-12-19 00:53:58,263 - VN_MADDPG - INFO - [Stage: Noise Update] Decay 0.779 -> 0.778
+2025-12-19 00:55:19,762 - VN_MADDPG - INFO - Episode 300/900 | Rew: -50.9 | Success: 70.0% | Noise: 0.67 | Time: 0:04:27.295855
+2025-12-19 00:55:19,762 - VN_MADDPG - INFO - [Stage: Noise Update] Decay 0.668 -> 0.667
+2025-12-19 00:56:33,242 - VN_MADDPG - INFO - Episode 400/900 | Rew: -58.5 | Success: 69.0% | Noise: 0.56 | Time: 0:05:40.775806
+2025-12-19 00:56:33,243 - VN_MADDPG - INFO - [Stage: Noise Update] Decay 0.557 -> 0.556
+2025-12-19 00:57:44,664 - VN_MADDPG - INFO - Episode 500/900 | Rew: -65.5 | Success: 67.0% | Noise: 0.45 | Time: 0:06:52.197883
+2025-12-19 00:57:44,736 - VN_MADDPG - INFO - [IO] Model saved to results/vn_maddpg_20251219_005049\vn_maddpg_ep500.pt
+2025-12-19 00:57:44,736 - VN_MADDPG - INFO - [Stage: Noise Update] Decay 0.446 -> 0.444
+2025-12-19 00:59:00,007 - VN_MADDPG - INFO - Episode 600/900 | Rew: -65.4 | Success: 67.0% | Noise: 0.33 | Time: 0:08:07.541161
+2025-12-19 00:59:00,007 - VN_MADDPG - INFO - [Stage: Noise Update] Decay 0.334 -> 0.333
+2025-12-19 01:00:08,415 - VN_MADDPG - INFO - Episode 700/900 | Rew: -62.0 | Success: 68.0% | Noise: 0.22 | Time: 0:09:15.949134
+2025-12-19 01:00:08,415 - VN_MADDPG - INFO - [Stage: Noise Update] Decay 0.223 -> 0.222
+2025-12-19 01:01:19,247 - VN_MADDPG - INFO - Episode 800/900 | Rew: -51.5 | Success: 71.0% | Noise: 0.11 | Time: 0:10:26.780868
+2025-12-19 01:01:19,247 - VN_MADDPG - INFO - [Stage: Noise Update] Decay 0.112 -> 0.111
+2025-12-19 01:02:25,465 - VN_MADDPG - INFO - Episode 900/900 | Rew: -90.0 | Success: 60.0% | Noise: 0.05 | Time: 0:11:32.999007
+2025-12-19 01:02:25,468 - VN_MADDPG - INFO - Initializing Evaluation Environment (Visual)...
+2025-12-19 01:02:25,542 - VN_MADDPG - INFO - [Env] IntersectionWrapper Initialized (Mode: rgb_array)
+2025-12-19 01:02:25,543 - VN_MADDPG - INFO - ========================================
+2025-12-19 01:02:25,543 - VN_MADDPG - INFO - EVALUATION START (100 episodes)
+2025-12-19 01:02:25,543 - VN_MADDPG - INFO - ========================================
+2025-12-19 01:02:46,582 - VN_MADDPG - INFO - [Eval] Scenarios 10/100 complete. Current Success Rate: 60.00%
+2025-12-19 01:03:13,508 - VN_MADDPG - INFO - [Eval] Scenarios 20/100 complete. Current Success Rate: 70.00%
+2025-12-19 01:03:37,322 - VN_MADDPG - INFO - [Eval] Scenarios 30/100 complete. Current Success Rate: 70.00%
+2025-12-19 01:03:55,894 - VN_MADDPG - INFO - [Eval] Scenarios 40/100 complete. Current Success Rate: 62.50%
+2025-12-19 01:04:14,751 - VN_MADDPG - INFO - [Eval] Scenarios 50/100 complete. Current Success Rate: 60.00%
+2025-12-19 01:04:35,564 - VN_MADDPG - INFO - [Eval] Scenarios 60/100 complete. Current Success Rate: 60.00%
+2025-12-19 01:04:57,080 - VN_MADDPG - INFO - [Eval] Scenarios 70/100 complete. Current Success Rate: 61.43%
+2025-12-19 01:05:19,912 - VN_MADDPG - INFO - [Eval] Scenarios 80/100 complete. Current Success Rate: 62.50%
+2025-12-19 01:05:41,771 - VN_MADDPG - INFO - [Eval] Scenarios 90/100 complete. Current Success Rate: 64.44%
+2025-12-19 01:06:02,635 - VN_MADDPG - INFO - [Eval] Scenarios 100/100 complete. Current Success Rate: 65.00%
+2025-12-19 01:06:02,635 - VN_MADDPG - INFO - Evaluation Results: Success Rate: 65.00% | Avg Reward: -72.50
+2025-12-19 01:06:03,212 - VN_MADDPG - INFO - Results and plots saved to results/vn_maddpg_20251219_005049

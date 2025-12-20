@@ -1,0 +1,16 @@
+{
+  "training": {
+    "total_episodes": 1000,
+    "final_success_rate": 0.666,
+    "final_avg_reward": -66.4,
+    "final_avg_episode_length": 13.169
+  },
+  "evaluation": {
+    "n_scenarios": 100,
+    "success_rate": 0.65,
+    "n_successes": 65,
+    "avg_reward": -72.5,
+    "avg_episode_length": 13.22,
+    "avg_travel_time_successful": 15.938461538461539
+  }
+}

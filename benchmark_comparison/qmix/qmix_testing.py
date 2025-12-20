@@ -36,6 +36,8 @@ import json
 from copy import deepcopy
 import warnings
 
+from experiment.experiment_config import Experiment
+
 warnings.filterwarnings('ignore')
 
 # Set random seeds for reproducibility
@@ -985,6 +987,43 @@ class IntersectionWrapper:
         self.n_agents = n_agents
 
         # Create highway-env config (matching original code)
+        # config = {
+        #     "observation": {
+        #         "type": "Kinematics",
+        #         "features": ["x", "y", "vx", "vy"],
+        #         "features_range": {
+        #             "x": [-100, 100],
+        #             "y": [-100, 100],
+        #             "vx": [-20, 20],
+        #             "vy": [-20, 20],
+        #         },
+        #         "absolute": True,
+        #         "flatten": False,
+        #         "observe_intentions": False,
+        #         "vehicles_count": 10,
+        #     },
+        #     "action": {
+        #         "type": "MultiAgentAction",
+        #         "action_config": {
+        #             "type": "DiscreteMetaAction",
+        #             "lateral": False,
+        #             "longitudinal": True,
+        #             "target_speeds": [0, 10],  # Two actions: stop or go
+        #         },
+        #     },
+        #     "collision_reward": -200,
+        #     "arrived_reward": 50,
+        #     "high_speed_reward": 0.5,
+        #     "normalize_reward": False,
+        #     "duration": 60,  # Longer episodes
+        #     "initial_vehicle_count": 10,  # More traffic!
+        #     "controlled_vehicles": n_agents,
+        #     "spawn_probability": 0.6,  # Spawn more vehicles during episode
+        #     "screen_width": 600,
+        #     "screen_height": 600,
+        #     "scaling": 5.5,
+        #     "centering_position": [0.5, 0.6],
+        # }
         config = {
             "observation": {
                 "type": "Kinematics",
@@ -1006,21 +1045,21 @@ class IntersectionWrapper:
                     "type": "DiscreteMetaAction",
                     "lateral": False,
                     "longitudinal": True,
-                    "target_speeds": [0, 10],  # Two actions: stop or go
+                    "target_speeds": [5, 10],
                 },
             },
-            "collision_reward": -200,
-            "arrived_reward": 50,
-            "high_speed_reward": 0.5,
+            "collision_reward": Experiment.COLLISION_REWARD,
+            "arrived_reward": Experiment.REACHED_TARGET_REWARD,  # reward for arriving at the destination
             "normalize_reward": False,
-            "duration": 60,  # Longer episodes
-            "initial_vehicle_count": 10,  # More traffic!
-            "controlled_vehicles": n_agents,
-            "spawn_probability": 0.6,  # Spawn more vehicles during episode
-            "screen_width": 600,
-            "screen_height": 600,
-            "scaling": 5.5,
-            "centering_position": [0.5, 0.6],
+            "starvation_reward": Experiment.STARVATION_REWARD,  # reward for every step taken
+            "offroad_terminal": False,
+            "duration": Experiment.EPISODE_MAX_TIME,
+            "initial_vehicle_count": Experiment.CARS_AMOUNT,
+            "spawn_probability": Experiment.SPAWN_PROBABILITY,
+            "screen_width": Experiment.SCREEN_WIDTH,
+            "screen_height": Experiment.SCREEN_HEIGHT,
+            "centering_position": [0.5, 0.6],  # Do not change, this centers the simulation
+            "scaling": Experiment.SCALING,
         }
 
         # Create environment from highway-env
@@ -1801,8 +1840,9 @@ def main():
         agent=agent,
         env=env,
         scenario_manager=scenario_manager,
-        n_episodes=100,  # Evaluate on all 100 scenarios
-        render=False
+        n_episodes=100
+        ,  # Evaluate on all 100 scenarios
+        render=True
     )
 
     # ========================================================================

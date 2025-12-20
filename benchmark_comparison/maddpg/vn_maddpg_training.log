@@ -1,0 +1,16 @@
+2025-12-19 15:23:22,792 - VN_MADDPG - INFO - Using device: cpu
+2025-12-19 15:23:22,795 - VN_MADDPG - INFO - [ScenarioManager] Generated 100 scenarios
+2025-12-19 15:23:22,870 - VN_MADDPG - INFO - [Env] IntersectionWrapper Initialized (Continuous Mode: None)
+2025-12-19 15:23:22,870 - VN_MADDPG - INFO - [VN_MADDPG] Initializing 3 agents on cpu (Continuous Control)
+2025-12-19 15:23:26,347 - VN_MADDPG - INFO - ========================================
+2025-12-19 15:23:26,348 - VN_MADDPG - INFO - STARTING TRAINING (Continuous | 2000 Episodes)
+2025-12-19 15:23:26,348 - VN_MADDPG - INFO - ========================================
+2025-12-19 15:23:26,348 - VN_MADDPG - INFO - [Stage: Noise Update] Decay 0.250 -> 0.250
+2025-12-19 15:27:01,202 - VN_MADDPG - INFO - Ep 100 | Rew: 169.6 | Suc: 47.0% | Noise: 0.247 | Time: 0:03:34.853803
+2025-12-19 15:27:01,202 - VN_MADDPG - INFO - [Stage: Noise Update] Decay 0.247 -> 0.247
+2025-12-19 15:32:41,627 - VN_MADDPG - INFO - Ep 200 | Rew: 217.4 | Suc: 44.0% | Noise: 0.244 | Time: 0:09:15.271905
+2025-12-19 15:32:41,639 - VN_MADDPG - INFO - [Stage: Noise Update] Decay 0.244 -> 0.244
+2025-12-19 15:43:44,029 - VN_MADDPG - INFO - Ep 300 | Rew: 238.6 | Suc: 49.0% | Noise: 0.241 | Time: 0:20:17.679360
+2025-12-19 15:43:44,035 - VN_MADDPG - INFO - [Stage: Noise Update] Decay 0.241 -> 0.241
+2025-12-19 15:51:52,569 - VN_MADDPG - INFO - Ep 400 | Rew: 207.0 | Suc: 40.0% | Noise: 0.238 | Time: 0:28:26.221208
+2025-12-19 15:51:52,570 - VN_MADDPG - INFO - [Stage: Noise Update] Decay 0.238 -> 0.237

@@ -1,0 +1,40 @@
+2025-12-18 22:52:02,428 - VN_MADDPG - INFO - [ScenarioManager] Generated 100 scenarios
+2025-12-18 22:52:02,490 - VN_MADDPG - INFO - [Env] IntersectionWrapper Initialized
+2025-12-18 22:52:02,490 - VN_MADDPG - INFO - [VN_MADDPG] Initializing 2 agents on cpu
+2025-12-18 22:52:09,476 - VN_MADDPG - INFO - ========================================
+2025-12-18 22:52:09,476 - VN_MADDPG - INFO - STARTING VN-MADDPG TRAINING
+2025-12-18 22:52:09,477 - VN_MADDPG - INFO - ========================================
+2025-12-18 22:52:09,477 - VN_MADDPG - INFO - [Stage: Noise Update] Decay 1.000 -> 1.000
+2025-12-18 22:54:15,485 - VN_MADDPG - INFO - Episode 100/900 | Rew: -33.5 | Success: 84.0% | Noise: 0.89 | Time: 0:02:06.007667
+2025-12-18 22:54:15,488 - VN_MADDPG - INFO - [Stage: Noise Update] Decay 0.890 -> 0.889
+2025-12-18 22:56:55,085 - VN_MADDPG - INFO - Episode 200/900 | Rew: -2.6 | Success: 99.0% | Noise: 0.78 | Time: 0:04:45.607981
+2025-12-18 22:56:55,086 - VN_MADDPG - INFO - [Stage: Noise Update] Decay 0.779 -> 0.778
+2025-12-18 23:00:09,608 - VN_MADDPG - INFO - Episode 300/900 | Rew: -2.9 | Success: 99.0% | Noise: 0.67 | Time: 0:08:00.130390
+2025-12-18 23:00:09,610 - VN_MADDPG - INFO - [Stage: Noise Update] Decay 0.668 -> 0.667
+2025-12-18 23:03:00,924 - VN_MADDPG - INFO - Episode 400/900 | Rew: -2.9 | Success: 99.0% | Noise: 0.56 | Time: 0:10:51.447269
+2025-12-18 23:03:00,924 - VN_MADDPG - INFO - [Stage: Noise Update] Decay 0.557 -> 0.556
+2025-12-18 23:05:36,962 - VN_MADDPG - INFO - Episode 500/900 | Rew: -6.0 | Success: 98.0% | Noise: 0.45 | Time: 0:13:27.484973
+2025-12-18 23:05:36,996 - VN_MADDPG - INFO - [IO] Model saved to results/vn_maddpg_20251218_225202\vn_maddpg_ep500.pt
+2025-12-18 23:05:36,996 - VN_MADDPG - INFO - [Stage: Noise Update] Decay 0.446 -> 0.444
+2025-12-18 23:08:14,654 - VN_MADDPG - INFO - Episode 600/900 | Rew: 0.0 | Success: 100.0% | Noise: 0.33 | Time: 0:16:05.177763
+2025-12-18 23:08:14,654 - VN_MADDPG - INFO - [Stage: Noise Update] Decay 0.334 -> 0.333
+2025-12-18 23:10:52,999 - VN_MADDPG - INFO - Episode 700/900 | Rew: -3.0 | Success: 99.0% | Noise: 0.22 | Time: 0:18:43.522116
+2025-12-18 23:10:52,999 - VN_MADDPG - INFO - [Stage: Noise Update] Decay 0.223 -> 0.222
+2025-12-18 23:13:30,236 - VN_MADDPG - INFO - Episode 800/900 | Rew: -12.0 | Success: 96.0% | Noise: 0.11 | Time: 0:21:20.759121
+2025-12-18 23:13:30,237 - VN_MADDPG - INFO - [Stage: Noise Update] Decay 0.112 -> 0.111
+2025-12-18 23:16:08,803 - VN_MADDPG - INFO - Episode 900/900 | Rew: -6.0 | Success: 98.0% | Noise: 0.05 | Time: 0:23:59.326219
+2025-12-18 23:16:08,803 - VN_MADDPG - INFO - ========================================
+2025-12-18 23:16:08,803 - VN_MADDPG - INFO - EVALUATION START (100 episodes)
+2025-12-18 23:16:08,803 - VN_MADDPG - INFO - ========================================
+2025-12-18 23:16:16,347 - VN_MADDPG - INFO - [Eval] Scenarios 10/100 complete. Current Success Rate: 100.00%
+2025-12-18 23:16:23,422 - VN_MADDPG - INFO - [Eval] Scenarios 20/100 complete. Current Success Rate: 90.00%
+2025-12-18 23:16:30,651 - VN_MADDPG - INFO - [Eval] Scenarios 30/100 complete. Current Success Rate: 93.33%
+2025-12-18 23:16:37,116 - VN_MADDPG - INFO - [Eval] Scenarios 40/100 complete. Current Success Rate: 95.00%
+2025-12-18 23:16:43,278 - VN_MADDPG - INFO - [Eval] Scenarios 50/100 complete. Current Success Rate: 96.00%
+2025-12-18 23:16:50,540 - VN_MADDPG - INFO - [Eval] Scenarios 60/100 complete. Current Success Rate: 96.67%
+2025-12-18 23:16:55,982 - VN_MADDPG - INFO - [Eval] Scenarios 70/100 complete. Current Success Rate: 95.71%
+2025-12-18 23:17:03,009 - VN_MADDPG - INFO - [Eval] Scenarios 80/100 complete. Current Success Rate: 96.25%
+2025-12-18 23:17:08,509 - VN_MADDPG - INFO - [Eval] Scenarios 90/100 complete. Current Success Rate: 95.56%
+2025-12-18 23:17:15,099 - VN_MADDPG - INFO - [Eval] Scenarios 100/100 complete. Current Success Rate: 96.00%
+2025-12-18 23:17:15,100 - VN_MADDPG - INFO - Evaluation Results: Success Rate: 96.00% | Avg Reward: -12.00
+2025-12-18 23:17:15,686 - VN_MADDPG - INFO - Results and plots saved to results/vn_maddpg_20251218_225202
