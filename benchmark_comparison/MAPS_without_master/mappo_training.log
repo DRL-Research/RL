@@ -1,0 +1,33 @@
+2025-12-23 10:45:12,824 - MAPPO - INFO - Using device: cpu
+2025-12-23 10:45:12,826 - MAPPO - INFO - [ScenarioManager] Generated 100 scenarios
+2025-12-23 10:45:12,827 - MAPPO - INFO - Initializing Training Environment...
+2025-12-23 10:45:12,889 - MAPPO - INFO - [Env] IntersectionWrapper Initialized (Mode: None, Relative Obs)
+2025-12-23 10:45:15,210 - MAPPO - INFO - ========================================
+2025-12-23 10:45:15,210 - MAPPO - INFO - STARTING OPTIMIZED MAPPO TRAINING
+2025-12-23 10:45:15,210 - MAPPO - INFO - ========================================
+2025-12-23 10:46:02,991 - MAPPO - INFO - Episode 100/900 | Rew: 10.28 | Success: 68.0% | Time: 0:00:47.780200
+2025-12-23 10:46:49,634 - MAPPO - INFO - Episode 200/900 | Rew: 9.52 | Success: 55.0% | Time: 0:01:34.423142
+2025-12-23 10:47:33,214 - MAPPO - INFO - Episode 300/900 | Rew: 10.41 | Success: 67.0% | Time: 0:02:18.002667
+2025-12-23 10:48:23,437 - MAPPO - INFO - Episode 400/900 | Rew: 10.41 | Success: 62.0% | Time: 0:03:08.225395
+2025-12-23 10:49:08,676 - MAPPO - INFO - Episode 500/900 | Rew: 10.61 | Success: 64.0% | Time: 0:03:53.465012
+2025-12-23 10:50:03,224 - MAPPO - INFO - Episode 600/900 | Rew: 10.40 | Success: 58.0% | Time: 0:04:48.012355
+2025-12-23 10:50:55,727 - MAPPO - INFO - Episode 700/900 | Rew: 11.23 | Success: 70.0% | Time: 0:05:40.515997
+2025-12-23 10:51:45,903 - MAPPO - INFO - Episode 800/900 | Rew: 10.95 | Success: 67.0% | Time: 0:06:30.691620
+2025-12-23 10:52:37,306 - MAPPO - INFO - Episode 900/900 | Rew: 10.88 | Success: 62.0% | Time: 0:07:22.094956
+2025-12-23 10:52:37,306 - MAPPO - INFO - Initializing Evaluation Environment...
+2025-12-23 10:52:37,345 - MAPPO - INFO - [Env] IntersectionWrapper Initialized (Mode: rgb_array, Relative Obs)
+2025-12-23 10:52:37,345 - MAPPO - INFO - ========================================
+2025-12-23 10:52:37,345 - MAPPO - INFO - EVALUATION START (100 episodes)
+2025-12-23 10:52:37,345 - MAPPO - INFO - ========================================
+2025-12-23 10:52:56,865 - MAPPO - INFO - [Eval] 10/100 | Success: 20.00%
+2025-12-23 10:53:27,040 - MAPPO - INFO - [Eval] 20/100 | Success: 40.00%
+2025-12-23 10:53:50,704 - MAPPO - INFO - [Eval] 30/100 | Success: 50.00%
+2025-12-23 10:54:12,355 - MAPPO - INFO - [Eval] 40/100 | Success: 50.00%
+2025-12-23 10:54:39,618 - MAPPO - INFO - [Eval] 50/100 | Success: 56.00%
+2025-12-23 10:55:02,326 - MAPPO - INFO - [Eval] 60/100 | Success: 58.33%
+2025-12-23 10:55:27,995 - MAPPO - INFO - [Eval] 70/100 | Success: 61.43%
+2025-12-23 10:55:54,201 - MAPPO - INFO - [Eval] 80/100 | Success: 62.50%
+2025-12-23 10:56:21,920 - MAPPO - INFO - [Eval] 90/100 | Success: 57.78%
+2025-12-23 10:56:49,566 - MAPPO - INFO - [Eval] 100/100 | Success: 59.00%
+2025-12-23 10:56:49,569 - MAPPO - INFO - Results: Success: 59.00% | Avg Rew: 10.70 | Avg Steps: 12.8
+2025-12-23 10:56:49,993 - MAPPO - INFO - Results saved to results/mappo_opt_20251223_104512
