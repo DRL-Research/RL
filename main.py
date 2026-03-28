@@ -1,0 +1,31 @@
+import logging
+
+from highwayenv.utils import patch_intersection_env, register_intersection_env
+from src.experiment import scenarios_config as sc
+from src.experiment.experiment_config import Experiment
+from src.training.training_handler import run_experiment
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+if __name__ == "__main__":
+
+    patch_intersection_env()
+    register_intersection_env()
+
+    experiment5_config = Experiment(
+        RENDER_MODE='human',  # None = do not render. if not defined, default is to render
+        EXPERIMENT_ID='Experiment5',
+        LOAD_MODEL_DIRECTORY='experiments/08_12_2024-13_56_13_Experiment1/trained_model.zip',
+        EPOCHS=1,
+        CYCLES=3)
+
+    # dictionary were the keys are EXPERIMENT_ID (experiment name) and the values are environment configurations defined in scenarios_config.py
+    custom_env_configs = {
+        experiment5_config.EXPERIMENT_ID: sc.full_env_config_exp5
+    }
+
+    experiments = [experiment5_config]
+    for experiment_config in experiments:
+        print(f"Starting experiment: {experiment_config.EXPERIMENT_ID}")
+        run_experiment(experiment_config, custom_env_configs[experiment_config.EXPERIMENT_ID])
+        print(f"Experiment {experiment_config.EXPERIMENT_ID} completed.")
