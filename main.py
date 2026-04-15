@@ -11,8 +11,10 @@ if __name__ == "__main__":
 
     patch_intersection_env()
     register_intersection_env()
+    algorithm_to_run = "experiment"  # experiment | baseline | maddpg | vn_maddpg
 
     experiment5_config = Experiment(
+        ALGORITHM=algorithm_to_run,
         RENDER_MODE='human',  # None = do not render. if not defined, default is to render
         EXPERIMENT_ID='Experiment5',
         LOAD_MODEL_DIRECTORY='experiments/08_12_2024-13_56_13_Experiment1/trained_model.zip',
