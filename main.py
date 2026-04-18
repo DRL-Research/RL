@@ -4,6 +4,7 @@ from highwayenv.utils import patch_intersection_env, register_intersection_env
 from src.experiment import scenarios_config as sc
 from src.experiment.experiment_config import Experiment
 from src.training.training_handler import run_experiment
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -11,15 +12,15 @@ if __name__ == "__main__":
 
     patch_intersection_env()
     register_intersection_env()
-    algorithm_to_run = "experiment"  # experiment | baseline | maddpg | vn_maddpg
 
     experiment5_config = Experiment(
-        ALGORITHM=algorithm_to_run,
+        ALGORITHM="MAPS",  # MAPS | vn_maddpg | maddpg
         RENDER_MODE='human',  # None = do not render. if not defined, default is to render
         EXPERIMENT_ID='Experiment5',
-        LOAD_MODEL_DIRECTORY='experiments/08_12_2024-13_56_13_Experiment1/trained_model.zip',
         EPOCHS=1,
-        CYCLES=3)
+        CYCLES=3,
+        # LOAD_MODEL_DIRECTORY='experiments/08_12_2024-13_56_13_Experiment1/trained_model.zip',
+    )
 
     # dictionary were the keys are EXPERIMENT_ID (experiment name) and the values are environment configurations defined in scenarios_config.py
     custom_env_configs = {

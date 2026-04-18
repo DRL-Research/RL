@@ -17,14 +17,11 @@ logger = logging.getLogger(__name__)
 
 
 def canonicalize_algorithm_name(algorithm_name: str | None) -> str:
-    normalized_name = (algorithm_name or "experiment").lower()
-    if normalized_name == "baseline":
-        return "vn_maddpg"
-    if normalized_name in {"experiment", "maddpg", "vn_maddpg"}:
-        return normalized_name
+    if algorithm_name in {"MAPS", "maddpg", "vn_maddpg"}:
+        return algorithm_name
     raise ValueError(
         f"Unsupported algorithm '{algorithm_name}'. "
-        "Expected one of: experiment, baseline, maddpg, vn_maddpg."
+        "Expected one of: MAPS, maddpg, vn_maddpg."
     )
 
 
@@ -180,7 +177,7 @@ class BaselineTrainer:
         self.total_episodes = int(experiment_config.EPISODES_PER_CYCLE * experiment_config.CYCLES)
 
         joint_action_dim = self.num_agents * self.action_dim
-        hidden_dim = int(experiment_config.BASELINE_HIDDEN_DIM)
+        hidden_dim = int(experiment_config.MADDPG_HIDDEN_DIM)
 
         self.actors = [
             ActorNetwork(self.observation_dim, self.action_dim, hidden_dim).to(self.device)
@@ -199,18 +196,18 @@ class BaselineTrainer:
             hard_update(critic, target_critic)
 
         self.actor_optimizers = [
-            torch.optim.Adam(actor.parameters(), lr=experiment_config.BASELINE_ACTOR_LR)
+            torch.optim.Adam(actor.parameters(), lr=experiment_config.MADDPG_ACTOR_LR)
             for actor in self.actors
         ]
         self.critic_optimizers = [
-            torch.optim.Adam(critic.parameters(), lr=experiment_config.BASELINE_CRITIC_LR)
+            torch.optim.Adam(critic.parameters(), lr=experiment_config.MADDPG_CRITIC_LR)
             for critic in self.critics
         ]
 
         self.replay_buffer = JointReplayBuffer(
-            capacity=int(experiment_config.BASELINE_BUFFER_SIZE),
+            capacity=int(experiment_config.MADDPG_BUFFER_SIZE),
             prioritized=self.use_prioritized_replay,
-            alpha=float(experiment_config.BASELINE_PRIORITY_ALPHA),
+            alpha=float(experiment_config.MADDPG_PRIORITY_ALPHA),
         )
 
         self.noise_processes = [OUNoise(self.action_dim) for _ in range(self.num_agents)]
@@ -261,8 +258,8 @@ class BaselineTrainer:
         return flattened_state
 
     def _get_noise_scale(self, episode_index: int) -> float:
-        initial_noise = float(self.experiment_config.BASELINE_INITIAL_NOISE)
-        final_noise = float(self.experiment_config.BASELINE_FINAL_NOISE)
+        initial_noise = float(self.experiment_config.MADDPG_INITIAL_NOISE)
+        final_noise = float(self.experiment_config.MADDPG_FINAL_NOISE)
         if not self.use_variable_noise:
             return initial_noise
         remaining_ratio = max(0.0, (self.total_episodes - episode_index + 1) / max(self.total_episodes, 1))
@@ -271,7 +268,7 @@ class BaselineTrainer:
     def _get_beta(self, episode_index: int) -> float:
         if not self.use_prioritized_replay:
             return 1.0
-        beta_start = float(self.experiment_config.BASELINE_PRIORITY_BETA_START)
+        beta_start = float(self.experiment_config.MADDPG_PRIORITY_BETA_START)
         if self.total_episodes <= 1:
             progress_ratio = 1.0
         else:
@@ -293,7 +290,7 @@ class BaselineTrainer:
                 selected_actions.append(0)
                 continue
 
-            if (not deterministic) and self.total_steps < int(self.experiment_config.BASELINE_WARMUP_STEPS):
+            if (not deterministic) and self.total_steps < int(self.experiment_config.MADDPG_WARMUP_STEPS):
                 selected_actions.append(int(np.random.randint(self.action_dim)))
                 continue
 
@@ -359,21 +356,21 @@ class BaselineTrainer:
 
     def _update_networks(self, episode_index: int) -> tuple[float | None, float | None]:
         minimum_buffer_size = max(
-            int(self.experiment_config.BASELINE_BATCH_SIZE),
-            int(self.experiment_config.BASELINE_WARMUP_STEPS),
+            int(self.experiment_config.MADDPG_BATCH_SIZE),
+            int(self.experiment_config.MADDPG_WARMUP_STEPS),
         )
 
         if len(self.replay_buffer) < minimum_buffer_size:
             return None, None
-        if self.total_steps % int(self.experiment_config.BASELINE_TRAIN_EVERY) != 0:
+        if self.total_steps % int(self.experiment_config.MADDPG_TRAIN_EVERY) != 0:
             return None, None
 
         actor_loss_values: list[float] = []
         critic_loss_values: list[float] = []
         beta = self._get_beta(episode_index)
 
-        for _ in range(int(self.experiment_config.BASELINE_UPDATES_PER_STEP)):
-            batch = self.replay_buffer.sample(int(self.experiment_config.BASELINE_BATCH_SIZE), beta)
+        for _ in range(int(self.experiment_config.MADDPG_UPDATES_PER_STEP)):
+            batch = self.replay_buffer.sample(int(self.experiment_config.MADDPG_BATCH_SIZE), beta)
 
             state_batch = torch.tensor(batch["states"], dtype=torch.float32, device=self.device)
             obs_batch = torch.tensor(batch["obs"], dtype=torch.float32, device=self.device)
@@ -402,7 +399,7 @@ class BaselineTrainer:
                 current_q_values = self.critics[agent_index](state_batch, joint_action_batch)
                 with torch.no_grad():
                     target_q_values = reward_batch[:, agent_index : agent_index + 1] + (
-                        float(self.experiment_config.BASELINE_GAMMA)
+                        float(self.experiment_config.MADDPG_GAMMA)
                         * (1.0 - done_batch[:, agent_index : agent_index + 1])
                         * self.target_critics[agent_index](next_state_batch, target_joint_action_batch)
                     )
@@ -416,7 +413,7 @@ class BaselineTrainer:
                 critic_loss.backward()
                 torch.nn.utils.clip_grad_norm_(
                     self.critics[agent_index].parameters(),
-                    float(self.experiment_config.BASELINE_MAX_GRAD_NORM),
+                    float(self.experiment_config.MADDPG_MAX_GRAD_NORM),
                 )
                 self.critic_optimizers[agent_index].step()
                 critic_loss_values.append(float(critic_loss.item()))
@@ -430,7 +427,7 @@ class BaselineTrainer:
                     if other_agent_index == agent_index:
                         policy_action = F.gumbel_softmax(
                             other_agent_logits,
-                            tau=float(self.experiment_config.BASELINE_GUMBEL_TAU),
+                            tau=float(self.experiment_config.MADDPG_GUMBEL_TAU),
                             hard=True,
                         )
                     else:
@@ -448,7 +445,7 @@ class BaselineTrainer:
                 actor_loss.backward()
                 torch.nn.utils.clip_grad_norm_(
                     self.actors[agent_index].parameters(),
-                    float(self.experiment_config.BASELINE_MAX_GRAD_NORM),
+                    float(self.experiment_config.MADDPG_MAX_GRAD_NORM),
                 )
                 self.actor_optimizers[agent_index].step()
                 actor_loss_values.append(float(actor_loss.item()))
@@ -466,11 +463,11 @@ class BaselineTrainer:
                 self.replay_buffer.update_priorities(batch["indices"], new_priorities)
 
             self.update_steps += 1
-            if self.update_steps % int(self.experiment_config.BASELINE_TARGET_UPDATE_INTERVAL) == 0:
+            if self.update_steps % int(self.experiment_config.MADDPG_TARGET_UPDATE_INTERVAL) == 0:
                 for actor, target_actor in zip(self.actors, self.target_actors):
-                    soft_update(actor, target_actor, float(self.experiment_config.BASELINE_TAU))
+                    soft_update(actor, target_actor, float(self.experiment_config.MADDPG_TAU))
                 for critic, target_critic in zip(self.critics, self.target_critics):
-                    soft_update(critic, target_critic, float(self.experiment_config.BASELINE_TAU))
+                    soft_update(critic, target_critic, float(self.experiment_config.MADDPG_TAU))
 
         average_actor_loss = float(np.mean(actor_loss_values)) if actor_loss_values else None
         average_critic_loss = float(np.mean(critic_loss_values)) if critic_loss_values else None

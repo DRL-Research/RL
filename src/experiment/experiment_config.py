@@ -8,7 +8,8 @@ from logger.neptune_logger import NeptuneLogger
 
 @dataclass
 class Experiment:
-    ALGORITHM: str = "experiment"  # experiment | baseline | maddpg | vn_maddpg
+
+    ALGORITHM: str = "MAPS"  # MAPS | maddpg | vn_maddpg
     LOAD_PREVIOUS_WEIGHT = True
     BYPASS_RANDOM_INITIALIZATION = False
 
@@ -71,24 +72,23 @@ class Experiment:
     MODEL_TYPE: str = "PPO"  # Model type (e.g., PPO, DQN)
 
     # Baseline (MADDPG / VN-MADDPG) configuration
-    BASELINE_ACTOR_LR: float = 5e-4
-    BASELINE_CRITIC_LR: float = 5e-4
-    BASELINE_GAMMA: float = 0.99
-    BASELINE_TAU: float = 0.01
-    BASELINE_BATCH_SIZE: int = 256
-    BASELINE_BUFFER_SIZE: int = 100000
-    BASELINE_WARMUP_STEPS: int = 1000
-    BASELINE_UPDATES_PER_STEP: int = 1
-    BASELINE_TRAIN_EVERY: int = 1
-    BASELINE_TARGET_UPDATE_INTERVAL: int = 90
-    BASELINE_HIDDEN_DIM: int = 128
-    BASELINE_INITIAL_NOISE: float = 0.25
-    BASELINE_FINAL_NOISE: float = 0.0
-    BASELINE_PRIORITY_ALPHA: float = 0.6
-    BASELINE_PRIORITY_BETA_START: float = 0.4
-    BASELINE_GUMBEL_TAU: float = 1.0
-    BASELINE_MAX_GRAD_NORM: float = 1.0
-    BASELINE_EVAL_EPISODES: int = 5
+    MADDPG_ACTOR_LR: float = 5e-4
+    MADDPG_CRITIC_LR: float = 5e-4
+    MADDPG_GAMMA: float = 0.99
+    MADDPG_TAU: float = 0.01
+    MADDPG_BATCH_SIZE: int = 256
+    MADDPG_BUFFER_SIZE: int = 100000
+    MADDPG_WARMUP_STEPS: int = 1000
+    MADDPG_UPDATES_PER_STEP: int = 1
+    MADDPG_TRAIN_EVERY: int = 1
+    MADDPG_TARGET_UPDATE_INTERVAL: int = 90
+    MADDPG_HIDDEN_DIM: int = 128
+    MADDPG_INITIAL_NOISE: float = 0.25
+    MADDPG_FINAL_NOISE: float = 0.0
+    MADDPG_PRIORITY_ALPHA: float = 0.6
+    MADDPG_PRIORITY_BETA_START: float = 0.4
+    MADDPG_GUMBEL_TAU: float = 1.0
+    MADDPG_MAX_GRAD_NORM: float = 1.0
     # Computed fields (not passed via __init__)
     EXPERIMENT_PATH: str = field(init=False)
     SAVE_MODEL_DIRECTORY: str = field(init=False)
@@ -111,30 +111,11 @@ class Experiment:
 
 
     # Simulations Graphics
-    # SCREEN_WIDTH: int = 600
     SCREEN_WIDTH: int = 900
-    # SCREEN_HEIGHT: int = 600
     SCREEN_HEIGHT: int = 800
     CENTERING_POSITION: List[float] = field(default_factory=lambda: [0.5, 0.6])  # Do not change, this centers the simulation
-    # SCALING: float = 5.5 * 1.3
     SCALING: float = 3 * 1.3
 
     def __post_init__(self):
         self.EXPERIMENT_PATH = f"experiments/{self.EXPERIMENT_DATE_TIME}_{self.EXPERIMENT_ID}"
         self.SAVE_MODEL_DIRECTORY = f"{self.EXPERIMENT_PATH}/trained_model"
-
-
-        # Load API token from external JSON file
-        try:
-            with open("logger/token.json", "r") as f:
-                config = json.load(f)
-                api_token = config["api_token"]
-        except (FileNotFoundError, KeyError, json.JSONDecodeError):
-            api_token = None
-
-        # self.logger = NeptuneLogger(
-        #     project_name="AS-DRL/DRL-Research",
-        #     api_token=api_token,
-        #     run_name=self.EXPERIMENT_ID,
-        #     tags=["experiment", "training"]
-        # )

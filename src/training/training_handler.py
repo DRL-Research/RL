@@ -195,8 +195,8 @@ def run_experiment(experiment_config, env_config):
     )
     setup_experiment_dirs(experiment_config.EXPERIMENT_PATH)
 
-    algorithm_name = canonicalize_algorithm_name(getattr(experiment_config, "ALGORITHM", "experiment"))
-    if algorithm_name != "experiment":
+    algorithm_name = canonicalize_algorithm_name(getattr(experiment_config, "ALGORITHM", "MAPS"))
+    if algorithm_name != "MAPS":
         print(f"Running baseline algorithm: {algorithm_name}")
         return run_baseline_experiment(experiment_config, env_config)
 
