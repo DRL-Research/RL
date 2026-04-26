@@ -35,10 +35,11 @@ def ensure_tensor(obs, target_dim=None):
 
 
 def get_obs_of_agent(all_drivers_states, car_index):
-    """Flatten observation, taking the first car if multidimensional."""
+    """Return the observation slice for a single agent from the joint state array."""
     if isinstance(all_drivers_states, np.ndarray):
         if len(all_drivers_states.shape) == 2 and all_drivers_states.shape[0] > 1:
             return all_drivers_states[car_index]
+    return all_drivers_states
 
 
 def flatten_obs(obs, length=4):
@@ -104,38 +105,49 @@ def setup_experiment_dirs(experiment_path):
 def initialize_models(experiment_config, env_config):
     """
     Initialize master and agent models, each with tuned architectures and hyperparameters.
-    d
     """
     experiment_config.CONFIG = env_config
 
-    # === MASTER MODEL CONFIGURATION ===
-    obs_dim = experiment_config.CARS_AMOUNT * 4
-    emb_dim = experiment_config.EMBEDDING_SIZE
-
+    # ── Master model ──────────────────────────────────────────────────────────
+    # observation_dim is always 25 (NUM_MASTER_SLOTS × (AGENT_STATE_SIZE+1))
+    # regardless of the experiment; MasterModel.__init__ sets it internally.
     master_model = MasterModel(
-        observation_dim=obs_dim,
-        embedding_dim=emb_dim,
+        embedding_dim=experiment_config.EMBEDDING_SIZE,
+        experiment=experiment_config,
     )
 
-    # === AGENT MODEL CONFIGURATION (FIXED) ===
-    AGENT_NETWORK_ARCH = {
-        'pi': [32,32],
-        'vf': [32,32]
+    # ── Agent model ───────────────────────────────────────────────────────────
+    _arch_map = {
+        'tiny':    [16, 16],
+        'small':   [32, 32],
+        'medium':  [64, 64],
+        'large':   [128, 128],
+        'deep':    [64, 64, 64],
+        'wide':    [256, 256],
+        'deep_lg': [128, 128, 128],
     }
-    AGENT_LR = 7e-4
+    _arch_key = getattr(experiment_config, 'AGENT_NET_ARCH', 'small')
+    _arch     = _arch_map.get(_arch_key, [32, 32])
+    AGENT_NETWORK_ARCH = {'pi': _arch, 'vf': _arch}
+    AGENT_LR        = getattr(experiment_config, 'AGENT_LR',    7e-4)
+    AGENT_CLIP      = getattr(experiment_config, 'CLIP_RANGE',  0.2)
+    AGENT_GAMMA     = getattr(experiment_config, 'GAMMA',       0.99)
+    AGENT_GAE_LAMBDA= getattr(experiment_config, 'GAE_LAMBDA',  0.95)
     AGENT_BATCH_SIZE = 128
-    env_fn = lambda: Driver(experiment_config, master_model=master_model)
+
+    # Driver no longer needs master_model (embedding computed externally)
+    env_fn = lambda: Driver(experiment_config)
     wrapped_env = DummyVecEnv([env_fn])
 
     agent_additional_model_params = {
-        'n_steps': 2048,         # must be divisible by batch_size
-        'gamma': 0.99,
-        'gae_lambda': 0.95,
-        'ent_coef': 0.0,
-        'clip_range': 0.1,
-        'vf_coef': 0.5,
-        'max_grad_norm': 0.5,
-        'n_epochs': 10
+        'n_steps':        2048,
+        'gamma':          AGENT_GAMMA,
+        'gae_lambda':     AGENT_GAE_LAMBDA,
+        'ent_coef':       0.0,      # entropy handled in our manual loss
+        'clip_range':     AGENT_CLIP,
+        'vf_coef':        getattr(experiment_config, 'VF_COEF', 0.5),
+        'max_grad_norm':  0.5,
+        'n_epochs':       10,
     }
 
     original_define_model_params = Model.define_model_params
@@ -161,7 +173,12 @@ def initialize_models(experiment_config, env_config):
 
 
 def setup_loggers(base_path):
-    """Setup and return agent and master loggers."""
+    """Setup and return agent and master loggers.
+
+    CSV under agent_logs/master_logs stays mostly empty unless SB3 ``learn()`` runs;
+    custom PPO steps do not call ``logger.record``. Per-episode rows go to
+    ``episode_metrics.csv`` in the experiment root (written from ``training_loop``).
+    """
     agent_logger = configure(os.path.join(base_path, "agent_logs"), ["stdout", "csv", "tensorboard"])
     master_logger = configure(os.path.join(base_path, "master_logs"), ["stdout", "csv", "tensorboard"])
     return agent_logger, master_logger
@@ -175,7 +192,7 @@ def close_everything(env, agent_logger, master_logger):
 
 
 def monitor_episode_results(master_model, agent_model):
-    """Prints minimal statistics about the rollout buffers"""
+    """Print minimal stats. Master `rollout_buffer` is not used for training — see training_handler buffers."""
     master_buffer_size = master_model.rollout_buffer.pos
     agent_buffer_size = agent_model.rollout_buffer.pos
 
@@ -187,11 +204,11 @@ def monitor_episode_results(master_model, agent_model):
 
 
 def monitor_rollout_buffers(master_model, agent_model):
-    """Prints statistics about the rollout buffers for debugging"""
+    """Debug printout. Master training uses `local_master_rollout_buffers` / `global_master_rollout_buffer`."""
     print("\n--- Rollout Buffer Statistics ---")
 
-    # Master buffer stats
-    print("Master rollout buffer:")
+    # Placeholder buffer on MasterModel (not the training path)
+    print("Master rollout buffer (placeholder on MasterModel):")
     print(f"  Buffer size: {master_model.rollout_buffer.buffer_size}")
     print(f"  Current position: {master_model.rollout_buffer.pos}")
     print(f"  Is full: {master_model.rollout_buffer.full}")

@@ -77,4 +77,5 @@ class CustomControlledVehicle(ControlledVehicle):
             action["steering"], -self.MAX_STEERING_ANGLE, self.MAX_STEERING_ANGLE
         )
         #print("Self position:", self.position)
+        print("Target speed:", self.target_speed) if ( (abs(self.position[0] > 100) or (abs(self.position[1]) > 100)) ) and (self.target_speed<5) else None
         super().act(action)

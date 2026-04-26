@@ -128,13 +128,87 @@ CONFIG_EXP5_3_controlled_cars = {
 }
 
 
-current_experiment = CONFIG_EXP5_3_controlled_cars
+CONFIG_EXP7_6_controlled_cars = {
+    "controlled_cars": {
+        # ── Group 1 (Local Master 1): indices 0-2 ─────────────────────────────
+        "car1": {
+            "start_lane": Experiment.SOUTH_TO_NORTH,
+            "destination": Experiment.OUTER_NORTH,
+            "speed": Experiment.THROTTLE_SLOW,
+            "init_location": {"longitudinal": Experiment.LONGITUDINAL, "lateral": Experiment.LATERAL},
+            "color": (0, 204, 0),
+        },
+        "car2": {
+            "start_lane": Experiment.WEST_TO_EAST,
+            "destination": Experiment.OUTER_EAST,
+            "speed": Experiment.THROTTLE_SLOW,
+            "init_location": {"longitudinal": Experiment.LONGITUDINAL, "lateral": Experiment.LATERAL},
+            "color": (0, 0, 204),
+        },
+        "car3": {
+            "start_lane": Experiment.NORTH_TO_SOUTH,
+            "destination": Experiment.OUTER_SOUTH,
+            "speed": Experiment.THROTTLE_SLOW,
+            "init_location": {"longitudinal": Experiment.LONGITUDINAL, "lateral": Experiment.LATERAL},
+            "color": (204, 0, 0),
+        },
+        # ── Group 2 (Local Master 2): indices 3-5 ─────────────────────────────
+        "car4": {
+            "start_lane": Experiment.EAST_TO_WEST,
+            "destination": Experiment.OUTER_WEST,
+            "speed": Experiment.THROTTLE_SLOW,
+            "init_location": {"longitudinal": Experiment.LONGITUDINAL, "lateral": Experiment.LATERAL},
+            "color": (204, 204, 0),
+        },
+        "car5": {
+            "start_lane": Experiment.SOUTH_TO_NORTH,
+            "destination": Experiment.OUTER_NORTH,
+            "speed": Experiment.THROTTLE_SLOW,
+            # 30 units further back than car1 → guaranteed safe gap on same lane
+            "init_location": {"longitudinal": Experiment.LONGITUDINAL - 30, "lateral": Experiment.LATERAL},
+            "color": (0, 204, 204),
+        },
+        "car6": {
+            "start_lane": Experiment.EAST_TO_WEST,
+            "destination": Experiment.OUTER_WEST,
+            "speed": Experiment.THROTTLE_SLOW,
+            # 30 units further back than car4 → guaranteed safe gap on same lane
+            "init_location": {"longitudinal": Experiment.LONGITUDINAL - 30, "lateral": Experiment.LATERAL},
+            "color": (204, 0, 204),
+        },
+    },
+    "static_cars": {},
+}
 
 
-full_env_config_exp5 = create_full_environment_config(current_experiment)
+current_experiment = CONFIG_EXP7_6_controlled_cars
+
+
+full_env_config_exp7 = create_full_environment_config(current_experiment)
 
 
 for _ in current_experiment["controlled_cars"]:
     after_is_arrived_flags.append(False)
 
-# TODO: make sure it works
+
+def make_env_config_exp7(
+    collision_reward: int   = -300,
+    arrived_reward: int     = 50,
+    starvation_reward: float= -5,
+    high_speed_reward: float= 5,
+    target_speeds: list     = None,
+) -> dict:
+    """
+    Build a full env config for EXP-7 with fully custom reward magnitudes.
+    All vehicle positions remain identical to CONFIG_EXP7_6_controlled_cars.
+    target_speeds: list of 2 speeds [slow, fast] in m/s (default [5, 10]).
+    """
+    base = dict(CONFIG_EXP7_6_controlled_cars)
+    base["collision_reward"]  = collision_reward
+    base["arrived_reward"]    = arrived_reward
+    base["starvation_reward"] = starvation_reward
+    base["high_speed_reward"] = high_speed_reward
+    cfg = create_full_environment_config(base)
+    if target_speeds is not None:
+        cfg["action"]["target_speeds"] = list(target_speeds)
+    return cfg

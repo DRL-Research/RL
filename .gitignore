@@ -3,5 +3,6 @@ __pycache__/
 venv/
 env/
 experiments/
+experiment_runs/
 logger/token.json
 .neptune/

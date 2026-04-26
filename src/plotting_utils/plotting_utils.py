@@ -1,259 +1,123 @@
+import os
 import numpy as np
 import matplotlib.pyplot as plt
-import os
+import matplotlib.ticker as ticker
+
+
+# ── helpers ────────────────────────────────────────────────────────────────────
+
+def _smooth(values, window=20):
+    """Moving-average smoothing. Returns array same length as input."""
+    arr = np.array([v if v is not None else np.nan for v in values], dtype=float)
+    if len(arr) < window:
+        window = max(1, len(arr))
+    kernel = np.ones(window) / window
+    # 'valid' shrinks the output; pad with nan on both sides to keep length
+    pad = window // 2
+    padded = np.concatenate([np.full(pad, np.nan), arr, np.full(pad, np.nan)])
+    smoothed = np.convolve(np.where(np.isnan(padded), 0, padded), kernel, mode='valid')
+    counts   = np.convolve((~np.isnan(padded)).astype(float), kernel, mode='valid')
+    smoothed = smoothed / np.where(counts > 0, counts, 1)
+    smoothed[counts == 0] = np.nan
+    return smoothed[:len(arr)]
+
+
+def _loss_subplot(ax, values, color, title):
+    """Draw raw (light) + smoothed (dark) loss curve on ax."""
+    x = np.arange(1, len(values) + 1)
+    raw = np.array([v if v is not None else np.nan for v in values], dtype=float)
+    smoothed = _smooth(values, window=20)
+
+    ax.plot(x, raw,      color=color, alpha=0.25, linewidth=0.8)
+    ax.plot(x, smoothed, color=color, alpha=1.0,  linewidth=2.0)
+    ax.set_title(title, fontsize=11)
+    ax.set_xlabel("Episode", fontsize=9)
+    ax.set_ylabel("Loss",    fontsize=9)
+    ax.grid(True, alpha=0.3)
+    ax.tick_params(labelsize=8)
+
+
+# ── main entry point ───────────────────────────────────────────────────────────
 
 def plot_training_results(experiment, results, show_plots=True):
     """
-    Generate improved training visualization with loss curves
-    Args:
-        experiment: the experiment configuration
-        results: dictionary with training results
-        show_plots: if True, displays the plots interactively
+    Generate three plots matching the target style:
+      1. Training Loss – All Network Levels  (3 subplots)
+      2. Arrival Rate
+      3. Agent Rewards
     """
-    print("Generating detailed training plots...")
-
-    # Create directory for saving plots
     plots_dir = os.path.join(experiment.EXPERIMENT_PATH, "plots")
     os.makedirs(plots_dir, exist_ok=True)
+    print("Generating training plots...")
 
-    # Unpack the results
-    episode_rewards = results["episode_rewards"]
-    master_policy_losses = results["master_policy_losses"]
-    master_value_losses = results["master_value_losses"]
-    master_total_losses = results["master_total_losses"]
-    agent_policy_losses = results["agent_policy_losses"]
-    agent_value_losses = results["agent_value_losses"]
-    agent_total_losses = results["agent_total_losses"]
+    episode_rewards        = results.get("episode_rewards", [])
+    arrival_rates          = results.get("arrival_rates", [])
+    master_total_losses    = results.get("master_total_losses", [])
+    group0_total_losses    = results.get("agent_group0_total_losses", [])
+    group1_total_losses    = results.get("agent_group1_total_losses", [])
 
-    # Create x-axis for episodes
-    episodes = np.arange(1, len(episode_rewards) + 1)
+    plt.style.use('seaborn-v0_8-whitegrid')
 
-    # Set up the figure style
-    plt.style.use('ggplot')
+    # ── 1. Training Loss – All Network Levels ─────────────────────────────────
+    fig, axes = plt.subplots(1, 3, figsize=(14, 4))
+    fig.suptitle("Training Loss – All Network Levels", fontsize=13, fontweight='bold', y=1.01)
 
-    # 1. Plot episode rewards
-    plt.figure(figsize=(10, 6))
-    plt.plot(episodes, episode_rewards, 'o-', color='#2C7BB6', linewidth=2, markersize=6)
-    plt.axhline(y=0, color='gray', linestyle='--', alpha=0.7)
-    plt.grid(True, alpha=0.3)
-    plt.title('Episode Rewards', fontsize=16)
-    plt.xlabel('Episode', fontsize=14)
-    plt.ylabel('Reward', fontsize=14)
+    _loss_subplot(axes[0], master_total_losses, color='#4472C4', title='Shared Master')
+    _loss_subplot(axes[1], group0_total_losses, color='#C0504D', title='Agent Group0')
+    _loss_subplot(axes[2], group1_total_losses, color='#4F9A50', title='Agent Group1')
+
     plt.tight_layout()
-    plt.savefig(os.path.join(plots_dir, 'episode_rewards.png'))
+    path = os.path.join(plots_dir, 'training_loss_all_levels.png')
+    plt.savefig(path, dpi=150, bbox_inches='tight')
     if show_plots:
         plt.show()
     else:
         plt.close()
 
-    # 2. Plot Master value loss
-    plt.figure(figsize=(10, 6))
-    valid_indices = [i for i, val in enumerate(master_value_losses) if val is not None]
-    valid_episodes = [episodes[i] for i in valid_indices]
-    valid_losses = [master_value_losses[i] for i in valid_indices]
+    # ── 2. Arrival Rate ────────────────────────────────────────────────────────
+    if arrival_rates:
+        x = np.arange(1, len(arrival_rates) + 1)
+        raw      = np.array(arrival_rates, dtype=float)
+        smoothed = _smooth(arrival_rates, window=20)
 
-    if valid_losses:
-        plt.plot(valid_episodes, valid_losses, 'o-', color='#D95F02', linewidth=2, markersize=6)
-        plt.grid(True, alpha=0.3)
-        plt.title('Master Value Loss', fontsize=16)
-        plt.xlabel('Episode', fontsize=14)
-        plt.ylabel('Loss', fontsize=14)
-        plt.yscale('log')  # Use log scale since losses can vary greatly
+        fig, ax = plt.subplots(figsize=(9, 5))
+        ax.plot(x, raw,      color='#4F9A50', alpha=0.25, linewidth=0.8)
+        ax.plot(x, smoothed, color='#2E7D32', alpha=1.0,  linewidth=2.2,
+                label='Arrival Rate (smoothed)')
+        ax.set_title('Arrival Rate', fontsize=14)
+        ax.set_xlabel('Episode', fontsize=12)
+        ax.set_ylabel('Arrival Rate (%)', fontsize=12)
+        ax.set_ylim(bottom=0)
+        ax.grid(True, alpha=0.3)
         plt.tight_layout()
-        plt.savefig(os.path.join(plots_dir, 'master_value_loss.png'))
+        path = os.path.join(plots_dir, 'arrival_rate.png')
+        plt.savefig(path, dpi=150, bbox_inches='tight')
         if show_plots:
             plt.show()
         else:
             plt.close()
 
-    # 3. Plot Master total loss
-    plt.figure(figsize=(10, 6))
-    valid_indices = [i for i, val in enumerate(master_total_losses) if val is not None]
-    valid_episodes = [episodes[i] for i in valid_indices]
-    valid_losses = [master_total_losses[i] for i in valid_indices]
+    # ── 3. Agent Rewards ───────────────────────────────────────────────────────
+    if episode_rewards:
+        x = np.arange(1, len(episode_rewards) + 1)
+        raw      = np.array(episode_rewards, dtype=float)
+        smoothed = _smooth(episode_rewards, window=20)
 
-    if valid_losses:
-        plt.plot(valid_episodes, valid_losses, 'o-', color='#7570B3', linewidth=2, markersize=6)
-        plt.grid(True, alpha=0.3)
-        plt.title('Master Total Loss', fontsize=16)
-        plt.xlabel('Episode', fontsize=14)
-        plt.ylabel('Loss', fontsize=14)
-        plt.yscale('log')  # Use log scale since losses can vary greatly
+        fig, ax = plt.subplots(figsize=(9, 5))
+        ax.plot(x, raw,      color='#5B9BD5', alpha=0.25, linewidth=0.8)
+        ax.plot(x, smoothed, color='#2E75B6', alpha=1.0,  linewidth=2.2,
+                label='Total reward')
+        ax.set_title('Agent Rewards', fontsize=14, fontweight='bold')
+        ax.set_xlabel('Episode', fontsize=12)
+        ax.set_ylabel('Reward', fontsize=12)
+        ax.legend(fontsize=11)
+        ax.grid(True, alpha=0.3)
         plt.tight_layout()
-        plt.savefig(os.path.join(plots_dir, 'master_total_loss.png'))
+        path = os.path.join(plots_dir, 'agent_rewards.png')
+        plt.savefig(path, dpi=150, bbox_inches='tight')
         if show_plots:
             plt.show()
         else:
             plt.close()
-
-    # 4. Plot Agent value loss
-    plt.figure(figsize=(10, 6))
-    valid_indices = [i for i, val in enumerate(agent_value_losses) if val is not None]
-    valid_episodes = [episodes[i] for i in valid_indices]
-    valid_losses = [agent_value_losses[i] for i in valid_indices]
-
-    if valid_losses:
-        plt.plot(valid_episodes, valid_losses, 'o-', color='#1B9E77', linewidth=2, markersize=6)
-        plt.grid(True, alpha=0.3)
-        plt.title('Agent Value Loss', fontsize=16)
-        plt.xlabel('Episode', fontsize=14)
-        plt.ylabel('Loss', fontsize=14)
-        plt.yscale('log')  # Use log scale since losses can vary greatly
-        plt.tight_layout()
-        plt.savefig(os.path.join(plots_dir, 'agent_value_loss.png'))
-        if show_plots:
-            plt.show()
-        else:
-            plt.close()
-
-    # 5. Plot Agent total loss
-    plt.figure(figsize=(10, 6))
-    valid_indices = [i for i, val in enumerate(agent_total_losses) if val is not None]
-    valid_episodes = [episodes[i] for i in valid_indices]
-    valid_losses = [agent_total_losses[i] for i in valid_indices]
-
-    if valid_losses:
-        plt.plot(valid_episodes, valid_losses, 'o-', color='#E7298A', linewidth=2, markersize=6)
-        plt.grid(True, alpha=0.3)
-        plt.title('Agent Total Loss', fontsize=16)
-        plt.xlabel('Episode', fontsize=14)
-        plt.ylabel('Loss', fontsize=14)
-        plt.yscale('log')  # Use log scale since losses can vary greatly
-        plt.tight_layout()
-        plt.savefig(os.path.join(plots_dir, 'agent_total_loss.png'))
-        if show_plots:
-            plt.show()
-        else:
-            plt.close()
-
-    plt.figure(figsize=(12, 8))
-
-    # Master losses
-    master_valid_indices = [i for i, val in enumerate(master_total_losses) if val is not None]
-    master_valid_episodes = [episodes[i] for i in master_valid_indices]
-    master_valid_total_losses = [master_total_losses[i] for i in master_valid_indices]
-    master_valid_value_losses = [master_value_losses[i] for i in master_valid_indices]
-
-    # Agent losses
-    agent_valid_indices = [i for i, val in enumerate(agent_total_losses) if val is not None]
-    agent_valid_episodes = [episodes[i] for i in agent_valid_indices]
-    agent_valid_total_losses = [agent_total_losses[i] for i in agent_valid_indices]
-    agent_valid_value_losses = [agent_value_losses[i] for i in agent_valid_indices]
-
-    if master_valid_total_losses:
-        plt.plot(master_valid_episodes, master_valid_total_losses, 'o-', label='Master Total Loss',
-                 color='#7570B3', linewidth=2, markersize=6)
-        plt.plot(master_valid_episodes, master_valid_value_losses, 's-', label='Master Value Loss',
-                 color='#D95F02', linewidth=2, markersize=6)
-
-    if agent_valid_total_losses:
-        plt.plot(agent_valid_episodes, agent_valid_total_losses, 'o-', label='Agent Total Loss',
-                 color='#E7298A', linewidth=2, markersize=6)
-        plt.plot(agent_valid_episodes, agent_valid_value_losses, 's-', label='Agent Value Loss',
-                 color='#1B9E77', linewidth=2, markersize=6)
-
-    plt.grid(True, alpha=0.3)
-    plt.title('Training Losses', fontsize=16)
-    plt.xlabel('Episode', fontsize=14)
-    plt.ylabel('Loss (log scale)', fontsize=14)
-    plt.yscale('log')
-    plt.legend(fontsize=12)
-    plt.tight_layout()
-    plt.savefig(os.path.join(plots_dir, 'combined_losses.png'))
-    if show_plots:
-        plt.show()
-    else:
-        plt.close()
-
-    # 7. Plot combined training metrics
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
-
-    # Plot rewards
-    ax1.plot(episodes, episode_rewards, 'o-', color='#2C7BB6', linewidth=2, markersize=6)
-    ax1.axhline(y=0, color='gray', linestyle='--', alpha=0.7)
-    ax1.set_title('Episode Rewards', fontsize=16)
-    ax1.set_ylabel('Reward', fontsize=14)
-    ax1.grid(True, alpha=0.3)
-
-    # Plot losses on second axis
-    if master_valid_total_losses:
-        ax2.plot(master_valid_episodes, master_valid_total_losses, 'o-', label='Master Loss',
-                 color='#7570B3', linewidth=2, markersize=6)
-
-    if agent_valid_total_losses:
-        ax2.plot(agent_valid_episodes, agent_valid_total_losses, 'o-', label='Agent Loss',
-                 color='#E7298A', linewidth=2, markersize=6)
-
-    ax2.set_title('Training Losses', fontsize=16)
-    ax2.set_xlabel('Episode', fontsize=14)
-    ax2.set_ylabel('Loss (log scale)', fontsize=14)
-    ax2.set_yscale('log')
-    ax2.grid(True, alpha=0.3)
-    ax2.legend(fontsize=12)
-
-    plt.tight_layout()
-    plt.savefig(os.path.join(plots_dir, 'training_summary.png'))
-    if show_plots:
-        plt.show()
-    else:
-        plt.close()
-    if show_plots:
-        print("Plots displayed. Close all plot windows to continue.")
 
     print(f"All plots saved to: {plots_dir}")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# def monitor_rollout_buffers(master_model, agent_model):
-#     """Prints statistics about the rollout buffers for debugging"""
-#     print("\n--- Rollout Buffer Statistics ---")
-#
-#     # Master buffer stats
-#     print("Master rollout buffer:")
-#     print(f"  Buffer size: {master_model.rollout_buffer.buffer_size}")
-#     print(f"  Current position: {master_model.rollout_buffer.pos}")
-#     print(f"  Is full: {master_model.rollout_buffer.full}")
-#
-#     if hasattr(master_model.rollout_buffer, 'observations') and master_model.rollout_buffer.observations is not None:
-#         print(f"  Observations shape: {master_model.rollout_buffer.observations.shape}")
-#
-#     if hasattr(master_model.rollout_buffer, 'actions') and master_model.rollout_buffer.actions is not None:
-#         print(f"  Actions shape: {master_model.rollout_buffer.actions.shape}")
-#
-#     if hasattr(master_model.rollout_buffer, 'rewards') and master_model.rollout_buffer.rewards is not None:
-#         rewards = master_model.rollout_buffer.rewards[:master_model.rollout_buffer.pos]
-#         if len(rewards) > 0:
-#             print(f"  Rewards stats: min={rewards.min():.4f}, max={rewards.max():.4f}, mean={rewards.mean():.4f}")
-#             print(f"  Rewards: {rewards}")
-#
-#     # Agent buffer stats
-#     print("\nAgent rollout buffer:")
-#     print(f"  Buffer size: {agent_model.rollout_buffer.buffer_size}")
-#     print(f"  Current position: {agent_model.rollout_buffer.pos}")
-#     print(f"  Is full: {agent_model.rollout_buffer.full}")
-#
-#     if hasattr(agent_model.rollout_buffer, 'observations') and agent_model.rollout_buffer.observations is not None:
-#         print(f"  Observations shape: {agent_model.rollout_buffer.observations.shape}")
-#
-#     if hasattr(agent_model.rollout_buffer, 'actions') and agent_model.rollout_buffer.actions is not None:
-#         print(f"  Actions shape: {agent_model.rollout_buffer.actions.shape}")
-#
-#     if hasattr(agent_model.rollout_buffer, 'rewards') and agent_model.rollout_buffer.rewards is not None:
-#         rewards = agent_model.rollout_buffer.rewards[:agent_model.rollout_buffer.pos]
-#         if len(rewards) > 0:
-#             print(f"  Rewards stats: min={rewards.min():.4f}, max={rewards.max():.4f}, mean={rewards.mean():.4f}")
-#             print(f"  Rewards: {rewards}")
-#
-#     print("-------------------------------\n")

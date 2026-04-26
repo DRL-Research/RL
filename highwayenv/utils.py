@@ -10,28 +10,37 @@ def patch_intersection_env():
     for reward_speed_range if it's missing from the configuration.
     """
 
-    # Store the original method
     original_agent_rewards = MultiAgentIntersectionEnv._agent_rewards
 
-    # Define the patched method
     def patched_agent_rewards(self, vehicle):
-        # Add reward_speed_range if missing
         if "reward_speed_range" not in self.config:
             print("Adding missing reward_speed_range parameter to environment config")
             self.config["reward_speed_range"] = [7.0, 9.0]
         return original_agent_rewards(self, vehicle)
 
-    # Replace the original method with our patched version
     MultiAgentIntersectionEnv._agent_rewards = patched_agent_rewards
     print("Successfully patched MultiAgentIntersectionEnv._agent_rewards method")
-
-
 
 
 def register_intersection_env():
     if "RELintersection-v0" not in registry:
         register(
             id="RELintersection-v0",
-            # entry_point="highwayenv.intersection_class:IntersectionEnv",
             entry_point="highwayenv.intersection_class:MultiAgentIntersectionEnv",
+        )
+
+
+def register_roundabout_env():
+    if "RELroundabout-v0" not in registry:
+        register(
+            id="RELroundabout-v0",
+            entry_point="highwayenv.roundabout_class:MultiAgentRoundaboutEnv",
+        )
+
+
+def register_double_intersection_env():
+    if "RELdouble-intersection-v0" not in registry:
+        register(
+            id="RELdouble-intersection-v0",
+            entry_point="highwayenv.double_intersection_class:MultiAgentDoubleIntersectionEnv",
         )
