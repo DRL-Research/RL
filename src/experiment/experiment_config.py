@@ -8,7 +8,7 @@ from logger.neptune_logger import NeptuneLogger
 
 @dataclass
 class Experiment:
-    ALGORITHM: str = "experiment"  # experiment | baseline | maddpg | vn_maddpg
+    ALGORITHM: str = "experiment"  # experiment | baseline | maddpg | vn_maddpg | attention_maddpg | ma_ga_ddpg
     LOAD_PREVIOUS_WEIGHT = True
     BYPASS_RANDOM_INITIALIZATION = False
 
@@ -89,6 +89,36 @@ class Experiment:
     BASELINE_GUMBEL_TAU: float = 1.0
     BASELINE_MAX_GRAD_NORM: float = 1.0
     BASELINE_EVAL_EPISODES: int = 5
+
+    # Attention-MADDPG / MA-GA-DDPG configuration
+    MA_GA_ACTOR_LR: float = 1e-2
+    MA_GA_CRITIC_LR: float = 1e-2
+    MA_GA_GAMMA: float = 0.95
+    MA_GA_TAU: float = 0.01
+    MA_GA_BATCH_SIZE: int = 128
+    MA_GA_BUFFER_SIZE: int = 10000
+    MA_GA_WARMUP_STEPS: int = 128
+    MA_GA_UPDATES_PER_STEP: int = 1
+    MA_GA_TRAIN_EVERY: int = 100
+    MA_GA_TARGET_UPDATE_INTERVAL: int = 1
+    MA_GA_HIDDEN_DIM: int = 128
+    MA_GA_ATTENTION_HEADS: int = 2
+    MA_GA_INITIAL_NOISE: float = 0.15
+    MA_GA_FINAL_NOISE: float = 0.15
+    MA_GA_NOISE_SIGMA: float = 0.2
+    MA_GA_GUMBEL_TAU: float = 1.0
+    MA_GA_MAX_GRAD_NORM: float = 1.0
+    MA_GA_EVAL_EPISODES: int = 5
+    MA_GA_INTERACTION_DISTANCE: float = 1.25
+    MA_GA_ATTENTION_THRESHOLD: float = 0.05
+    MA_GA_MAX_INTERACTION_OBJECTS: int = 5
+    MA_GA_PREDICTION_STEPS: int = 5
+    MA_GA_PREDICTION_DELTA: float = 1.0
+    MA_GA_CONFLICT_DISTANCE: float = 0.15
+    MA_GA_SLOWER_SCALE: float = 0.5
+    MA_GA_FASTER_SCALE: float = 1.25
+    MA_GA_MAX_PREDICTED_SPEED: float = 1.0
+
     # Computed fields (not passed via __init__)
     EXPERIMENT_PATH: str = field(init=False)
     SAVE_MODEL_DIRECTORY: str = field(init=False)

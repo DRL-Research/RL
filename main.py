@@ -11,7 +11,7 @@ if __name__ == "__main__":
 
     patch_intersection_env()
     register_intersection_env()
-    algorithm_to_run = "experiment"  # experiment | baseline | maddpg | vn_maddpg
+    algorithm_to_run = "experiment"  # experiment | baseline | maddpg | vn_maddpg | attention_maddpg | ma_ga_ddpg
 
     experiment5_config = Experiment(
         ALGORITHM=algorithm_to_run,
