@@ -5,6 +5,7 @@ import torch
 from gymnasium import spaces
 from stable_baselines3.common.buffers import RolloutBuffer
 
+from src.baseline.vn_maddpg import canonicalize_algorithm_name, run_baseline_experiment
 from src.model.model_handler import load_models, save_models
 from src.plotting_utils.plotting_utils import plot_training_results
 from src.project_globals import rollout_buffers
@@ -193,6 +194,12 @@ def run_experiment(experiment_config, env_config):
         f"Environment configuration: {len(env_config['controlled_cars'])} controlled cars, {len(env_config['static_cars'])} static cars"
     )
     setup_experiment_dirs(experiment_config.EXPERIMENT_PATH)
+
+    algorithm_name = canonicalize_algorithm_name(getattr(experiment_config, "ALGORITHM", "experiment"))
+    if algorithm_name != "experiment":
+        print(f"Running baseline algorithm: {algorithm_name}")
+        return run_baseline_experiment(experiment_config, env_config)
+
     master_model, agent_model, wrapped_env = initialize_models(experiment_config, env_config)
     agent_logger, master_logger = setup_loggers(experiment_config.EXPERIMENT_PATH)
     agent_model.set_logger(agent_logger)
