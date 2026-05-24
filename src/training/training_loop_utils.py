@@ -106,6 +106,10 @@ def train_master_and_reset_buffer(master_model, full_obs):
                 print(f"Master model trained on {steps_trained} steps")
                 observations_tensor = torch.FloatTensor(rollout_data.observations)
                 actions_tensor = torch.FloatTensor(rollout_data.actions)
+                if len(observations_tensor.shape) == 3:
+                    observations_tensor = observations_tensor.squeeze(1)
+                if len(actions_tensor.shape) == 3:
+                    actions_tensor = actions_tensor.squeeze(1)
                 policy = master_model.model.policy
                 optimizer = policy.optimizer
                 values, log_probs, entropy = policy.evaluate_actions(observations_tensor, actions_tensor)
@@ -186,6 +190,10 @@ def train_agent_and_reset_buffer(master_model, agent_model, last_master_tensor):
                     print(f"Agent model trained on {steps_trained} steps")
                     observations_tensor = torch.FloatTensor(rollout_data.observations)
                     actions_tensor = torch.FloatTensor(rollout_data.actions)
+                    if len(observations_tensor.shape) == 3:
+                        observations_tensor = observations_tensor.squeeze(1)
+                    if len(actions_tensor.shape) == 3:
+                        actions_tensor = actions_tensor.squeeze(1)
                     policy = agent_model.policy
                     optimizer = policy.optimizer
                     values, log_probs, entropy = policy.evaluate_actions(observations_tensor, actions_tensor)

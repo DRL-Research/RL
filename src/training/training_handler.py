@@ -46,6 +46,9 @@ def training_loop(experiment, env, agent_model, master_model):
     collision_counter, episode_counter, total_steps = 0, 0, 0
 
     results = init_training_results()
+    results["success_flags"] = []
+    results["collision_flags"] = []
+    results["episode_lengths"] = []
 
     for cycle_num in range(1, experiment.CYCLES + 1):
         print('Cycle', cycle_num,'out of ', experiment.CYCLES)
@@ -63,6 +66,9 @@ def training_loop(experiment, env, agent_model, master_model):
             total_steps += steps
             results["episode_rewards"].append(episode_rewards)
             results["all_actions"].append(actions)
+            results["success_flags"].append(0 if crashed else 1)
+            results["collision_flags"].append(1 if crashed else 0)
+            results["episode_lengths"].append(steps)
 
             # Prepare state for training
             with torch.no_grad():
@@ -177,12 +183,12 @@ def run_training_mode(experiment_config, wrapped_env, agent_model, master_model,
     agent_model, master_model, collision_counter, all_rewards, all_actions, training_results = (
         training_loop(experiment=experiment_config, env=wrapped_env, agent_model=agent_model, master_model=master_model))
     save_models(agent_model, master_model, experiment_config.SAVE_MODEL_DIRECTORY)
-    plot_training_results(experiment_config, training_results, show_plots=True)
+    plot_training_results(experiment_config, training_results, show_plots=False)
     #log_training_results_to_neptune(experiment_config.logger, training_results)
     print("Training completed.")
     print("Total collisions:", collision_counter)
     #close_everything(wrapped_env, agent_logger, master_logger)
-    return agent_model, master_model, collision_counter
+    return (agent_model, master_model), training_results, collision_counter
 
 
 ##########################################

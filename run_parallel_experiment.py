@@ -1,0 +1,243 @@
+import sys
+import os
+import time
+import argparse
+import json
+import numpy as np
+import multiprocessing
+
+# Add project root to sys.path
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+
+from compare_algorithms import generate_comparison_plots, print_final_summary_table
+
+def run_single_experiment_process(alg_name, alg_key, seed, num_episodes):
+    """
+    Subprocess entrypoint that runs a single algorithm and seed configuration.
+    All imports are local to ensure compatibility with Windows process spawning.
+    """
+    import sys
+    import os
+    sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+
+    import random
+    import numpy as np
+    import torch
+
+    from highwayenv.utils import patch_intersection_env, register_intersection_env
+    from src.experiment import scenarios_config as sc
+    from src.experiment.experiment_config import Experiment
+    from src.training.training_handler import run_experiment
+
+    # Set up console log redirection to prevent mixed console output
+    log_dir = "experiments/process_logs"
+    os.makedirs(log_dir, exist_ok=True)
+    log_file_path = os.path.join(log_dir, f"{alg_name}_S{seed}.log")
+    
+    sys.stdout = open(log_file_path, "w", encoding="utf-8")
+    sys.stderr = sys.stdout
+
+    print(f"[{alg_name} | Seed {seed}] Initializing environment patches...")
+    patch_intersection_env()
+    register_intersection_env()
+
+    # Set seeds
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
+    config = Experiment(
+        ALGORITHM=alg_key,
+        RENDER_MODE=None,
+        EXPERIMENT_ID=f"Compare_{alg_name}_S{seed}",
+        CYCLES=1,
+        EPISODES_PER_CYCLE=num_episodes
+    )
+    config.LOAD_PREVIOUS_WEIGHT = False
+    config.EXPERIMENT_PATH = f"experiments/Compare_{alg_name}_S{seed}"
+    config.SAVE_MODEL_DIRECTORY = f"{config.EXPERIMENT_PATH}/trained_model"
+
+    env_config = sc.full_env_config_exp5
+
+    print(f"[{alg_name} | Seed {seed}] Starting training run...")
+    start_time = time.time()
+    try:
+        _, history, _ = run_experiment(config, env_config)
+        
+        # Save history to a JSON file (extremely safe and robust cross-process)
+        histories_dir = "experiments/histories"
+        os.makedirs(histories_dir, exist_ok=True)
+        history_path = os.path.join(histories_dir, f"{alg_name}_S{seed}.json")
+
+        # Convert numpy numbers to standard python types for JSON serialization
+        serializable_history = {}
+        for k, v in history.items():
+            if isinstance(v, list):
+                serializable_history[k] = [float(x) if isinstance(x, (np.floating, float)) else x for x in v]
+            else:
+                serializable_history[k] = v
+
+        with open(history_path, "w", encoding="utf-8") as f:
+            json.dump(serializable_history, f, indent=4)
+
+        elapsed = time.time() - start_time
+        print(f"[{alg_name} | Seed {seed}] Finished successfully in {elapsed:.2f} seconds!")
+        print(f"[{alg_name} | Seed {seed}] History saved to {history_path}")
+    except Exception as e:
+        print(f"[{alg_name} | Seed {seed}] FAILED with error: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        sys.stdout.close()
+
+def main():
+    parser = argparse.ArgumentParser(description="Parallelized Multi-Seed MARL Comparison")
+    parser.add_argument("--episodes", type=int, default=900, help="Number of episodes per seed (e.g. 900 for full 8h)")
+    parser.add_argument("--seeds", type=str, default="42,100,2026", help="Comma-separated seeds")
+    parser.add_argument("--window", type=int, default=10, help="Rolling average window size")
+    args = parser.parse_args()
+
+    seeds = [int(s) for s in args.seeds.split(",")]
+    num_episodes = args.episodes
+
+    print("==================================================")
+    print("      Parallel Cooperative MARL Experiment        ")
+    print(f"      Seeds: {seeds} | Episodes: {num_episodes}   ")
+    print("==================================================")
+
+    algorithms = {
+        "MAPS": "experiment",
+        "VN-MA-DDPG": "vn_maddpg",
+        "MA-GA-DDPG": "ma_ga_ddpg"
+    }
+
+    # Ensure histories and logs directory is clean/setup
+    os.makedirs("experiments/histories", exist_ok=True)
+    os.makedirs("experiments/process_logs", exist_ok=True)
+
+    # Spawn a pool of processes to avoid memory exhaustion
+    max_concurrent = 2
+    print(f"\nInitializing process pool with {max_concurrent} concurrent workers...")
+    pool = multiprocessing.Pool(processes=max_concurrent)
+    
+    async_results = []
+    
+    # Queue a task for each seed and algorithm only if not already completed
+    for alg_name, alg_key in algorithms.items():
+        for seed in seeds:
+            history_path = f"experiments/histories/{alg_name}_S{seed}.json"
+            is_complete = False
+            if os.path.exists(history_path):
+                try:
+                    with open(history_path, "r", encoding="utf-8") as f:
+                        hist = json.load(f)
+                    if len(hist.get("episode_rewards", [])) >= num_episodes:
+                        is_complete = True
+                except Exception:
+                    pass
+            
+            if is_complete:
+                print(f"Skipping {alg_name} (Seed {seed}) - full training run of {num_episodes} episodes already completed.")
+                continue
+
+            print(f"Queueing process for {alg_name} (Seed {seed}) in pool...")
+            res = pool.apply_async(
+                run_single_experiment_process,
+                args=(alg_name, alg_key, seed, num_episodes)
+            )
+            async_results.append((alg_name, seed, res))
+
+    if async_results:
+        print(f"\nSuccessfully queued {len(async_results)} training tasks in the process pool!")
+        print("All outputs are being redirected to logs in experiments/process_logs/.")
+        print("Waiting for runs to complete... (This will run in sequence of max 2 concurrent runs)")
+
+        # Wait for all pool tasks to complete
+        try:
+            for idx, (alg_name, seed, res) in enumerate(async_results):
+                res.get()  # Blocks until this task is finished.
+                print(f"  Task {idx + 1}/{len(async_results)} finished: {alg_name} (Seed {seed}).")
+        except KeyboardInterrupt:
+            print("\nTermination requested. Terminating process pool...")
+            pool.terminate()
+            pool.join()
+            print("All processes terminated successfully.")
+            return
+        else:
+            pool.close()
+            pool.join()
+    else:
+        print("\nAll requested experiments are already completed! Proceeding to aggregate directly...")
+        pool.close()
+        pool.join()
+
+    print("\nAll processes finished! Collecting and aggregating metrics...")
+
+    # Load all histories from JSON
+    results_raw = {
+        alg_name: {
+            "episode_rewards": [],
+            "success_flags": [],
+            "collision_flags": [],
+            "episode_lengths": []
+        } for alg_name in algorithms
+    }
+
+    for alg_name in algorithms:
+        for seed in seeds:
+            history_path = f"experiments/histories/{alg_name}_S{seed}.json"
+            if not os.path.exists(history_path):
+                print(f"Warning: History file {history_path} is missing! Subprocess may have failed.")
+                continue
+            
+            try:
+                with open(history_path, "r", encoding="utf-8") as f:
+                    history = json.load(f)
+                
+                # Check completeness
+                if len(history.get("episode_rewards", [])) < num_episodes:
+                    print(f"Warning: History for {alg_name} (Seed {seed}) is incomplete ({len(history['episode_rewards'])}/{num_episodes} eps)!")
+                    continue
+                
+                # Slice lists to exactly num_episodes to guarantee matching dimensions
+                results_raw[alg_name]["episode_rewards"].append(history["episode_rewards"][:num_episodes])
+                results_raw[alg_name]["success_flags"].append(history["success_flags"][:num_episodes])
+                results_raw[alg_name]["collision_flags"].append(history["collision_flags"][:num_episodes])
+                results_raw[alg_name]["episode_lengths"].append(history["episode_lengths"][:num_episodes])
+            except Exception as e:
+                print(f"Error loading {history_path}: {e}")
+
+    # Aggregate stats (mean & std) across seeds
+    results_processed = {}
+    for alg_name in algorithms:
+        results_processed[alg_name] = {}
+        for metric_name in ["episode_rewards", "success_flags", "collision_flags", "episode_lengths"]:
+            raw_runs = results_raw[alg_name][metric_name]
+            if not raw_runs:
+                continue
+                
+            data_matrix = np.array(raw_runs, dtype=np.float32)
+            if metric_name in ["success_flags", "collision_flags"]:
+                data_matrix = data_matrix * 100.0
+
+            mean_vals = np.mean(data_matrix, axis=0)
+            std_vals = np.std(data_matrix, axis=0)
+            
+            results_processed[alg_name][metric_name] = {
+                "mean": mean_vals,
+                "std": std_vals
+            }
+
+    if not results_processed:
+        print("Error: No training results could be aggregated.")
+        return
+
+    print("\nGenerating final multi-seed comparison curves...")
+    generate_comparison_plots(results_processed, num_episodes, args.window)
+    print("Comparison plot saved to plots/algorithm_comparison.png!")
+
+    print_final_summary_table(results_processed)
+
+if __name__ == "__main__":
+    multiprocessing.freeze_support()
+    main()
