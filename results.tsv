@@ -1,2 +1,3 @@
 iteration	success_rate	mean_reward	mean_collisions	timestamp	description
 1	0.8889	-5.0	0.1111	2026-05-24 20:32:52	LR=0.005, Batch=32, RewardCoefs(Target=50, Crash=-300)
+2	0.2222	-337.78	0.7778	2026-05-24 20:43:24	LR=0.005, Batch=32, RewardCoefs(Target=50, Crash=-300)
