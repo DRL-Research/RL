@@ -1,0 +1,9 @@
+{
+  "env_type": "double_intersection",
+  "env_config": {
+    "initial_vehicle_count": 6,
+    "controlled_cars": 1
+  },
+  "scenario_count": 2,
+  "created_at": "2026-04-17T18:03:41"
+}
