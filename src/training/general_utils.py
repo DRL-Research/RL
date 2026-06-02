@@ -115,6 +115,7 @@ def initialize_models(experiment_config, env_config):
     master_model = MasterModel(
         observation_dim=obs_dim,
         embedding_dim=emb_dim,
+        experiment=experiment_config,
     )
 
     # === AGENT MODEL CONFIGURATION (FIXED) ===

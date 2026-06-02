@@ -19,6 +19,8 @@ class Experiment:
     ONLY_INFERENCE: bool = False
     EXPERIMENT_DATE_TIME: str = field(default_factory=lambda: datetime.now().strftime("%d_%m_%Y-%H_%M_%S"))
     SELF_PLAY_MODE: bool = False
+    SEED: int | None = None
+    SHOW_PLOTS: bool = True
     MASTER_TRAINED_MODEL: str = "EXP5_Inference_Models/master_trained_model.zip"
     AGENT_TRAINED_MODEL: str = "EXP5_Inference_Models/agent_trained_model.zip"
     CARS_AMOUNT: int = 5  # Updated to 5 cars

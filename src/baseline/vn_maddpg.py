@@ -1,5 +1,4 @@
 import copy
-import csv
 import logging
 import os
 from typing import Any
@@ -11,6 +10,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from src.training.experiment_utils import build_episode_seed, set_global_seeds, write_progress_csv
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -481,7 +481,9 @@ class BaselineTrainer:
         return average_actor_loss, average_critic_loss
 
     def _run_episode(self, episode_index: int, training: bool) -> dict[str, Any]:
-        raw_observation, _ = self.env.reset()
+        episode_seed = build_episode_seed(getattr(self.experiment_config, "SEED", None), episode_index)
+        set_global_seeds(episode_seed)
+        raw_observation, _ = self.env.reset(seed=episode_seed)
         prepared_observation = self._prepare_observation(raw_observation)
         agent_observations = self._extract_agent_observations(prepared_observation)
         agent_finished = np.zeros(self.num_agents, dtype=bool)
@@ -628,39 +630,32 @@ class BaselineTrainer:
         return False
 
     def _write_progress_csv(self) -> str:
-        baseline_log_dir = os.path.join(self.experiment_config.EXPERIMENT_PATH, "baseline_logs")
-        os.makedirs(baseline_log_dir, exist_ok=True)
-        csv_path = os.path.join(baseline_log_dir, "progress.csv")
-
-        with open(csv_path, "w", newline="", encoding="utf-8") as csv_file:
-            writer = csv.writer(csv_file)
-            writer.writerow(
-                [
-                    "episode",
-                    "reward",
-                    "actor_loss",
-                    "critic_loss",
-                    "noise_scale",
-                    "success",
-                    "collision",
-                    "episode_length",
-                ]
+        progress_rows = []
+        for episode_index in range(len(self.history["episode_rewards"])):
+            progress_rows.append(
+                {
+                    "episode": episode_index + 1,
+                    "reward": self.history["episode_rewards"][episode_index],
+                    "actor_loss": self.history["actor_losses"][episode_index],
+                    "critic_loss": self.history["critic_losses"][episode_index],
+                    "noise_scale": self.history["noise_scales"][episode_index],
+                    "success": self.history["success_flags"][episode_index],
+                    "collision": self.history["collision_flags"][episode_index],
+                    "episode_length": self.history["episode_lengths"][episode_index],
+                }
             )
-            for episode_index in range(len(self.history["episode_rewards"])):
-                writer.writerow(
-                    [
-                        episode_index + 1,
-                        self.history["episode_rewards"][episode_index],
-                        self.history["actor_losses"][episode_index],
-                        self.history["critic_losses"][episode_index],
-                        self.history["noise_scales"][episode_index],
-                        self.history["success_flags"][episode_index],
-                        self.history["collision_flags"][episode_index],
-                        self.history["episode_lengths"][episode_index],
-                    ]
-                )
 
-        return csv_path
+        baseline_csv_path = write_progress_csv(
+            self.experiment_config.EXPERIMENT_PATH,
+            progress_rows,
+            log_dir_name="baseline_logs",
+        )
+        write_progress_csv(
+            self.experiment_config.EXPERIMENT_PATH,
+            progress_rows,
+            log_dir_name="comparison_logs",
+        )
+        return baseline_csv_path
 
     def _plot_training_curves(self) -> None:
         if not self.history["episode_rewards"]:

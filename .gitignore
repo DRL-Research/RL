@@ -5,3 +5,4 @@ env/
 experiments/
 logger/token.json
 .neptune/
+full_assignment_comparison.log

@@ -8,6 +8,7 @@ import numpy as np
 from src import project_globals
 from src.model.agent_handler import Driver
 from src.project_globals import rollout_buffers
+from src.training.experiment_utils import build_episode_seed, set_global_seeds
 from src.training.general_utils import ensure_tensor, get_agent_values_from_observation, get_scaler_action_and_action_array
 from src.training.rollout_buffer_utils import reset_all_buffers
 
@@ -16,12 +17,30 @@ def reshape_drivers_states(all_drivers_states):
     all_drivers_states = all_drivers_states.reshape(-1) if isinstance(all_drivers_states, np.ndarray) and len(all_drivers_states.shape) == 2 else all_drivers_states
     return all_drivers_states
 
-def run_episode(experiment, total_steps, env, master_model, agent_model, train_both, training_master):
+
+def has_any_controlled_collision(env, info):
+    """Return whether any controlled vehicle has crashed in the wrapped MAPS environment."""
+
+    if bool(info.get("crashed", False)):
+        return True
+
+    driver_env = getattr(env, "env", None)
+    if driver_env is None or not hasattr(driver_env, "_get_unwrapped_env"):
+        return False
+
+    unwrapped_env = driver_env._get_unwrapped_env()
+    controlled_vehicles = getattr(unwrapped_env, "controlled_vehicles", [])
+    return any(getattr(vehicle, "crashed", False) for vehicle in controlled_vehicles)
+
+
+def run_episode(experiment, episode_idx, total_steps, env, master_model, agent_model, train_both, training_master):
     all_rewards, actions_per_episode = [], []
     steps_counter, episode_sum_of_rewards = 0, 0
     crashed = False
 
-    car_observations, _ = env.reset()
+    episode_seed = build_episode_seed(getattr(experiment, "SEED", None), episode_idx)
+    set_global_seeds(episode_seed)
+    car_observations, _ = env.reset(seed=episode_seed)
     done, truncated = False, False
 
     while not done and not truncated:
@@ -68,8 +87,7 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
         episode_sum_of_rewards += reward
         all_rewards.append(reward)
 
-        if done and info.get("crashed", False):
-            crashed = True
+        crashed = crashed or has_any_controlled_collision(env, info)
 
         # flags for buffers
         episode_start = (steps_counter == 1)
@@ -106,7 +124,14 @@ def run_episode(experiment, total_steps, env, master_model, agent_model, train_b
 
         car_observations = cars_next_obs
 
-    return episode_sum_of_rewards, actions_per_episode, steps_counter, crashed
+    success = bool(done and not truncated and not crashed)
+    return {
+        "episode_reward": episode_sum_of_rewards,
+        "actions": actions_per_episode,
+        "episode_length": steps_counter,
+        "collision": crashed,
+        "success": success,
+    }
 
 
 
@@ -191,14 +216,26 @@ def process_episode(episode_idx, total_steps, env, master_model, agent_model, ex
 
     # TODO: Create an assert here to see that they are reset propely
 
-    reward, actions, steps, crashed = run_episode(experiment, total_steps, env, master_model, agent_model,
-                                                  train_both=train_both, training_master=training_master)
-    status = "Collision" if crashed else "Success"
-    if crashed:
+    episode_result = run_episode(
+        experiment,
+        episode_idx,
+        total_steps,
+        env,
+        master_model,
+        agent_model,
+        train_both=train_both,
+        training_master=training_master,
+    )
+    status = "Collision" if episode_result["collision"] else ("Success" if episode_result["success"] else "Timeout")
+    if episode_result["collision"]:
         logger.warning("Episode %d ended with %s", episode_idx, status)
     else:
         logger.info("Episode %d ended with %s", episode_idx, status)
 
     logger.info(
-        "Result: %s | Reward: %.2f | Steps: %d", status, reward, steps)
-    return reward, actions, steps, crashed
+        "Result: %s | Reward: %.2f | Steps: %d",
+        status,
+        episode_result["episode_reward"],
+        episode_result["episode_length"],
+    )
+    return episode_result
