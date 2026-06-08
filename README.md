@@ -1,10 +1,20 @@
 # Hierarchical Multi-Agent RL — Scalable Coordinated Driving
 
-A 3-level master-agent hierarchy trained with PPO on custom `highway-env` layouts. The core claim: one shared model checkpoint, deployed at any scale from 3 to 48 agents across independent or connected intersections, consistently reduces crash rates compared to running agents without a master signal.
+A 3-level master-agent hierarchy trained with PPO on custom `highway-env` layouts. The core claim: one pair of trained checkpoints (master + agent), deployed at any scale from 3 to 48 agents across independent or connected intersections, consistently reduces crash rates compared to running agents without a master signal.
 
-## Why it scales
+## Two separate models, two kinds of sharing
 
-Every node in the hierarchy — Global Master, Local Master, or Agent — uses the **same trained weights**. Roles differ only in how inputs are packed into the fixed-size observation vector, never in parameters. There is no per-scale retraining. When the system grows beyond 5 Local Masters, intermediate masters group them in sets of ≤5 recursively, forming a tree of depth ⌈log₅(N\_LMs)⌉ above the leaf LMs — all sharing the same master model.
+The system uses **two distinct PPO models** with different architectures, observation spaces, and action spaces:
+
+| | Master model | Agent model |
+|---|---|---|
+| Observation | 25-D (5 slots × 5) | 8-D (4-D state + 4-D embedding) |
+| Output | 4-D continuous embedding | discrete {slow, fast} |
+| Network | ResNet (25→128→128→4) | MLP wide (8→256→256→2) |
+
+What is shared within each role: all Local Masters and the Global Master run the **same single MasterModel instance** (one set of weights for all masters). All agents run the **same single agent model instance** (one set of weights for all agents). There is no parameter sharing between the master model and the agent model.
+
+This is why the system scales: adding more intersections means running the same master model on more inputs, not introducing new parameters. When the system grows beyond 5 Local Masters, intermediate masters group them in sets of ≤5 recursively, forming a tree of depth ⌈log₅(N\_LMs)⌉ — all running the same master weights.
 
 ## Architecture
 
@@ -177,29 +187,34 @@ The network sees the bit as part of the input vector. Because the same weights p
 
 ## Hyperparameters
 
+These are the values used in the training run that produced the saved checkpoint (`experiment_runs/full_26_04_2026-11_40_39`, config `A_base/W_MASTER`, seed 123).
+
 | Parameter | Value | Notes |
 |---|---|---|
-| Total episodes | 1500 | 4 cycles × 375 |
-| Episodes per PPO update | 3 | `EPISODE_AMOUNT_FOR_TRAIN` |
-| PPO epochs per update | 5 | `N_PPO_EPOCHS` |
+| Total episodes | 2500 | 5 seeds × 2500 per run |
+| Episodes per PPO update | 1 | update after every episode |
+| PPO epochs per update | 5 | |
 | Agent learning rate | 3e-3 | |
 | Master learning rate | 3e-4 | |
 | Clip range | 0.2 | |
-| Entropy coefficient | 0.05 | |
+| Entropy coefficient | 0.005 | |
 | Discount (γ) | 0.90 | |
 | GAE λ | 0.90 | |
 | Value coefficient | 1.0 | |
-| Agent network arch | wide | `[256, 256]` |
-| Master network arch | ResNet | 25→128, 2× residual block, 128→128→4 |
-| Master obs dim | 25 | 5 slots × (4D + 1 bit) |
-| Master embedding dim | 4 | |
-| Agent obs dim | 8 | 4D state + 4D LM embedding |
-| Collision reward | -50 | |
-| Arrival reward | +50 | |
-| High-speed reward | +5/step | |
-| Starvation reward | 0 | (disabled in W01) |
-| Training mode | FULL\_JOINT | master + agents update every cycle |
 | Rollout buffer size | 384 | `N_STEPS` |
+| Warmup episodes | 200 | random actions for first 200 episodes |
+| Peak-lock threshold | 75% | entropy set to 0 once rolling-20 arrival ≥ 75% |
+| Agent actions | {5, 10} m/s | slow=5, fast=10 |
+| Agent network arch | wide | MLP `[256, 256]` |
+| Master network arch | ResNet | 25→128, 2× residual block, 128→128→4 |
+| Master obs dim | 25 | 5 slots × (4-D + 1 identifier bit) |
+| Master embedding dim | 4 | |
+| Agent obs dim | 8 | 4-D kinematic state + 4-D LM embedding |
+| Collision reward | -50 | terminal |
+| Arrival reward | +50 | terminal |
+| High-speed reward | +5/step | per step agent is above speed threshold |
+| Starvation reward | 0 | disabled |
+| Reward mode | global | one shared reward signal per episode |
 
 ## Setup
 
@@ -211,6 +226,10 @@ pip install -r requirements.txt
 Requires Python 3.10+.
 
 ## Training
+
+> **Note:** `models/agent/agent.pth` and `models/master/master.pth` were produced by a multi-seed run (`experiment_runs/full_26_04_2026-11_40_39`) using the hyperparameters in the table above. The best seed (s123) reached 98.7% arrival on the last 50 episodes.
+>
+> `scripts/training/main_final.py` is a single-seed reproduction script with the same base config. It will produce a comparable model but with slightly different settings (`ent_coef=0.05`, `ep_for_train=3`). Use it as a starting point if you need to retrain.
 
 ```bash
 python scripts/training/main_final.py
