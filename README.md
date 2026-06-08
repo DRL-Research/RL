@@ -130,46 +130,81 @@ Chain topology is harder - agents must cross zone boundaries, which creates mult
 
 ## Training flow
 
-```
+```text
 main_final.py
-  └─ training_loop()                          [training_handler.py]
-       ├─ 4 cycles × 375 episodes = 1500 total
-       │    Each episode:
-       │      process_episode()               [episode_utils.py]
-       │        for each env step:
-       │          1. Each LM collects its agents' 4-D states
-       │             → pack_lm_obs():  [agent_state | 0.0] × 5 slots  (identifier=0 → raw agent)
-       │             → LM.predict()   → 4-D LM embedding
-       │          2. GM collects all LM embeddings
-       │             → pack_gm_obs():  [lm_emb | 1.0] × 5 slots       (identifier=1 → master)
-       │             → GM.predict()   → 4-D GM embedding  (unused by agents in training; LM used)
-       │          3. Each agent receives: [own_4D_state | lm_4D_embedding]
-       │             → agent.predict() → action {slow=0, fast=1}
-       │          4. env.step(actions) → next obs, rewards, done
-       │          5. Store (obs, action, reward, value, log_prob) in rollout buffers
-       │
-       │    Every 3 episodes:
-       │      perform_training_phase()         [training_loop_utils.py]
-       │        → PPO update on master rollout buffer  (policy + value + entropy)
-       │        → PPO update on agent rollout buffers  (policy + value + entropy)
-       │        FULL_JOINT_TRAINING=True: both networks update every cycle
-       │
-       └─ save_models()                        [model_handler.py]
+  |
+  +-- training_loop()          [training_handler.py]
+       |  Runs episodes grouped into cycles.
+       |  prepare_models_for_cycle(): decides which networks update this cycle.
+       |  FULL_JOINT_TRAINING=True -> master and agents both update every cycle.
+       |
+       +-- for each episode:
+       |
+       |    process_episode()  [episode_utils.py]
+       |      Steps through one complete env episode and fills rollout buffers.
+       |
+       |      Each env step has two sequential sub-passes:
+       |
+       |      -- MASTER PASS -------------------------------------------------
+       |      All masters run before any agent acts.
+       |      LMs and GM each call master_model.predict() with different packed inputs.
+       |
+       |      For each LM  ->  _master_obs_for_lm() packs a 25-D vector:
+       |
+       |        slot 0: [ last_GM_embedding (4-D) | id=1 ]  <- parent feedback
+       |        slot 1: [ agent_0 state (x,y,vx,vy) | id=0 ]
+       |        slot 2: [ agent_1 state             | id=0 ]
+       |        slot 3: [ agent_2 state             | id=0 ]
+       |        slot 4: [ zeros (pad)               | id=0 ]
+       |
+       |        master_model.predict(25-D) -> 4-D LM embedding
+       |
+       |      For GM  ->  _global_master_obs() packs a 25-D vector:
+       |
+       |        slot 0: [ zeros (GM has no parent)  | id=1 ]
+       |        slot 1: [ LM1 embedding (4-D)       | id=1 ]
+       |        slot 2: [ LM2 embedding (4-D)       | id=1 ]
+       |        slot 3: [ zeros (pad)               | id=1 ]
+       |        slot 4: [ zeros (pad)               | id=1 ]
+       |
+       |        master_model.predict(25-D) -> 4-D GM embedding
+       |        (broadcast to LMs as slot 0 at the next step)
+       |
+       |      -- AGENT PASS --------------------------------------------------
+       |      Each agent receives its parent LM embedding and chooses an action:
+       |
+       |        agent_model.predict( [own_state(4-D) | LM_embedding(4-D)] )
+       |                              ------- 8-D observation ----------
+       |        -> action in { 0=slow (5 m/s), 1=fast (10 m/s) }
+       |
+       |      -- ENV STEP ----------------------------------------------------
+       |        env.step(all_actions) -> next states, rewards, done
+       |        append (obs, action, reward, value, log_prob) to rollout buffers
+       |
+       +-- every episode: perform_training_phase() [training_loop_utils.py]
+       |    PPO update on master buffer:  policy + value + entropy loss
+       |    PPO update on agent buffers:  policy + value + entropy loss
+       |    5 epochs over each buffer. Uses SB3 PPO internals for both.
+       |
+       +-- save_models()  [model_handler.py]
 ```
 
-### Identifier bit in detail
+### Identifier bit
 
-The master observation is packed as 5 consecutive slots. A slot represents one subordinate, regardless of whether that subordinate is a raw vehicle or another master:
+Each master input is 5 slots concatenated into a 25-D vector:
 
+```text
+slot = [ v0, v1, v2, v3, id ]
+         ---- 4-D payload --    id = 0.0 or 1.0
 ```
-slot_i = [v0, v1, v2, v3, type_bit]
-```
 
-- When an LM packs its agents: `type_bit = 0.0`, `v0..v3 = agent kinematic state` (x, y, vx, vy - normalized)
-- When the GM packs LM embeddings: `type_bit = 1.0`, `v0..v3 = LM's 4-D output embedding`
-- When an intermediate master packs sub-master embeddings: same as GM - `type_bit = 1.0`
+`id = 0.0` means the payload is a raw agent state (x, y, vx, vy, normalized).
+`id = 1.0` means the payload is a 4-D embedding produced by a sub-master.
 
-The network sees the bit as part of the input vector. Because the same weights process both cases, a master trained on one topology generalizes to others at inference time without retraining.
+The ResNet reads these 25 values as a flat vector. Because the training data always included both kinds of slots together, the same weights handle agents, sub-masters, or a mix at inference time without retraining.
+
+The mixed-layer experiment (`GM -> [LM, a3, a4, a5]`) works by exactly this: slot 0 of the GM carries `id=1` (an LM embedding) and slots 1-3 carry `id=0` (raw agent states). No new architecture, no fine-tuning.
+
 
 ## Hyperparameters
 
