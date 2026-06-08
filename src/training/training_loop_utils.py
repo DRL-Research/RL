@@ -107,23 +107,16 @@ def train_master_and_reset_buffer(master_model, full_obs):
             if rollout_data is not None:
                 steps_trained = len(rollout_data.observations)
                 print(f"Master model trained on {steps_trained} steps")
-                observations_tensor = torch.as_tensor(rollout_data.observations, dtype=torch.float32)
-                actions_tensor = torch.as_tensor(rollout_data.actions, dtype=torch.float32)
-                if observations_tensor.ndim == 3 and observations_tensor.shape[1] == 1:
-                    observations_tensor = observations_tensor.squeeze(1)
-                if actions_tensor.ndim == 3 and actions_tensor.shape[1] == 1:
-                    actions_tensor = actions_tensor.squeeze(1)
+                observations_tensor = torch.FloatTensor(rollout_data.observations)
+                actions_tensor = torch.FloatTensor(rollout_data.actions)
                 policy = master_model.model.policy
                 optimizer = policy.optimizer
                 values, log_probs, entropy = policy.evaluate_actions(observations_tensor, actions_tensor)
-                values = values.reshape(-1, 1)
-                log_probs = log_probs.reshape(-1)
-                returns_tensor = torch.as_tensor(rollout_data.returns, dtype=torch.float32).reshape(-1, 1)
-                value_loss = ((values - returns_tensor) ** 2).mean()
-                advantages_tensor = torch.as_tensor(rollout_data.advantages, dtype=torch.float32).reshape(-1)
+                value_loss = ((values - torch.FloatTensor(rollout_data.returns)) ** 2).mean()
+                advantages_tensor = torch.FloatTensor(rollout_data.advantages)
                 advantages_tensor = (advantages_tensor - advantages_tensor.mean()) / (advantages_tensor.std() + 1e-8)
                 policy_loss = -(log_probs * advantages_tensor).mean()
-                entropy_loss = -entropy.reshape(-1).mean() if entropy is not None else torch.tensor(0.0)
+                entropy_loss = -entropy.mean()
                 loss = policy_loss + 0.5 * value_loss + 0.01 * entropy_loss
                 optimizer.zero_grad()
                 loss.backward()

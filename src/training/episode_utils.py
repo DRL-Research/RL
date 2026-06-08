@@ -8,7 +8,6 @@ import numpy as np
 from src import project_globals
 from src.model.agent_handler import Driver
 from src.project_globals import rollout_buffers
-from src.training.experiment_utils import build_episode_seed, set_global_seeds
 from src.training.general_utils import ensure_tensor, get_agent_values_from_observation, get_scaler_action_and_action_array
 from src.training.rollout_buffer_utils import reset_all_buffers
 
@@ -17,30 +16,12 @@ def reshape_drivers_states(all_drivers_states):
     all_drivers_states = all_drivers_states.reshape(-1) if isinstance(all_drivers_states, np.ndarray) and len(all_drivers_states.shape) == 2 else all_drivers_states
     return all_drivers_states
 
-
-def has_any_controlled_collision(env, info):
-    """Return whether any controlled vehicle has crashed in the wrapped MAPS environment."""
-
-    if bool(info.get("crashed", False)):
-        return True
-
-    driver_env = getattr(env, "env", None)
-    if driver_env is None or not hasattr(driver_env, "_get_unwrapped_env"):
-        return False
-
-    unwrapped_env = driver_env._get_unwrapped_env()
-    controlled_vehicles = getattr(unwrapped_env, "controlled_vehicles", [])
-    return any(getattr(vehicle, "crashed", False) for vehicle in controlled_vehicles)
-
-
 def run_episode(experiment, episode_idx, total_steps, env, master_model, agent_model, train_both, training_master):
     all_rewards, actions_per_episode = [], []
     steps_counter, episode_sum_of_rewards = 0, 0
     crashed = False
 
-    episode_seed = build_episode_seed(getattr(experiment, "SEED", None), episode_idx)
-    set_global_seeds(episode_seed)
-    car_observations, _ = env.reset(seed=episode_seed)
+    car_observations, _ = env.reset()
     done, truncated = False, False
 
     while not done and not truncated:
@@ -87,7 +68,8 @@ def run_episode(experiment, episode_idx, total_steps, env, master_model, agent_m
         episode_sum_of_rewards += reward
         all_rewards.append(reward)
 
-        crashed = crashed or has_any_controlled_collision(env, info)
+        if done and info.get("crashed", False):
+            crashed = True
 
         # flags for buffers
         episode_start = (steps_counter == 1)
