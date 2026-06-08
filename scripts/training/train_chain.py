@@ -63,8 +63,8 @@ _LANE_W = AbstractLane.DEFAULT_WIDTH
 _OUTER = (_LANE_W + 5) + _LANE_W / 2
 SPACING = 2 * _OUTER + 80
 
-CKPT_AGENT = os.path.join(_REPO, "models_to_check", "agent", "ckpt_agent6.pth")
-CKPT_MASTER = os.path.join(_REPO, "models_to_check", "master", "ckpt_master6.pth")
+CKPT_AGENT = os.path.join(_REPO, "models", "agent", "ckpt_agent6.pth")
+CKPT_MASTER = os.path.join(_REPO, "models", "master", "ckpt_master6.pth")
 
 
 def generate_chain_training_scenarios(n_int: int, n_agents: int, n_scenarios: int = 200):

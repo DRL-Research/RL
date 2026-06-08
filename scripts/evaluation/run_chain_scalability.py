@@ -62,8 +62,8 @@ register_chain_intersection_env()
 
 # ── Checkpoints ──────────────────────────────────────────────────────────────
 CKPT_BASELINE = (
-    os.path.join(_REPO, "models_to_check", "agent", "ckpt_agent6.pth"),
-    os.path.join(_REPO, "models_to_check", "master", "ckpt_master6.pth"),
+    os.path.join(_REPO, "models", "agent", "ckpt_agent6.pth"),
+    os.path.join(_REPO, "models", "master", "ckpt_master6.pth"),
 )
 
 CONDITIONS = ("normal", "zero_master", "const_all_masters", "swap_local_masters", "zero_global_master")

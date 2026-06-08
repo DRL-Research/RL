@@ -58,8 +58,8 @@ import matplotlib.pyplot as plt  # noqa: E402
 import run_scalability_suite as rss  # noqa: E402
 import run_proto_action_sweep as rps  # noqa: E402
 
-CKPT_AGENT = os.path.join(_REPO, "models_to_check", "agent", "ckpt_agent6.pth")
-CKPT_MASTER = os.path.join(_REPO, "models_to_check", "master", "ckpt_master6.pth")
+CKPT_AGENT = os.path.join(_REPO, "models", "agent", "ckpt_agent6.pth")
+CKPT_MASTER = os.path.join(_REPO, "models", "master", "ckpt_master6.pth")
 
 # Use the proven dense 6-car crossing (the curated, master-dependent unit where a
 # coordinated policy reaches ~87% but an uncoordinated one collapses to ~55%). The

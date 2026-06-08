@@ -1,42 +1,143 @@
-Base code for scalable masters.
+# Hierarchical Multi-Agent RL for Coordinated Driving
 
-## Architecture (research story)
+A 3-level hierarchy (Global Master → Local Masters → Agents) trained with shared-weight PPO on custom `highway-env` layouts. The main research claim: the same trained model, without any retraining, coordinates environments with 3 to 48 agents across both parallel and chain topologies.
 
-- **One master policy, many roles:** a single SB3 `PPO` in `MasterModel` maps a fixed **25-D** input (5 slots × (4-D + 1-D **ID bit**)) to a **4-D** embedding. Local masters and the global master **share weights**; they differ only by how `build_master_input` fills slots (`AGENT_BIT` vs `MASTER_BIT`).
-- **Second policy for vehicles:** low-level control uses a **separate** agent `PPO` (shared across cars, per-car rollout buffers). Saving produces (at least) master + agent checkpoints — not one combined weight file unless you bundle them yourself.
-- **Stable-Baselines3:** the master `PPO` is built with a minimal `_MasterEnv` so SB3 can construct the network. **Training does not use `PPO.learn()` on the intersection.** Rollouts are collected in the custom env loop; updates run via `training_loop_utils.train_model_from_buffer` with PPO-style clipped loss + value + entropy, using experiment `GAMMA`, `GAE_LAMBDA`, `ENT_COEF`, `VF_COEF`, `CLIP_RANGE` (aligned with the master constructor since the fix in `master_model.py`).
+## Architecture
 
-## Logging
+The hierarchy has three roles:
 
-- **`agent_logs/` / `master_logs/` `progress.csv`:** often empty — SB3 fills these during `learn()`; this project logs manually instead.
-- **`episode_metrics.csv`** (experiment folder): one row per episode (`episode`, `reward`, `arrival_pct`, `collision`) written from `training_handler.training_loop`.
-- **Collision audit:** `python run_collision_audit.py` (edit constants at top of file) or `python analyze_collisions.py --episodes 80 --out audit.json`; records per-step `vehicle.crashed`, positions, actions, and distances to uncontrolled vehicles.
-- **Full step dataset (50 ep):** `python run_collision_dataset.py` → `experiments/collision_steps_dataset.csv` (every agent x,y,vx,vy, crashed each step; intersecting polygon pairs `C0+C3`; `any_new_crash`); plus `collision_episode_summary.json` and `collision_steps_analysis.json`.
-- **Why collisions at step ~14:** `python run_collision_step_analysis.py` (after the dataset run) — histogram of first crash step, fraction at step 14, scenario IDs near that time; notes that with `policy_frequency=1` each step ≈ 1 s sim time.
+- **Global Master (GM):** receives embeddings from all Local Masters and emits a global coordination signal.
+- **Local Master (LM):** manages up to 5 agents in one intersection zone, aggregates their states, and emits a local embedding upward.
+- **Agent:** drives one vehicle; its observation is its local state plus the LM embedding.
 
-## Execution Flow
+All three roles share the same PPO weights. Roles differ only in how inputs are packed, not in parameters. This is what allows the hierarchy to generalize to any number of agents without retraining.
 
-```text
-main.py / main_final.py / main_sweep*.py
+For large scales (more than 5 Local Masters), additional intermediate masters group LMs in sets of 5 recursively, forming a tree of depth log₅(N\_LMs).
+
+## Topologies
+
+**Parallel** — independent intersections, each managed by one LM. Agents do not cross intersection boundaries.
+
+![Parallel topology, 48 agents, 16 local masters](docs/figures/parallel_M16_N48.png)
+
+**Chain** — intersections physically connected in a corridor. Agents route across multiple zones; the LM responsible for a zone hands off agents dynamically as they enter or leave.
+
+![Chain topology, 15 agents, 5 regional local masters](docs/figures/chain_int5_N15.png)
+
+## Results
+
+Evaluated on 100 scenarios per scale. Two conditions:
+
+- `normal`: full hierarchy active (GM → LMs → agents)
+- `zero_master`: master signal zeroed out; agents drive on raw state alone
+
+| Scale | Normal crash rate | Zero-master crash rate |
+|---|---|---|
+| 2 LMs, 6 agents | ~15% | ~75% |
+| 4 LMs, 12 agents | ~20% | ~75% |
+| 8 LMs, 24 agents | ~22% | ~76% |
+| 16 LMs, 48 agents | ~26% | ~77% |
+
+The crash-rate gap stays consistent as the number of agents grows — the hierarchy remains effective without any additional training.
+
+## Repository layout
+
+```
+.
+├── highwayenv/                 # Custom gym environments
+│   ├── intersection_class.py
+│   ├── double_intersection_class.py
+│   ├── roundabout_class.py
+│   └── chain_intersection_class.py
 │
-└── run_experiment() or training_loop()
-    │
-    ├── MasterModel
-    │   └── Single PPO → embeddings (master_model.py)
-    │
-    ├── Agent (Driver wrapper)
-    │   ├── Wraps environment; builds 8-D obs (state + embedding)
-    │   └── gym.make('RELintersection-v0')
-    │           └── IntersectionEnv (intersection_class.py)
-    │
-    ├── Model (Agent PPO)
-    │   └── PPO agent (model_handler.py / general_utils.py)
-    │
-    ├── Training (training_handler.py)
-    │   ├── Episodes (episode_utils.process_episode)
-    │   └── perform_training_phase → train_model_from_buffer + agent buffers
-    │
-    ├── Saving / plots / summary.json
-    │
-    └── Plotting (plotting_utils / main_* save_plots)
+├── src/
+│   ├── model/                  # MasterModel, AgentHandler, ModelHandler (PPO)
+│   ├── training/               # PPO update loop, rollout buffer, episode utils
+│   └── experiment/             # Scenario pools, geometry, environment configs
+│
+├── scripts/
+│   ├── training/
+│   │   ├── main_final.py       # Main training entry point (W01, 1500 episodes)
+│   │   └── train_chain.py      # Fine-tune on connected chain topology
+│   ├── evaluation/
+│   │   ├── run_full_evaluation.py    # Run the full parallel + chain study
+│   │   ├── run_scalability_suite.py  # Parallel scaling engine (imported by above)
+│   │   ├── run_chain_scalability.py  # Chain scaling engine (imported by above)
+│   │   ├── run_proto_action_sweep.py # Core agent/master inference utilities
+│   │   └── run_mixed_layer_experiment.py  # Mixed-layer topology experiment
+│   └── visualization/
+│       └── visualize_hierarchy.py    # Generate hierarchy + layout diagrams
+│
+├── tests/
+│   └── test_scalability_regression.py  # Fast packing and layout regression checks
+│
+├── models/
+│   ├── agent/agent.pth         # Trained agent weights (checkpoint 6)
+│   └── master/master.pth       # Trained master weights (checkpoint 6)
+│
+├── logger/                     # Optional Neptune experiment logger
+├── docs/figures/               # Hierarchy diagrams (parallel + chain)
+├── setup.py
+└── requirements.txt
+```
 
+## Setup
+
+```bash
+pip install -e .
+pip install -r requirements.txt
+```
+
+Requires Python 3.10+ and a highway-env installation that includes the custom REL environments.
+
+## Training
+
+Run from the repo root:
+
+```bash
+python scripts/training/main_final.py
+```
+
+This trains the W01 configuration: 1500 episodes, joint master+agent PPO updates, `agent_lr=3e-3`, `master_lr=3e-4`. Checkpoints are saved under `experiment_runs/`.
+
+To fine-tune on the chain topology (optional):
+
+```bash
+python scripts/training/train_chain.py
+```
+
+## Evaluation
+
+The main evaluation script runs both parallel and chain scalability and writes results to `EVALUATION_RESULTS/<timestamp>/`:
+
+```bash
+python scripts/evaluation/run_full_evaluation.py
+```
+
+Options:
+
+```
+--smoke           quick sanity run (few scenarios per scale)
+--agent PATH      override agent checkpoint (default: models/agent/agent.pth)
+--master PATH     override master checkpoint (default: models/master/master.pth)
+```
+
+To run the mixed-layer topology experiment separately:
+
+```bash
+python scripts/evaluation/run_mixed_layer_experiment.py
+```
+
+To regenerate the hierarchy diagrams:
+
+```bash
+python scripts/visualization/visualize_hierarchy.py
+```
+
+## Tests
+
+```bash
+python -m pytest tests/
+```
+
+The regression test checks scenario packing and layout invariants without stepping the environment.

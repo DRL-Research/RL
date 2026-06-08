@@ -146,8 +146,8 @@ ACTIVE_REGULAR_POOL, SCENARIO_POOL_NAME = _build_scenario_pool()
 
 # ── Checkpoints (best validated id6 pair; fine-tuned continuation optional) ───
 CKPT_BASELINE = (
-    os.path.join(_REPO, "models_to_check", "agent", "ckpt_agent6.pth"),
-    os.path.join(_REPO, "models_to_check", "master", "ckpt_master6.pth"),
+    os.path.join(_REPO, "models", "agent", "ckpt_agent6.pth"),
+    os.path.join(_REPO, "models", "master", "ckpt_master6.pth"),
 )
 CKPT_FINETUNED = (
     os.path.join(_REPO, "experiment_runs", "fine_tune_id6", "A_base", "W_MASTER", "s123", "best", "ckpt_agent.pth"),

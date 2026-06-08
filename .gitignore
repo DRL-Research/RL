@@ -1,26 +1,36 @@
-.idea/
+# Python
 __pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual environments
+.venv/
 venv/
 env/
-experiments/
-experiment_runs/
-logger/token.json
-.neptune/
 
-# Editor / IDE
-.vscode/
-
-# Generated evaluation outputs (results, plots, tables) — not source
+# Generated outputs (re-created by the scripts; not part of the source)
 EVALUATION_RESULTS/
 MODELS_EVALUATION/
 PROFESSOR_RESULTS/
-Sandbox/
-
-# Old experiment dumps / large binaries
+experiment_runs/
+experiments/
 new_arch/
-*.rar
+Sandbox/
+models_to_check/
+
+# Logs and one-off artefacts
 *.log
 collision_audit_report.json
-intersection_crash_rate_four_bar.png
-intersection_crash_rate_four_conditions.png
-models_to_check/**/*.txt
+
+# Secrets
+logger/token.json
+.neptune/
+neptune_token*
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
