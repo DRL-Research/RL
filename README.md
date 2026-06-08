@@ -1,6 +1,6 @@
 # Hierarchical Multi-Agent RL — Scalable Coordinated Driving
 
-A 3-level master-agent hierarchy trained with PPO on custom `highway-env` layouts. The core claim: one pair of trained checkpoints (master + agent), deployed at any scale from 3 to 48 agents across independent or connected intersections, consistently reduces crash rates compared to running agents without a master signal.
+A n-level master-agent hierarchy trained with PPO on custom `highway-env` layouts. The core claim: one pair of trained checkpoints (master + agent), deployed at any scale from 3 to 48 agents across independent or connected intersections, consistently reduces crash rates compared to running agents without a master signal.
 
 ## Two separate models, two kinds of sharing
 
