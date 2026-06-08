@@ -1,4 +1,4 @@
-# Hierarchical Multi-Agent RL — Scalable Coordinated Driving
+# Hierarchical Multi-Agent RL - Scalable Coordinated Driving
 
 A n-level master-agent hierarchy trained with PPO on custom `highway-env` layouts. The core claim: one pair of trained checkpoints (master + agent), deployed at any scale from 3 to 48 agents across independent or connected intersections, consistently reduces crash rates compared to running agents without a master signal.
 
@@ -14,7 +14,7 @@ The system uses **two distinct PPO models** with different architectures, observ
 
 What is shared within each role: all Local Masters and the Global Master run the **same single MasterModel instance** (one set of weights for all masters). All agents run the **same single agent model instance** (one set of weights for all agents). There is no parameter sharing between the master model and the agent model.
 
-This is why the system scales: adding more intersections means running the same master model on more inputs, not introducing new parameters. When the system grows beyond 5 Local Masters, intermediate masters group them in sets of ≤5 recursively, forming a tree of depth ⌈log₅(N\_LMs)⌉ — all running the same master weights.
+This is why the system scales: adding more intersections means running the same master model on more inputs, not introducing new parameters. When the system grows beyond 5 Local Masters, intermediate masters group them in sets of ≤5 recursively, forming a tree of depth ⌈log₅(N\_LMs)⌉ - all running the same master weights.
 
 ## Architecture
 
@@ -23,9 +23,9 @@ This is why the system scales: adding more intersections means running the same 
                         / | \
                       M1  M2  ...   (intermediate masters when N_LMs > 5)
                      /|   |\
-                   LM1  LM2  ...   (Local Masters — one per intersection zone)
+                   LM1  LM2  ...   (Local Masters - one per intersection zone)
                    /|\   /|\
-                 a  a  a  a  a  a  (Agents — one per vehicle)
+                 a  a  a  a  a  a  (Agents - one per vehicle)
 ```
 
 **Master observation (25-D):** 5 slots × 5 values each.
@@ -39,23 +39,23 @@ This identifier bit is what lets the same master model manage either agents or o
 
 **Agent observation (8-D):** 4-D local kinematic state + 4-D LM embedding received from the master above.
 
-**Agent action:** binary — `{slow, fast}` — mapped to fixed throttle values.
+**Agent action:** binary - `{slow, fast}` - mapped to fixed throttle values.
 
 ## Topologies evaluated
 
-**Parallel** — each intersection is an independent environment, managed by one Local Master. Agents never cross intersection boundaries. The hierarchy grows by adding more (LM, intersection) pairs.
+**Parallel** - each intersection is an independent environment, managed by one Local Master. Agents never cross intersection boundaries. The hierarchy grows by adding more (LM, intersection) pairs.
 
-![Parallel topology — 48 agents, 16 local masters](docs/figures/parallel_M16_N48.png)
+![Parallel topology - 48 agents, 16 local masters](docs/figures/parallel_M16_N48.png)
 
-**Chain** — intersections are physically connected in a road corridor. Agents route across multiple zones; the LM responsible for a zone receives and hands off agents dynamically as they enter or leave.
+**Chain** - intersections are physically connected in a road corridor. Agents route across multiple zones; the LM responsible for a zone receives and hands off agents dynamically as they enter or leave.
 
-![Chain topology — 15 agents, 5 regional local masters](docs/figures/chain_int5_N15.png)
+![Chain topology - 15 agents, 5 regional local masters](docs/figures/chain_int5_N15.png)
 
 ## Results
 
 Evaluated on 30 scenarios per scale, two conditions:
-- `normal` — full hierarchy active (GM → LMs → agents)
-- `zero_master` — master signal zeroed out at every step; agents navigate on raw state alone
+- `normal` - full hierarchy active (GM → LMs → agents)
+- `zero_master` - master signal zeroed out at every step; agents navigate on raw state alone
 
 ### Parallel scalability (crash rate per intersection, 30 scenarios)
 
@@ -80,7 +80,7 @@ The crash rate gap stays at roughly 55–57 pp across all scales.
 | 4 | 12 | 33% | 97% |
 | 5 | 15 | 30% | 77% |
 
-Chain topology is harder — agents must cross zone boundaries, which creates multi-hop coordination conflicts. The master still provides a large benefit, though absolute crash rates are higher than parallel.
+Chain topology is harder - agents must cross zone boundaries, which creates multi-hop coordination conflicts. The master still provides a large benefit, though absolute crash rates are higher than parallel.
 
 ## Repository layout
 
@@ -179,9 +179,9 @@ The master observation is packed as 5 consecutive slots. A slot represents one s
 slot_i = [v0, v1, v2, v3, type_bit]
 ```
 
-- When an LM packs its agents: `type_bit = 0.0`, `v0..v3 = agent kinematic state` (x, y, vx, vy — normalized)
+- When an LM packs its agents: `type_bit = 0.0`, `v0..v3 = agent kinematic state` (x, y, vx, vy - normalized)
 - When the GM packs LM embeddings: `type_bit = 1.0`, `v0..v3 = LM's 4-D output embedding`
-- When an intermediate master packs sub-master embeddings: same as GM — `type_bit = 1.0`
+- When an intermediate master packs sub-master embeddings: same as GM - `type_bit = 1.0`
 
 The network sees the bit as part of the input vector. Because the same weights process both cases, a master trained on one topology generalizes to others at inference time without retraining.
 
