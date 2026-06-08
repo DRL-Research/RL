@@ -81,7 +81,7 @@ from src.experiment.new_envs_config import (
     make_roundabout_env_config,
     make_double_intersection_env_config,
 )
-from src.model.model_handler import load_models, save_models
+from src.model.model_handler import load_models, load_models_from_paths, save_models
 from src.model.agent_handler import Driver
 from src.training.general_utils import initialize_models, setup_experiment_dirs
 from src.training.training_handler import _make_master_buffer
@@ -92,7 +92,7 @@ from src.training.training_loop_utils import (
 )
 from src.training.episode_utils import process_episode
 from src.project_globals import rollout_buffers
-from run_learning_experiment import save_plots
+from run_learning_experiment import save_plots, save_unified_metric_exports, save_json
 
 # ── Global constants ──────────────────────────────────────────────────────────
 
@@ -352,6 +352,28 @@ class MultiEnvWrapper:
                 pass
 
 
+def _vec_l2_csv(arr) -> str:
+    if arr is None:
+        return ""
+    v = np.asarray(arr, dtype=np.float64).ravel()
+    if v.size == 0:
+        return ""
+    return f"{float(np.linalg.norm(v)):.8f}"
+
+
+def _mean_agent_embedding_l2(last_agent_obs_list) -> str:
+    if not last_agent_obs_list:
+        return ""
+    norms: list[float] = []
+    for o in last_agent_obs_list:
+        o = np.asarray(o, dtype=np.float64).ravel()
+        if o.size >= 8:
+            norms.append(float(np.linalg.norm(o[4:8])))
+    if not norms:
+        return ""
+    return f"{float(np.mean(norms)):.8f}"
+
+
 # ── Unified training loop ──────────────────────────────────────────────────────
 
 def unified_training_loop(
@@ -364,11 +386,6 @@ def unified_training_loop(
     conflict_schedule: list,
     skip_master_training: bool = False,
 ) -> tuple:
-    from src.training.episode_utils import (
-        _build_local_master_input,
-        _build_global_master_input,
-    )
-
     rollout_buffers.clear()
     project_globals.local_master_rollout_buffers.clear()
     project_globals.global_master_rollout_buffer = None
@@ -394,7 +411,6 @@ def unified_training_loop(
     episode_counter   = 0
     total_steps       = 0
     results           = init_training_results()
-    results["collision_rates"] = []
     env_arrivals = {n: [] for n in multi_env.env_names}
 
     peak_threshold  = exp.PEAK_ARRIVAL_THRESHOLD
@@ -453,12 +469,34 @@ def unified_training_loop(
         results["all_actions"].append(actions)
 
         if ep == 1:
+            slug = ",".join(
+                f"arrival_only_{str(nm).replace(' ', '_').replace('-', '_')}"
+                for nm in multi_env.env_names
+            )
             with open(metrics_csv, "w", encoding="utf-8") as f:
-                f.write("episode,env,scenario_idx,reward,arrival_pct,collision\n")
+                f.write(
+                    "episode,env,scenario_idx,reward,arrival_pct,collision,collision_pct,full_success,"
+                    "episode_steps,cumulative_steps,conflict_ratio,last_done_bootstrap,"
+                    f"lm1_obs_l2norm,lm2_obs_l2norm,gm_obs_l2norm,mean_agent_embedding_l2norm,{slug}\n"
+                )
+        boot = bootstrap or {}
+        full_success = 1 if float(arrival_rate) >= 99.5 else 0
+        coll_pct = 100.0 if crashed else 0.0
+        arr_only = ",".join(
+            f"{float(arrival_rate):.6f}" if nm == chosen_env_name else ""
+            for nm in multi_env.env_names
+        )
         with open(metrics_csv, "a", encoding="utf-8") as f:
             f.write(
                 f"{ep},{chosen_env_name},{scenario_idx},{float(episode_rewards):.6f},"
-                f"{float(arrival_rate):.6f},{1 if crashed else 0}\n"
+                f"{float(arrival_rate):.6f},{1 if crashed else 0},{coll_pct:.6f},{full_success},"
+                f"{int(steps)},{int(total_steps)},{float(current_conflict_ratio):.6f},"
+                f"{int(bool(boot.get('last_done')))},"
+                f"{_vec_l2_csv(boot.get('last_lm1_obs'))},"
+                f"{_vec_l2_csv(boot.get('last_lm2_obs'))},"
+                f"{_vec_l2_csv(boot.get('last_gm_obs'))},"
+                f"{_mean_agent_embedding_l2(boot.get('last_agent_obs'))},"
+                f"{arr_only}\n"
             )
 
         if ep >= 50:
@@ -524,6 +562,7 @@ def unified_training_loop(
                 n_ppo_epochs=getattr(exp, 'N_PPO_EPOCHS', 1),
                 n_value_epochs=getattr(exp, 'N_VALUE_EPOCHS', 0),
                 last_done=last_done,
+                training_episode=ep,
             )
 
     return collision_counter, results, best_model_dir, env_arrivals
@@ -672,6 +711,9 @@ def _run_one_condition(
     ablation: bool,
     base_exp_path: str,
     seed: int = 42,
+    *,
+    warmstart_agent_path: str | None = None,
+    warmstart_master_path: str | None = None,
 ) -> dict:
     _set_all_seeds(seed)
     MasterModel.NORMALIZE_INPUTS = NORMALIZE_MASTER_INPUTS
@@ -712,14 +754,30 @@ def _run_one_condition(
     inter_cfg = _make_env_config("RELintersection-v0", conflict_ratio=initial_ratio)
     master_model_inst, agent_model_inst, _ = initialize_models(exp, inter_cfg)
 
-    ckpt = PRETRAINED_CHECKPOINT + "_agent.pth"
-    if LOAD_PRETRAINED_CHECKPOINT and os.path.exists(ckpt):
-        loaded = load_models(agent_model_inst, master_model_inst, PRETRAINED_CHECKPOINT)
-        print(f"  Checkpoint: {'loaded' if loaded else 'FAILED -- random init'}")
-    elif not LOAD_PRETRAINED_CHECKPOINT:
-        print("  Checkpoint: skipped (normalization changed observation scale)")
+    ws_a = (warmstart_agent_path or "").strip()
+    ws_m = (warmstart_master_path or "").strip()
+    if ws_a and ws_m:
+        if load_models_from_paths(agent_model_inst, master_model_inst, ws_a, ws_m):
+            print(f"  Warm-start: loaded weights from\n    agent={ws_a}\n    master={ws_m}")
+        else:
+            print(f"  Warm-start: FAILED → falling back to default checkpoint / random.", file=sys.stderr)
+            ckpt = PRETRAINED_CHECKPOINT + "_agent.pth"
+            if LOAD_PRETRAINED_CHECKPOINT and os.path.exists(ckpt):
+                loaded = load_models(agent_model_inst, master_model_inst, PRETRAINED_CHECKPOINT)
+                print(f"  Fallback checkpoint: {'loaded' if loaded else 'FAILED -- random init'}")
+            elif not LOAD_PRETRAINED_CHECKPOINT:
+                print("  Checkpoint: skipped (normalization scale mismatch)")
+            else:
+                print(f"  WARNING: no checkpoint at {ckpt}, using random init")
     else:
-        print(f"  WARNING: no checkpoint at {ckpt}, using random init")
+        ckpt = PRETRAINED_CHECKPOINT + "_agent.pth"
+        if LOAD_PRETRAINED_CHECKPOINT and os.path.exists(ckpt):
+            loaded = load_models(agent_model_inst, master_model_inst, PRETRAINED_CHECKPOINT)
+            print(f"  Checkpoint: {'loaded' if loaded else 'FAILED -- random init'}")
+        elif not LOAD_PRETRAINED_CHECKPOINT:
+            print("  Checkpoint: skipped (normalization changed observation scale)")
+        else:
+            print(f"  WARNING: no checkpoint at {ckpt}, using random init")
 
     agent_logger, master_logger = _setup_loggers_csv(sub_dir)
     agent_model_inst.set_logger(agent_logger)
@@ -768,6 +826,27 @@ def _run_one_condition(
         suptitle=f"{config.name} -- {condition_label} -- seed={seed} -- {config.total_episodes} ep",
         total_episodes=config.total_episodes,
         rolling_crash_window=ROLLING_CRASH_WINDOW,
+    )
+    save_unified_metric_exports(
+        results,
+        sub_dir,
+        metrics_csv,
+        env_arrivals=env_arrivals,
+        smooth_ep=SMOOTH_EP,
+        rolling_crash_window=ROLLING_CRASH_WINDOW,
+        total_episodes=config.total_episodes,
+    )
+    save_json(
+        results,
+        collision_counter,
+        sub_dir,
+        metrics_csv,
+        extra_fields={
+            "config_name": config.name,
+            "condition": condition_label,
+            "seed": seed,
+            "best_model_dir": best_model_dir,
+        },
     )
 
     # ── Load best model for testing ───────────────────────────────────────────

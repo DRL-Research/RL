@@ -6,3 +6,21 @@ experiments/
 experiment_runs/
 logger/token.json
 .neptune/
+
+# Editor / IDE
+.vscode/
+
+# Generated evaluation outputs (results, plots, tables) — not source
+EVALUATION_RESULTS/
+MODELS_EVALUATION/
+PROFESSOR_RESULTS/
+Sandbox/
+
+# Old experiment dumps / large binaries
+new_arch/
+*.rar
+*.log
+collision_audit_report.json
+intersection_crash_rate_four_bar.png
+intersection_crash_rate_four_conditions.png
+models_to_check/**/*.txt
