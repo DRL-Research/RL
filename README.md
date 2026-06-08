@@ -199,7 +199,7 @@ These are the values used in the training run that produced the saved checkpoint
 | Collision reward | -50 | terminal |
 | Arrival reward | +50 | terminal |
 | High-speed reward | +5/step | per step agent is above speed threshold |
-| Starvation reward | 0 | disabled |
+| Starvation reward | 0.1 |  |
 | Reward mode | global | one shared reward signal per episode |
 
 ## Setup
@@ -213,7 +213,7 @@ Requires Python 3.10+.
 
 ## Training
 
-> **Note:** `models/agent/agent.pth` and `models/master/master.pth` were produced by a multi-seed run (`experiment_runs/full_26_04_2026-11_40_39`) using the hyperparameters in the table above. The best seed (s123) reached 98.7% arrival on the last 50 episodes.
+> **Note:** `models/agent/agent.pth` and `models/master/master.pth` were produced by a multi-seed run using the hyperparameters in the table above.
 >
 > `scripts/training/main_final.py` is a single-seed reproduction script with the same base config. It will produce a comparable model but with slightly different settings (`ent_coef=0.05`, `ep_for_train=3`). Use it as a starting point if you need to retrain.
 
