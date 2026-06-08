@@ -1,8 +1,20 @@
-# Hierarchical Multi-Agent RL - Scalable Coordinated Driving
+# Hierarchical Multi-Agent RL — Scalable Coordinated Driving
 
-A n-level master-agent hierarchy trained with PPO on custom `highway-env` layouts. The core claim: one pair of trained checkpoints (master + agent), deployed at any scale from 3 to 48 agents across independent or connected intersections, consistently reduces crash rates compared to running agents without a master signal.
+A 3-level master-agent hierarchy trained with PPO on custom `highway-env` layouts. The core claim: one pair of trained checkpoints (master + agent), deployed at any scale from 3 to 48 agents across independent or connected intersections, consistently reduces crash rates compared to running agents without a master signal.
 
-All Masters run the **same single MasterModel instance** (one set of weights for all masters). This is why the system scales: adding more intersections means running the same master model on more inputs, not introducing new parameters. When the system grows beyond 5 Local Masters, intermediate masters group them in sets of ≤5 recursively, forming a tree of depth ⌈log₅(N\_LMs)⌉ - all running the same master weights.
+## Two separate models, two kinds of sharing
+
+The system uses **two distinct PPO models** with different architectures, observation spaces, and action spaces:
+
+| | Master model | Agent model |
+|---|---|---|
+| Observation | 25-D (5 slots × 5) | 8-D (4-D state + 4-D embedding) |
+| Output | 4-D continuous embedding | discrete {slow, fast} |
+| Network | ResNet (25→128→128→4) | MLP wide (8→256→256→2) |
+
+What is shared within each role: all Local Masters and the Global Master run the **same single MasterModel instance** (one set of weights for all masters). All agents run the **same single agent model instance** (one set of weights for all agents). There is no parameter sharing between the master model and the agent model.
+
+This is why the system scales: adding more intersections means running the same master model on more inputs, not introducing new parameters. When the system grows beyond 5 Local Masters, intermediate masters group them in sets of ≤5 recursively, forming a tree of depth ⌈log₅(N\_LMs)⌉ — all running the same master weights.
 
 ## Architecture
 
@@ -11,9 +23,9 @@ All Masters run the **same single MasterModel instance** (one set of weights for
                         / | \
                       M1  M2  ...   (intermediate masters when N_LMs > 5)
                      /|   |\
-                   LM1  LM2  ...   (Local Masters - one per intersection zone)
+                   LM1  LM2  ...   (Local Masters — one per intersection zone)
                    /|\   /|\
-                 a  a  a  a  a  a  (Agents - one per vehicle)
+                 a  a  a  a  a  a  (Agents — one per vehicle)
 ```
 
 **Master observation (25-D):** 5 slots × 5 values each.
@@ -27,21 +39,23 @@ This identifier bit is what lets the same master model manage either agents or o
 
 **Agent observation (8-D):** 4-D local kinematic state + 4-D LM embedding received from the master above.
 
+**Agent action:** binary — `{slow, fast}` — mapped to fixed throttle values.
+
 ## Topologies evaluated
 
-**Parallel** - each intersection is an independent environment, managed by one Local Master. Agents never cross intersection boundaries. The hierarchy grows by adding more (LM, intersection) pairs.
+**Parallel** — each intersection is an independent environment, managed by one Local Master. Agents never cross intersection boundaries. The hierarchy grows by adding more (LM, intersection) pairs.
 
-![Parallel topology - 48 agents, 16 local masters](docs/figures/parallel_M16_N48.png)
+![Parallel topology — 48 agents, 16 local masters](docs/figures/parallel_M16_N48.png)
 
-**Chain** - intersections are physically connected in a road corridor. Agents route across multiple zones; the LM responsible for a zone receives and hands off agents dynamically as they enter or leave.
+**Chain** — intersections are physically connected in a road corridor. Agents route across multiple zones; the LM responsible for a zone receives and hands off agents dynamically as they enter or leave.
 
-![Chain topology - 15 agents, 5 regional local masters](docs/figures/chain_int5_N15.png)
+![Chain topology — 15 agents, 5 regional local masters](docs/figures/chain_int5_N15.png)
 
 ## Results
 
 Evaluated on 30 scenarios per scale, two conditions:
-- `normal` - full hierarchy active (GM → LMs → agents)
-- `zero_master` - master signal zeroed out at every step; agents navigate on raw state alone
+- `normal` — full hierarchy active (GM → LMs → agents)
+- `zero_master` — master signal zeroed out at every step; agents navigate on raw state alone
 
 ### Parallel scalability (crash rate per intersection, 30 scenarios)
 
@@ -66,7 +80,7 @@ The crash rate gap stays at roughly 55–57 pp across all scales.
 | 4 | 12 | 33% | 97% |
 | 5 | 15 | 30% | 77% |
 
-Chain topology is harder - agents must cross zone boundaries, which creates multi-hop coordination conflicts. The master still provides a large benefit, though absolute crash rates are higher than parallel.
+Chain topology is harder — agents must cross zone boundaries, which creates multi-hop coordination conflicts. The master still provides a large benefit, though absolute crash rates are higher than parallel.
 
 ## Repository layout
 
@@ -111,7 +125,8 @@ Chain topology is harder - agents must cross zone boundaries, which creates mult
 │   │   ├── run_scalability_suite.py # Parallel scaling engine (imported by above)
 │   │   ├── run_chain_scalability.py # Chain scaling engine (imported by above)
 │   │   ├── run_proto_action_sweep.py# Core inference utilities (shared by all eval scripts)
-│   │   └── run_mixed_layer_experiment.py  # Mixed-layer topology test
+│   │   ├── run_mixed_layer_experiment.py  # Mixed-layer topology test
+│   │   └── run_dynamic_hierarchy.py  # Live architecture change (ramp agents up/down)
 │   └── visualization/
 │       └── visualize_hierarchy.py   # Generates the two figures in docs/figures/
 │
@@ -130,81 +145,72 @@ Chain topology is harder - agents must cross zone boundaries, which creates mult
 
 ## Training flow
 
-```text
+```
 main_final.py
-  |
-  +-- training_loop()          [training_handler.py]
-       |  Runs episodes grouped into cycles.
-       |  prepare_models_for_cycle(): decides which networks update this cycle.
-       |  FULL_JOINT_TRAINING=True -> master and agents both update every cycle.
-       |
-       +-- for each episode:
-       |
-       |    process_episode()  [episode_utils.py]
-       |      Steps through one complete env episode and fills rollout buffers.
-       |
-       |      Each env step has two sequential sub-passes:
-       |
-       |      -- MASTER PASS -------------------------------------------------
-       |      All masters run before any agent acts.
-       |      LMs and GM each call master_model.predict() with different packed inputs.
-       |
-       |      For each LM  ->  _master_obs_for_lm() packs a 25-D vector:
-       |
-       |        slot 0: [ last_GM_embedding (4-D) | id=1 ]  <- parent feedback
-       |        slot 1: [ agent_0 state (x,y,vx,vy) | id=0 ]
-       |        slot 2: [ agent_1 state             | id=0 ]
-       |        slot 3: [ agent_2 state             | id=0 ]
-       |        slot 4: [ zeros (pad)               | id=0 ]
-       |
-       |        master_model.predict(25-D) -> 4-D LM embedding
-       |
-       |      For GM  ->  _global_master_obs() packs a 25-D vector:
-       |
-       |        slot 0: [ zeros (GM has no parent)  | id=1 ]
-       |        slot 1: [ LM1 embedding (4-D)       | id=1 ]
-       |        slot 2: [ LM2 embedding (4-D)       | id=1 ]
-       |        slot 3: [ zeros (pad)               | id=1 ]
-       |        slot 4: [ zeros (pad)               | id=1 ]
-       |
-       |        master_model.predict(25-D) -> 4-D GM embedding
-       |        (broadcast to LMs as slot 0 at the next step)
-       |
-       |      -- AGENT PASS --------------------------------------------------
-       |      Each agent receives its parent LM embedding and chooses an action:
-       |
-       |        agent_model.predict( [own_state(4-D) | LM_embedding(4-D)] )
-       |                              ------- 8-D observation ----------
-       |        -> action in { 0=slow (5 m/s), 1=fast (10 m/s) }
-       |
-       |      -- ENV STEP ----------------------------------------------------
-       |        env.step(all_actions) -> next states, rewards, done
-       |        append (obs, action, reward, value, log_prob) to rollout buffers
-       |
-       +-- every episode: perform_training_phase() [training_loop_utils.py]
-       |    PPO update on master buffer:  policy + value + entropy loss
-       |    PPO update on agent buffers:  policy + value + entropy loss
-       |    5 epochs over each buffer. Uses SB3 PPO internals for both.
-       |
-       +-- save_models()  [model_handler.py]
+  └─ training_loop()                [training_handler.py]
+       │  Outer loop: episodes, grouped into cycles.
+       │  prepare_models_for_cycle(): sets which heads train this cycle.
+       │  FULL_JOINT_TRAINING=True → master + agents both update every cycle.
+       │
+       ├─ for each episode:
+       │    process_episode()        [episode_utils.py]
+       │      Runs one full environment episode step by step.
+       │      Fills the master rollout buffer and each agent's rollout buffer.
+       │
+       │      for each env step:
+       │        ┌─ MASTER PASS (both LMs and GM in one logical moment) ──────────┐
+       │        │                                                                  │
+       │        │  For each LM:                                                   │
+       │        │    _master_obs_for_lm()  →  pack a 25-D observation:            │
+       │        │      slot 0 : [prev_GM_embedding  | id=1]  ← parent feedback    │
+       │        │      slot 1 : [agent_0_state (x,y,vx,vy) | id=0]               │
+       │        │      slot 2 : [agent_1_state             | id=0]               │
+       │        │      slot 3 : [agent_2_state             | id=0]               │
+       │        │      slot 4 : [zeros (pad)               | id=0]               │
+       │        │    master_model.predict(obs) → 4-D LM embedding                │
+       │        │                                                                  │
+       │        │  GM (same master_model, different obs):                         │
+       │        │    _global_master_obs()  →  pack a 25-D observation:            │
+       │        │      slot 0 : [zeros (no parent)  | id=1]  ← GM has no parent  │
+       │        │      slot 1 : [LM1_embedding      | id=1]                      │
+       │        │      slot 2 : [LM2_embedding      | id=1]                      │
+       │        │      slot 3..4: [zeros (pad)       | id=1]                     │
+       │        │    master_model.predict(obs) → 4-D GM embedding                │
+       │        │      (stored in rollout buffer; broadcast to LMs next step)     │
+       │        └──────────────────────────────────────────────────────────────────┘
+       │
+       │        ┌─ AGENT PASS ───────────────────────────────────────────────────┐
+       │        │  For each agent:                                                 │
+       │        │    obs = [own_state (4-D) | parent_LM_embedding (4-D)]  = 8-D   │
+       │        │    agent_model.predict(obs) → action ∈ {0=slow, 1=fast}         │
+       │        └──────────────────────────────────────────────────────────────────┘
+       │
+       │        env.step(actions) → next states, rewards, done
+       │        store transition in rollout buffers
+       │
+       ├─ every episode (ep_for_train=1):
+       │    perform_training_phase()  [training_loop_utils.py]
+       │      PPO update on master rollout buffer  (clipped policy + value + entropy loss)
+       │      PPO update on agent rollout buffers  (same loss, separate weights)
+       │      Both updates use the same SB3 PPO internals — 5 epochs over the buffer.
+       │
+       └─ save_models()              [model_handler.py]
 ```
 
 ### Identifier bit
 
-Each master input is 5 slots concatenated into a 25-D vector:
+Each master observation is 5 slots of 5 values each (25-D total). A slot always has the same shape regardless of what it contains:
 
-```text
-slot = [ v0, v1, v2, v3, id ]
-         ---- 4-D payload --    id = 0.0 or 1.0
+```
+slot = [v0, v1, v2, v3, id]
 ```
 
-`id = 0.0` means the payload is a raw agent state (x, y, vx, vy, normalized).
-`id = 1.0` means the payload is a 4-D embedding produced by a sub-master.
+`v0..v3` is either a 4-D agent kinematic state (x, y, vx, vy, normalized) or a 4-D master embedding. `id` is a single float:
 
-The ResNet reads these 25 values as a flat vector. Because the training data always included both kinds of slots together, the same weights handle agents, sub-masters, or a mix at inference time without retraining.
+- `id = 0.0` — this slot holds a raw agent state
+- `id = 1.0` — this slot holds a master embedding (from a sub-master)
 
-The mixed-layer experiment (`GM -> [LM, a3, a4, a5]`) works by exactly this: slot 0 of the GM carries `id=1` (an LM embedding) and slots 1-3 carry `id=0` (raw agent states). No new architecture, no fine-tuning.
-
+The bit is appended literally to the input vector. The ResNet sees it as one more feature. Because the same weights handle `id=0` and `id=1` slots, a master can manage raw agents, other masters, or a mix of both — without any architectural change. This is also what makes the mixed-layer experiment (`GM → [LM, a3, a4, a5]`) work out of the box: slot 0 gets `id=1` (an LM embedding) and slots 1-3 get `id=0` (raw agent states), and the network was never told they can't coexist.
 
 ## Hyperparameters
 
@@ -234,7 +240,7 @@ These are the values used in the training run that produced the saved checkpoint
 | Collision reward | -50 | terminal |
 | Arrival reward | +50 | terminal |
 | High-speed reward | +5/step | per step agent is above speed threshold |
-| Starvation reward | 0.1 |  |
+| Starvation reward | 0 | disabled |
 | Reward mode | global | one shared reward signal per episode |
 
 ## Setup
@@ -248,7 +254,7 @@ Requires Python 3.10+.
 
 ## Training
 
-> **Note:** `models/agent/agent.pth` and `models/master/master.pth` were produced by a multi-seed run using the hyperparameters in the table above.
+> **Note:** `models/agent/agent.pth` and `models/master/master.pth` were produced by a multi-seed run (`experiment_runs/full_26_04_2026-11_40_39`) using the hyperparameters in the table above. The best seed (s123) reached 98.7% arrival on the last 50 episodes.
 >
 > `scripts/training/main_final.py` is a single-seed reproduction script with the same base config. It will produce a comparable model but with slightly different settings (`ent_coef=0.05`, `ep_for_train=3`). Use it as a starting point if you need to retrain.
 
@@ -271,6 +277,14 @@ Mixed-layer topology experiment (a master managing both sub-masters and raw agen
 ```bash
 python scripts/evaluation/run_mixed_layer_experiment.py
 ```
+
+Dynamic hierarchy (agent count grows and shrinks in one intersection, the master tree is rebuilt live):
+
+```bash
+python scripts/evaluation/run_dynamic_hierarchy.py --max-agents 12 --scenarios 40
+```
+
+The agent count ramps up from 1 to the maximum and back down to 1. A local master supervises up to 4 agents; once the count crosses 4, 8, 12, ... a new local master is added and a global master coordinates them. The script reuses the same shared weights at every size and reports arrival and crash rate for both the up ramp and the down ramp, so any degradation introduced by adding or removing a master would show up as a gap between the two ramps at the same agent count.
 
 Regenerate the hierarchy diagrams:
 
