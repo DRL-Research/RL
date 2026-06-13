@@ -116,6 +116,7 @@ class MasterModel:
         self.embedding_size = embedding_size
         self.experiment = experiment
         self.is_frozen = False
+        self.seed = getattr(experiment, "SEED", None) if experiment is not None else None
 
         # Calculate observation dimension
         if observation_dim is not None:
@@ -127,7 +128,7 @@ class MasterModel:
             self.observation_dim = 20  # Default 5 cars * 4 features
 
         # Create a real minimal environment (replaces the dummy)
-        env = _MasterEnv(obs_dim=self.observation_dim, emb_dim=embedding_size)
+        env = _MasterEnv(obs_dim=self.observation_dim, emb_dim=embedding_size, seed=self.seed)
 
         # Get n_steps safely
         try:
@@ -153,7 +154,8 @@ class MasterModel:
                 net_arch=[128,256,128]
             ),
             verbose=1,
-            device="cpu"
+            device="cpu",
+            seed=self.seed,
         )
 
         # Rollout buffer for compatibility (kept as-is, just uses env spaces)

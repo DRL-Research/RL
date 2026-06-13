@@ -5,9 +5,11 @@ import torch
 from gymnasium import spaces
 from stable_baselines3.common.buffers import RolloutBuffer
 
+from src.baseline.vn_maddpg import canonicalize_algorithm_name, run_baseline_experiment
 from src.model.model_handler import load_models, save_models
 from src.plotting_utils.plotting_utils import plot_training_results
 from src.project_globals import rollout_buffers
+from src.training.experiment_utils import set_global_seeds, write_progress_csv
 from src.training.episode_utils import process_episode
 from src.training.general_utils import (
     setup_experiment_dirs,
@@ -30,6 +32,7 @@ def training_loop(experiment, env, agent_model, master_model):
     """
 
     # Add rollout buffer per controlled car
+    rollout_buffers.clear()
     for _ in env.env.config["controlled_cars"]:
         new_rollout_buffer_instance = RolloutBuffer(
             buffer_size=experiment.N_STEPS,
@@ -54,14 +57,25 @@ def training_loop(experiment, env, agent_model, master_model):
 
             episode_counter += 1
             print('This is the ', episode_counter, 'Out of', experiment.EPISODES_PER_CYCLE * experiment.CYCLES, 'episodes')
-            episode_rewards, actions, steps, crashed = process_episode(episode_counter, total_steps, env, master_model,
-                                                              agent_model, experiment, train_both, training_master)
-            if crashed:
+            episode_result = process_episode(
+                episode_counter,
+                total_steps,
+                env,
+                master_model,
+                agent_model,
+                experiment,
+                train_both,
+                training_master,
+            )
+            if episode_result["collision"]:
                 collision_counter += 1
 
-            total_steps += steps
-            results["episode_rewards"].append(episode_rewards)
-            results["all_actions"].append(actions)
+            total_steps += episode_result["episode_length"]
+            results["episode_rewards"].append(episode_result["episode_reward"])
+            results["success_flags"].append(int(episode_result["success"]))
+            results["collision_flags"].append(int(episode_result["collision"]))
+            results["episode_lengths"].append(episode_result["episode_length"])
+            results["all_actions"].append(episode_result["actions"])
 
             # Prepare state for training
             with torch.no_grad():
@@ -176,7 +190,24 @@ def run_training_mode(experiment_config, wrapped_env, agent_model, master_model,
     agent_model, master_model, collision_counter, all_rewards, all_actions, training_results = (
         training_loop(experiment=experiment_config, env=wrapped_env, agent_model=agent_model, master_model=master_model))
     save_models(agent_model, master_model, experiment_config.SAVE_MODEL_DIRECTORY)
-    plot_training_results(experiment_config, training_results, show_plots=True)
+    progress_rows = []
+    total_episodes = len(training_results["episode_rewards"])
+    for episode_index in range(total_episodes):
+        progress_rows.append(
+            {
+                "episode": episode_index + 1,
+                "reward": training_results["episode_rewards"][episode_index],
+                "success": training_results["success_flags"][episode_index],
+                "collision": training_results["collision_flags"][episode_index],
+                "episode_length": training_results["episode_lengths"][episode_index],
+            }
+        )
+    write_progress_csv(experiment_config.EXPERIMENT_PATH, progress_rows, log_dir_name="comparison_logs")
+    plot_training_results(
+        experiment_config,
+        training_results,
+        show_plots=bool(getattr(experiment_config, "SHOW_PLOTS", True)),
+    )
     #log_training_results_to_neptune(experiment_config.logger, training_results)
     print("Training completed.")
     print("Total collisions:", collision_counter)
@@ -193,6 +224,13 @@ def run_experiment(experiment_config, env_config):
         f"Environment configuration: {len(env_config['controlled_cars'])} controlled cars, {len(env_config['static_cars'])} static cars"
     )
     setup_experiment_dirs(experiment_config.EXPERIMENT_PATH)
+    set_global_seeds(getattr(experiment_config, "SEED", None))
+
+    algorithm_name = canonicalize_algorithm_name(getattr(experiment_config, "ALGORITHM", "experiment"))
+    if algorithm_name != "experiment":
+        print(f"Running baseline algorithm: {algorithm_name}")
+        return run_baseline_experiment(experiment_config, env_config)
+
     master_model, agent_model, wrapped_env = initialize_models(experiment_config, env_config)
     agent_logger, master_logger = setup_loggers(experiment_config.EXPERIMENT_PATH)
     agent_model.set_logger(agent_logger)

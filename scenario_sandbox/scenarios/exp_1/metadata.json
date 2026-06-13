@@ -1,0 +1,198 @@
+{
+  "env_type": "double_intersection",
+  "env_config": {
+    "collision_reward": -300,
+    "arrived_reward": 50,
+    "starvation_reward": -5.0,
+    "normalize_reward": false,
+    "duration": 50,
+    "initial_vehicle_count": 8,
+    "spawn_probability": 0.0,
+    "screen_width": 1400,
+    "screen_height": 800,
+    "scaling": 2.5,
+    "centering_position": [
+      0.5,
+      0.5
+    ],
+    "connector_length": 80,
+    "observation": {
+      "type": "Kinematics",
+      "features": [
+        "x",
+        "y",
+        "vx",
+        "vy"
+      ],
+      "features_range": {
+        "x": [
+          -200,
+          200
+        ],
+        "y": [
+          -100,
+          100
+        ],
+        "vx": [
+          -20,
+          20
+        ],
+        "vy": [
+          -20,
+          20
+        ]
+      },
+      "absolute": true,
+      "flatten": false,
+      "observe_intentions": false
+    },
+    "action": {
+      "type": "CustomMultiAgentAction",
+      "action_config": {
+        "type": "CustomDiscreteAction"
+      },
+      "target_speeds": [
+        5,
+        10
+      ]
+    },
+    "controlled_cars": {
+      "agent_0": {
+        "start_lane": [
+          "A_o0",
+          "A_ir0",
+          0
+        ],
+        "init_location": {
+          "longitudinal": 40,
+          "lateral": 0
+        },
+        "speed": 8,
+        "color": [
+          255,
+          100,
+          100
+        ],
+        "destination": "A_o2"
+      },
+      "agent_1": {
+        "start_lane": [
+          "A_o1",
+          "A_ir1",
+          0
+        ],
+        "init_location": {
+          "longitudinal": 40,
+          "lateral": 0
+        },
+        "speed": 8,
+        "color": [
+          100,
+          255,
+          100
+        ],
+        "destination": "B_o3"
+      },
+      "agent_2": {
+        "start_lane": [
+          "A_o2",
+          "A_ir2",
+          0
+        ],
+        "init_location": {
+          "longitudinal": 40,
+          "lateral": 0
+        },
+        "speed": 8,
+        "color": [
+          100,
+          100,
+          255
+        ],
+        "destination": "B_o0"
+      },
+      "agent_3": {
+        "start_lane": [
+          "B_o0",
+          "B_ir0",
+          0
+        ],
+        "init_location": {
+          "longitudinal": 40,
+          "lateral": 0
+        },
+        "speed": 8,
+        "color": [
+          255,
+          165,
+          0
+        ],
+        "destination": "A_o2"
+      },
+      "agent_4": {
+        "start_lane": [
+          "B_o2",
+          "B_ir2",
+          0
+        ],
+        "init_location": {
+          "longitudinal": 40,
+          "lateral": 0
+        },
+        "speed": 8,
+        "color": [
+          0,
+          255,
+          255
+        ],
+        "destination": "A_o0"
+      },
+      "agent_5": {
+        "start_lane": [
+          "B_o3",
+          "B_ir3",
+          0
+        ],
+        "init_location": {
+          "longitudinal": 40,
+          "lateral": 0
+        },
+        "speed": 8,
+        "color": [
+          255,
+          0,
+          255
+        ],
+        "destination": "A_o1"
+      }
+    },
+    "static_cars": {
+      "static_0": {
+        "start_lane": [
+          "B_o3",
+          "B_ir3",
+          0
+        ],
+        "init_location": {
+          "longitudinal": 40,
+          "lateral": 0
+        },
+        "speed": 8
+      },
+      "static_1": {
+        "start_lane": [
+          "A_o2",
+          "A_ir2",
+          0
+        ],
+        "init_location": {
+          "longitudinal": 15,
+          "lateral": 0
+        },
+        "speed": 8
+      }
+    }
+  },
+  "scenario_count": 3,
+  "created_at": "2026-04-17T18:07:18"
+}

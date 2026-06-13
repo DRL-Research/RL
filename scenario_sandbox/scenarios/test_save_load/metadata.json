@@ -1,0 +1,89 @@
+{
+    "env_type": "double_intersection",
+    "env_config": {
+        "collision_reward": -300,
+        "arrived_reward": 50,
+        "starvation_reward": -5.0,
+        "normalize_reward": false,
+        "duration": 50,
+        "initial_vehicle_count": 0,
+        "spawn_probability": 0.0,
+        "screen_width": 1400,
+        "screen_height": 800,
+        "scaling": 2.5,
+        "centering_position": [
+            0.5,
+            0.5
+        ],
+        "connector_length": 80,
+        "observation": {
+            "type": "Kinematics",
+            "features": [
+                "x",
+                "y",
+                "vx",
+                "vy"
+            ]
+        },
+        "action": {
+            "type": "CustomMultiAgentAction",
+            "action_config": {
+                "type": "CustomDiscreteAction"
+            },
+            "target_speeds": [
+                5,
+                10
+            ]
+        },
+        "controlled_cars": {
+            "agent_0": {
+                "start_lane": [
+                    "A_o0",
+                    "A_ir0",
+                    0
+                ]
+            },
+            "agent_1": {
+                "start_lane": [
+                    "A_o0",
+                    "A_ir0",
+                    0
+                ]
+            },
+            "agent_2": {
+                "start_lane": [
+                    "A_o0",
+                    "A_ir0",
+                    0
+                ]
+            },
+            "agent_3": {
+                "start_lane": [
+                    "A_o0",
+                    "A_ir0",
+                    0
+                ]
+            },
+            "agent_4": {
+                "start_lane": [
+                    "A_o0",
+                    "A_ir0",
+                    0
+                ]
+            },
+            "agent_5": {
+                "start_lane": [
+                    "A_o0",
+                    "A_ir0",
+                    0
+                ]
+            }
+        },
+        "static_cars": {}
+    },
+    "scenario_count": 2,
+    "scenarios": [
+        "scenario_0.json",
+        "scenario_1.json"
+    ]
+}
