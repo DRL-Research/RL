@@ -7,8 +7,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 
-# Add project root to sys.path
-sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from highwayenv.utils import patch_intersection_env, register_intersection_env
 from src.experiment import scenarios_config as sc

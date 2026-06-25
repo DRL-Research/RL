@@ -107,7 +107,7 @@ RL/
 │   ├── model/                  # Neural network models
 │   │   ├── agent_handler.py    # Local vehicle controller and Driver env wrapper
 │   │   ├── master_model.py     # Master model with SimpleResNetExtractor
-│   │   └── model_handler.py    # Model wrappers (PPO, DQN, A2C) and savers
+│   │   └── model_handler.py    # Model wrappers (PPO, DQN, A2C)
 │   ├── plotting_utils/         # Data plotting and graphics tools
 │   │   └── plotting_utils.py   # Training summary, loss curves, and reward plotting
 │   └── training/               # Training loop orchestrators and buffers
@@ -115,8 +115,16 @@ RL/
 │       ├── general_utils.py    # Model initialization and logger setup
 │       ├── training_handler.py # Orchestrates run modes (Training vs Inference)
 │       └── training_loop_utils.py # Cycles and buffers optimization routines
-├── main.py                     # Main execution entrypoint
-├── requirements.txt            # System dependencies (UTF-16 encoded)
+├── legacy_scripts/             # Legacy single-agent and comparison runners
+│   ├── compare_algorithms.py   # Legacy sequential comparison script
+│   └── main.py                 # Legacy training / evaluation script with rendering
+├── analyze_results.ipynb       # Jupyter Notebook for result analysis & plotting (Stage 2)
+├── prepare.py                  # Environment patches and validation helper (Immutable)
+├── run_parallel_experiment.py  # Parallel multi-seed experiment runner (Stage 1)
+├── train.py                    # Primary training / hyperparameter tuning script (Mutable)
+├── program.md                  # AutoResearch research manual and constraints
+├── results.tsv                 # Saved performance summary history
+├── requirements.txt            # System dependencies
 └── README.md                   # Repository documentation
 ```
 
@@ -162,17 +170,43 @@ To activate Neptune logging, create a `logger/token.json` file containing your N
 
 ## 🎮 How to Run
 
-You can customize the run behavior using the configurations defined in `main.py` and `src/experiment/experiment_config.py`.
+The framework provides two primary paths for training and evaluation.
 
-### Run Modes
-By adjusting variables in `Experiment`:
-* **Training Mode** (`ONLY_INFERENCE = False`): Executes training over configured `CYCLES` and `EPISODES_PER_CYCLE`, updates weights, and plots training metrics.
-* **Inference/Evaluation Mode** (`ONLY_INFERENCE = True`): Loads saved weights from `LOAD_MODEL_DIRECTORY` and executes evaluation episodes in rendering mode.
+### Option A: Complete Multi-Seed Algorithm Comparison (2-Stage Workflow)
 
-To launch the simulation:
+This is the recommended workflow to run, evaluate, and compare all three cooperative MARL algorithms (`MAPS`, `VN-MA-DDPG`, `MA-GA-DDPG`) across multiple seeds.
+
+#### 1. Stage 1: Run Parallel Experiments
+Execute the parallel runner to train/evaluate the algorithms across all validation seeds (`42`, `100`, `2026`). It automatically skips already completed runs.
 ```bash
-python main.py
+python run_parallel_experiment.py --episodes 900
 ```
+- `--episodes`: Number of episodes per seed (default: `900`).
+- `--seeds`: Comma-separated list of seeds (default: `42,100,2026`).
+The results will be saved as JSON history files under `experiments/histories/`.
+
+#### 2. Stage 2: Analyze Results & Generate Plots
+Open the Jupyter Notebook:
+```bash
+jupyter notebook analyze_results.ipynb
+```
+Run all cells in `analyze_results.ipynb` to:
+- Load the history JSON files.
+- Compute average performance metrics (Success Rate, Collision Rate, Reward, and Steps) across seeds.
+- Display a comprehensive comparison table.
+- Display smoothed convergence plots inline and save the output chart to `plots/algorithm_comparison.png`.
+
+---
+
+### Option B: Individual Model Tuning (Mutable Sandbox)
+
+To modify model architectures, reward shaping, or hyperparameters:
+1. Make target adjustments inside [train.py](file:///c:/PycharmProjects/RL/train.py).
+2. Run the single-model training and evaluation script:
+   ```bash
+   python train.py
+   ```
+This script will evaluate your changes against the validation seeds and record performance in `results.tsv`.
 
 ---
 
@@ -226,4 +260,4 @@ Generated plots include:
 * **Master Model**: [master_model.py](file:///c:/PycharmProjects/RL/src/model/master_model.py)
 * **Agent Handler**: [agent_handler.py](file:///c:/PycharmProjects/RL/src/model/agent_handler.py)
 * **Custom Environment**: [intersection_class.py](file:///c:/PycharmProjects/RL/highwayenv/intersection_class.py)
-* **Experiment Setup**: [main.py](file:///c:/PycharmProjects/RL/main.py)
+* **Experiment Setup (Legacy)**: [main.py](file:///c:/PycharmProjects/RL/legacy_scripts/main.py)
