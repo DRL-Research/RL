@@ -9,7 +9,7 @@ import multiprocessing
 # Add project root to sys.path
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
-from compare_algorithms import generate_comparison_plots, print_final_summary_table
+
 
 def run_single_experiment_process(alg_name, alg_key, seed, num_episodes):
     """
@@ -171,72 +171,8 @@ def main():
         pool.close()
         pool.join()
 
-    print("\nAll processes finished! Collecting and aggregating metrics...")
-
-    # Load all histories from JSON
-    results_raw = {
-        alg_name: {
-            "episode_rewards": [],
-            "success_flags": [],
-            "collision_flags": [],
-            "episode_lengths": []
-        } for alg_name in algorithms
-    }
-
-    for alg_name in algorithms:
-        for seed in seeds:
-            history_path = f"experiments/histories/{alg_name}_S{seed}.json"
-            if not os.path.exists(history_path):
-                print(f"Warning: History file {history_path} is missing! Subprocess may have failed.")
-                continue
-            
-            try:
-                with open(history_path, "r", encoding="utf-8") as f:
-                    history = json.load(f)
-                
-                # Check completeness
-                if len(history.get("episode_rewards", [])) < num_episodes:
-                    print(f"Warning: History for {alg_name} (Seed {seed}) is incomplete ({len(history['episode_rewards'])}/{num_episodes} eps)!")
-                    continue
-                
-                # Slice lists to exactly num_episodes to guarantee matching dimensions
-                results_raw[alg_name]["episode_rewards"].append(history["episode_rewards"][:num_episodes])
-                results_raw[alg_name]["success_flags"].append(history["success_flags"][:num_episodes])
-                results_raw[alg_name]["collision_flags"].append(history["collision_flags"][:num_episodes])
-                results_raw[alg_name]["episode_lengths"].append(history["episode_lengths"][:num_episodes])
-            except Exception as e:
-                print(f"Error loading {history_path}: {e}")
-
-    # Aggregate stats (mean & std) across seeds
-    results_processed = {}
-    for alg_name in algorithms:
-        results_processed[alg_name] = {}
-        for metric_name in ["episode_rewards", "success_flags", "collision_flags", "episode_lengths"]:
-            raw_runs = results_raw[alg_name][metric_name]
-            if not raw_runs:
-                continue
-                
-            data_matrix = np.array(raw_runs, dtype=np.float32)
-            if metric_name in ["success_flags", "collision_flags"]:
-                data_matrix = data_matrix * 100.0
-
-            mean_vals = np.mean(data_matrix, axis=0)
-            std_vals = np.std(data_matrix, axis=0)
-            
-            results_processed[alg_name][metric_name] = {
-                "mean": mean_vals,
-                "std": std_vals
-            }
-
-    if not results_processed:
-        print("Error: No training results could be aggregated.")
-        return
-
-    print("\nGenerating final multi-seed comparison curves...")
-    generate_comparison_plots(results_processed, num_episodes, args.window)
-    print("Comparison plot saved to plots/algorithm_comparison.png!")
-
-    print_final_summary_table(results_processed)
+    print("\nAll processes finished! Results saved to experiments/histories/.")
+    print("To analyze the results and view plots, open and run the Jupyter Notebook: analyze_results.ipynb")
 
 if __name__ == "__main__":
     multiprocessing.freeze_support()
