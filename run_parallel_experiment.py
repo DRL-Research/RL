@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 
 
-def run_single_experiment_process(alg_name, alg_key, seed, num_episodes):
+def run_single_experiment_process(alg_name, alg_key, seed, num_episodes, render_mode=None):
     """
     Subprocess entrypoint that runs a single algorithm and seed configuration.
     All imports are local to ensure compatibility with Windows process spawning.
@@ -48,7 +48,7 @@ def run_single_experiment_process(alg_name, alg_key, seed, num_episodes):
 
     config = Experiment(
         ALGORITHM=alg_key,
-        RENDER_MODE=None,
+        RENDER_MODE=render_mode,
         EXPERIMENT_ID=f"Compare_{alg_name}_S{seed}",
         CYCLES=1,
         EPISODES_PER_CYCLE=num_episodes
@@ -95,10 +95,14 @@ def main():
     parser.add_argument("--episodes", type=int, default=900, help="Number of episodes per seed (e.g. 900 for full 8h)")
     parser.add_argument("--seeds", type=str, default="42,100,2026", help="Comma-separated seeds")
     parser.add_argument("--window", type=int, default=10, help="Rolling average window size")
+    parser.add_argument("--render-mode", type=str, default=None, choices=["human", "rgb_array", "none", "None"], help="Gymnasium render mode")
     args = parser.parse_args()
 
     seeds = [int(s) for s in args.seeds.split(",")]
     num_episodes = args.episodes
+    render_mode = args.render_mode
+    if render_mode in ["none", "None", ""]:
+        render_mode = None
 
     print("==================================================")
     print("      Parallel Cooperative MARL Experiment        ")
@@ -143,7 +147,7 @@ def main():
             print(f"Queueing process for {alg_name} (Seed {seed}) in pool...")
             res = pool.apply_async(
                 run_single_experiment_process,
-                args=(alg_name, alg_key, seed, num_episodes)
+                args=(alg_name, alg_key, seed, num_episodes, render_mode)
             )
             async_results.append((alg_name, seed, res))
 
