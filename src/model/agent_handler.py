@@ -5,6 +5,9 @@ import numpy as np
 import torch
 from gymnasium import spaces
 import warnings
+
+from src.experiment.env_utils import resolve_env_id
+
 warnings.filterwarnings("ignore")
 
 class Driver(gym.Env):
@@ -48,7 +51,11 @@ class Driver(gym.Env):
         self.current_embedding = None
 
         # Create the underlying Highway environment
-        self.highway_env = gym.make('RELintersection-v0', render_mode=experiment.RENDER_MODE, config=self.config)
+        self.highway_env = gym.make(
+            resolve_env_id(experiment, self.config),
+            render_mode=experiment.RENDER_MODE,
+            config=self.config,
+        )
 
     def _get_unwrapped_env(self):
         env = self.highway_env
@@ -138,7 +145,6 @@ class Driver(gym.Env):
             if (hasattr(env, 'controlled_vehicles') and len(env.controlled_vehicles) > 0 and
                     hasattr(env.controlled_vehicles[car_index], 'is_arrived') and env.controlled_vehicles[car_index].is_arrived):
                 car_state = np.array([0.0, 0.0, 0.0, 0.0])
-                print('The',env.controlled_vehicles[car_index],'Arrived and sending : ', car_state)
             else:
                 car_state = current_state[car_index*4:car_index*4+4] if len(current_state.shape) == 1 else current_state[car_index]
 
@@ -172,7 +178,6 @@ class Driver(gym.Env):
                     hasattr(env.controlled_vehicles[car_index], 'is_arrived') and env.controlled_vehicles[
                         car_index].is_arrived):
                 car_state = np.array([0.0, 0.0, 0.0, 0.0])
-                print('The', env.controlled_vehicles[car_index], 'Arrived and sending : ', car_state)
             else:
                 car_state = next_state[car_index * 4:car_index * 4 + 4] if len(next_state.shape) == 1 else next_state[car_index]
 

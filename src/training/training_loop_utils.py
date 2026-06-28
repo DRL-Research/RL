@@ -10,15 +10,37 @@ from src.training.general_utils import ensure_tensor, flatten_obs, combine_agent
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+def _normalize_advantages(advantages_tensor: torch.Tensor) -> torch.Tensor:
+    """Normalize advantages without producing NaNs on very short rollouts."""
+
+    advantages_tensor = advantages_tensor.float()
+    mean = advantages_tensor.mean()
+    std = advantages_tensor.std(unbiased=False)
+    return (advantages_tensor - mean) / (std + 1e-8)
+
+
+def _flatten_value_tensor(values_tensor: torch.Tensor) -> torch.Tensor:
+    """Reduce policy value outputs to one scalar per sample."""
+
+    if values_tensor.ndim <= 1:
+        return values_tensor.reshape(-1)
+    return values_tensor.reshape(values_tensor.shape[0], -1).mean(dim=1)
+
+
+def _sum_per_sample(loss_tensor: torch.Tensor) -> torch.Tensor:
+    """Reduce multi-dimensional per-action quantities to one scalar per sample."""
+
+    if loss_tensor.ndim <= 1:
+        return loss_tensor.reshape(-1)
+    return loss_tensor.reshape(loss_tensor.shape[0], -1).sum(dim=1)
+
 def init_training_results() -> Dict[str, List[Any]]:
     """
     Initialize the structure for tracking training results.
     """
     return {
         "episode_rewards": [],
-        "success_flags": [],
-        "collision_flags": [],
-        "episode_lengths": [],
         "master_policy_losses": [],
         "master_value_losses": [],
         "master_total_losses": [],
@@ -112,9 +134,12 @@ def train_master_and_reset_buffer(master_model, full_obs):
                 policy = master_model.model.policy
                 optimizer = policy.optimizer
                 values, log_probs, entropy = policy.evaluate_actions(observations_tensor, actions_tensor)
-                value_loss = ((values - torch.FloatTensor(rollout_data.returns)) ** 2).mean()
-                advantages_tensor = torch.FloatTensor(rollout_data.advantages)
-                advantages_tensor = (advantages_tensor - advantages_tensor.mean()) / (advantages_tensor.std() + 1e-8)
+                values = _flatten_value_tensor(values)
+                returns_tensor = torch.FloatTensor(rollout_data.returns).reshape(-1)
+                value_loss = ((values - returns_tensor) ** 2).mean()
+                advantages_tensor = _normalize_advantages(torch.FloatTensor(rollout_data.advantages).reshape(-1))
+                log_probs = _sum_per_sample(log_probs)
+                entropy = _sum_per_sample(entropy)
                 policy_loss = -(log_probs * advantages_tensor).mean()
                 entropy_loss = -entropy.mean()
                 loss = policy_loss + 0.5 * value_loss + 0.01 * entropy_loss
@@ -192,9 +217,12 @@ def train_agent_and_reset_buffer(master_model, agent_model, last_master_tensor):
                     policy = agent_model.policy
                     optimizer = policy.optimizer
                     values, log_probs, entropy = policy.evaluate_actions(observations_tensor, actions_tensor)
-                    value_loss = ((values - torch.FloatTensor(rollout_data.returns)) ** 2).mean()
-                    advantages_tensor = torch.FloatTensor(rollout_data.advantages)
-                    advantages_tensor = (advantages_tensor - advantages_tensor.mean()) / (advantages_tensor.std() + 1e-8)
+                    values = _flatten_value_tensor(values)
+                    returns_tensor = torch.FloatTensor(rollout_data.returns).reshape(-1)
+                    value_loss = ((values - returns_tensor) ** 2).mean()
+                    advantages_tensor = _normalize_advantages(torch.FloatTensor(rollout_data.advantages).reshape(-1))
+                    log_probs = _sum_per_sample(log_probs)
+                    entropy = _sum_per_sample(entropy)
                     policy_loss = -(log_probs * advantages_tensor).mean()
                     entropy_loss = -entropy.mean()
                     loss = policy_loss + 0.5 * value_loss + 0.01 * entropy_loss

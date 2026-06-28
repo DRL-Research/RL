@@ -38,8 +38,6 @@ class Model:
                 'learning_rate': experiment.LEARNING_RATE,
                 'batch_size': experiment.BATCH_SIZE
             }
-        if getattr(experiment, "SEED", None) is not None:
-            model_params["seed"] = experiment.SEED
         return model_params
 
     @staticmethod

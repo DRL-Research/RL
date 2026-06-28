@@ -16,7 +16,7 @@ def reshape_drivers_states(all_drivers_states):
     all_drivers_states = all_drivers_states.reshape(-1) if isinstance(all_drivers_states, np.ndarray) and len(all_drivers_states.shape) == 2 else all_drivers_states
     return all_drivers_states
 
-def run_episode(experiment, episode_idx, total_steps, env, master_model, agent_model, train_both, training_master):
+def run_episode(experiment, total_steps, env, master_model, agent_model, train_both, training_master):
     all_rewards, actions_per_episode = [], []
     steps_counter, episode_sum_of_rewards = 0, 0
     crashed = False
@@ -106,14 +106,7 @@ def run_episode(experiment, episode_idx, total_steps, env, master_model, agent_m
 
         car_observations = cars_next_obs
 
-    success = bool(done and not truncated and not crashed)
-    return {
-        "episode_reward": episode_sum_of_rewards,
-        "actions": actions_per_episode,
-        "episode_length": steps_counter,
-        "collision": crashed,
-        "success": success,
-    }
+    return episode_sum_of_rewards, actions_per_episode, steps_counter, crashed
 
 
 
@@ -198,9 +191,8 @@ def process_episode(episode_idx, total_steps, env, master_model, agent_model, ex
 
     # TODO: Create an assert here to see that they are reset propely
 
-    episode_result = run_episode(
+    reward, actions, steps, crashed = run_episode(
         experiment,
-        episode_idx,
         total_steps,
         env,
         master_model,
@@ -208,16 +200,13 @@ def process_episode(episode_idx, total_steps, env, master_model, agent_model, ex
         train_both=train_both,
         training_master=training_master,
     )
-    status = "Collision" if episode_result["collision"] else ("Success" if episode_result["success"] else "Timeout")
-    if episode_result["collision"]:
+    status = "Collision" if crashed else "Success"
+    if crashed:
         logger.warning("Episode %d ended with %s", episode_idx, status)
     else:
         logger.info("Episode %d ended with %s", episode_idx, status)
 
     logger.info(
-        "Result: %s | Reward: %.2f | Steps: %d",
-        status,
-        episode_result["episode_reward"],
-        episode_result["episode_length"],
+        "Result: %s | Reward: %.2f | Steps: %d", status, reward, steps
     )
-    return episode_result
+    return reward, actions, steps, crashed

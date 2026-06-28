@@ -10,6 +10,8 @@ from src.plotting_utils.comparison_plotting import (
     plot_multi_seed_algorithm_comparison,
     resolve_progress_csv_path,
 )
+from src.project_globals import rollout_buffers
+from src.training.experiment_utils import set_global_seeds
 from src.training.training_handler import run_experiment
 
 
@@ -61,6 +63,8 @@ def run_multi_seed_comparison(
 
         for seed in seeds:
             run_config = _build_comparison_run_config(base_experiment, normalized_algorithm, seed)
+            rollout_buffers.clear()
+            set_global_seeds(seed)
             run_experiment(run_config, env_config)
             progress_csv_path = resolve_progress_csv_path(run_config.EXPERIMENT_PATH)
 

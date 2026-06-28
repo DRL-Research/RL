@@ -26,6 +26,7 @@ class Experiment:
     CARS_AMOUNT: int = 5  # Updated to 5 cars
     SPAWN_PROBABILITY: float = 0
     RENDER_MODE: str|None = "rgb_array"
+    ENV_ID: str = "RELintersection-v0"
 
     # Model and Training Configuration
     EPISODE_AMOUNT_FOR_TRAIN: int = 2  # Train after x episodes instead of 1

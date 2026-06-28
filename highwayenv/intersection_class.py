@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import random
 
@@ -12,7 +12,13 @@ from highway_env.road.road import RoadNetwork
 from highway_env.vehicle.kinematics import Vehicle
 
 from src.experiment.experiment_config import Experiment
-from src.experiment.scenarios import base_complete_scenarios_3_cars
+from src.experiment.scenarios import (
+    base_complete_scenarios_6_cars,
+    conflict_base_scenarios,
+    EXCLUDED_SCENARIO_INDICES,
+    HELD_OUT_SCENARIO_INDICES,
+    CONFLICT_HELD_OUT_INDICES,
+)
 from highwayenv.CustomControlledVehicle import CustomControlledVehicle
 from highwayenv.custom_action import action_factory
 from src import project_globals
@@ -81,33 +87,20 @@ class IntersectionEnv(AbstractEnv):
 
     def _reward(self, action: int) -> float:
         """Aggregated reward, for cooperative agents."""
-        mean_reward_type = False
-
-        # Work with vehicles that haven't arrived yet
-        # TODO: do we want to filter only not arrived? or do we need to filter not crashed also?
         active_vehicles = [
             vehicle for vehicle, flag in zip(self.controlled_vehicles, project_globals.after_is_arrived_flags)
             if not flag
         ]
-        print(f"Active vehicles: {len(active_vehicles)}")
 
         if not active_vehicles:
-            print("No active vehicles left. Reward: 0.0")
-            return 0.0  # or some default value when all vehicles have arrived
+            return 0.0
 
-        # TODO: do we always want to return one reward shared between all (non crashed) vehicles?
-        if mean_reward_type:
-            mean_reward = sum(
-                self._agent_reward(vehicle) for vehicle in active_vehicles
-            ) / len(active_vehicles)
-            print("Reward:", mean_reward)
-            return mean_reward
-        else:
-            min_reward = min(
-                self._agent_reward(vehicle) for vehicle in active_vehicles
-            )
-            print("Min Reward:", min_reward)
-            return min_reward
+        min_reward = min(self._agent_reward(vehicle) for vehicle in active_vehicles)
+
+        if not getattr(self, '_reward_printed_this_step', False):
+            self._reward_printed_this_step = True
+
+        return min_reward
 
 
     def _rewards(self, action: int) -> dict[str, float]:
@@ -123,18 +116,14 @@ class IntersectionEnv(AbstractEnv):
 
     def _agent_reward(self, vehicle: Vehicle) -> float:
         """Enhanced reward with movement incentive."""
-        rewards = self._agent_rewards(vehicle)
         if self.has_arrived(vehicle):
-            reward = self.config["arrived_reward"]
+            return self.config["arrived_reward"]
         elif vehicle.crashed:
-            reward = self.config["collision_reward"]
-            print(f"Vehicle {vehicle} crashed! Reward: {reward}")
+            return self.config["collision_reward"]
+        elif vehicle.speed > Experiment.FIXED_THROTTLE:
+            return self.config.get("high_speed_reward", Experiment.HIGH_SPEED_REWARD)
         else:
-            if vehicle.speed > Experiment.FIXED_THROTTLE:
-                reward = Experiment.HIGH_SPEED_REWARD
-            else:
-                reward = Experiment.STARVATION_REWARD
-        return reward
+            return self.config.get("starvation_reward", Experiment.STARVATION_REWARD)
 
     def _agent_rewards(self, vehicle: Vehicle) -> dict[str, float]:
         """Per-agent per-objective reward signal."""
@@ -176,9 +165,7 @@ class IntersectionEnv(AbstractEnv):
         if arrived_count == len(self.controlled_vehicles):
             return True
 
-        # TODO: do we want to continue even if there was a crash?
-        return any((vehicle.crashed for vehicle in self.controlled_vehicles) or all(
-            vehicle.is_arrived for vehicle in self.controlled_vehicles))
+        return any(vehicle.crashed for vehicle in self.controlled_vehicles)
 
     def get_observation(self):
 
@@ -217,9 +204,9 @@ class IntersectionEnv(AbstractEnv):
 
     def _reset(self) -> None:
 
-        # reset after_is_arrived_flags
-        for i, vehicle in enumerate(self.controlled_vehicles):
-            project_globals.after_is_arrived_flags[i] = False
+        # Reset flags — reinitialise the list to the current number of controlled vehicles
+        # so this is safe even after reset_globals() wiped it to [].
+        project_globals.after_is_arrived_flags = [False] * len(self.controlled_vehicles)
 
         self._make_road()
         self._make_vehicles(self.config["initial_vehicle_count"])
@@ -228,7 +215,7 @@ class IntersectionEnv(AbstractEnv):
 
         BASE_LONG = 40
 
-        base_complete_scenarios = base_complete_scenarios_3_cars
+        base_complete_scenarios = base_complete_scenarios_6_cars
 
         # Generate rotations for complete scenarios
         def rotate_complete_scenario(scenario, rotation):
@@ -239,31 +226,59 @@ class IntersectionEnv(AbstractEnv):
                 "static": rotated_static
             }
 
-        # Generate all 100 scenarios (25 × 4 rotations)
+        # Generate expanded regular scenarios (each base × 4 rotations incl. orientation 0).
         all_scenarios = []
         for base_scenario in base_complete_scenarios:
-            # Add original (0° rotation)
             all_scenarios.append(base_scenario)
-
-            # Add 3 rotations (90°, 180°, 270°)
             for rotation in [1, 2, 3]:
                 rotated_scenario = rotate_complete_scenario(base_scenario, rotation)
                 all_scenarios.append(rotated_scenario)
 
-        # Choose scenario (3 options: specific, random, serial)
+        # Generate 80 conflict scenarios (20 × 4 rotations)
+        all_conflict = []
+        for base_scenario in conflict_base_scenarios:
+            all_conflict.append(base_scenario)
+            for rotation in [1, 2, 3]:
+                all_conflict.append(rotate_complete_scenario(base_scenario, rotation))
 
-        # 1. For random
-        chosen_scenario = random.choice(all_scenarios)
+        # Build the active training pools
+        _training_excluded = EXCLUDED_SCENARIO_INDICES | HELD_OUT_SCENARIO_INDICES
+        active_regular = [
+            s for i, s in enumerate(all_scenarios)
+            if i not in _training_excluded
+        ]
+        active_conflict = [
+            s for i, s in enumerate(all_conflict)
+            if i not in CONFLICT_HELD_OUT_INDICES
+        ]
 
-        # 2. For specific scenarios (uncomment to use)
-        # desired_scenario = 11  # Choose scenario 0-99
-        # chosen_scenario = all_scenarios[desired_scenario]
-
-        # 3. For serial cycling (uncomment to use)
-        # if not hasattr(self, 'scenario_counter'):
-        #     self.scenario_counter = 0
-        # chosen_scenario = all_scenarios[self.scenario_counter % len(all_scenarios)]
-        # self.scenario_counter += 1
+        # Choose scenario
+        force_idx = self.config.get("force_scenario_index", None)
+        custom_regular = self.config.get("custom_regular_scenarios") or []
+        custom_only = bool(self.config.get("custom_regular_only", False))
+        use_held_out = self.config.get("use_held_out_scenarios", False)
+        use_conflict_only = self.config.get("use_conflict_scenarios_only", False)
+        conflict_ratio = self.config.get("conflict_ratio", 0.0)
+        if force_idx is not None:
+            chosen_scenario = all_scenarios[int(force_idx) % len(all_scenarios)]
+        elif custom_regular and custom_only:
+            ix_pick = self.config.get("custom_regular_episode_index", None)
+            if ix_pick is not None:
+                chosen_scenario = custom_regular[int(ix_pick) % len(custom_regular)]
+            else:
+                chosen_scenario = random.choice(custom_regular)
+        elif use_held_out:
+            held_regular = [all_scenarios[i] for i in sorted(HELD_OUT_SCENARIO_INDICES)]
+            held_conflict = [all_conflict[i] for i in sorted(CONFLICT_HELD_OUT_INDICES)
+                             if i < len(all_conflict)]
+            held_out_pool = held_regular + held_conflict
+            chosen_scenario = random.choice(held_out_pool)
+        elif use_conflict_only:
+            chosen_scenario = random.choice(active_conflict)
+        elif conflict_ratio > 0.0 and active_conflict and random.random() < conflict_ratio:
+            chosen_scenario = random.choice(active_conflict)
+        else:
+            chosen_scenario = random.choice(active_regular)
 
         # Place agents
         for i, (lane_key, destination, off) in enumerate(chosen_scenario["agents"]):
@@ -328,16 +343,43 @@ class IntersectionEnv(AbstractEnv):
                 vehicle.route = [lane_key, (destination, 'ir' + destination[1:], 0)]
 
         # Calculate scenario info for display
-        scenario_index = all_scenarios.index(chosen_scenario)
-        base_scenario_num = scenario_index // 4
-        rotation_num = scenario_index % 4
+        is_conflict = chosen_scenario in all_conflict
+        if custom_regular and custom_only:
+            scenario_index = -5
+            base_scenario_num = -5
+            rotation_num = 0
+            self.last_scenario_pool = "regular"
+        elif is_conflict:
+            self.last_scenario_pool = "conflict"
+            try:
+                scenario_index = all_conflict.index(chosen_scenario)
+            except ValueError:
+                scenario_index = -1
+            pool_size = len(active_conflict)
+            tag = "CONFLICT"
+        else:
+            self.last_scenario_pool = "regular"
+            try:
+                scenario_index = all_scenarios.index(chosen_scenario)
+            except ValueError:
+                scenario_index = -1
+            pool_size = len(active_regular)
+            tag = "regular"
+
+        base_scenario_num = scenario_index // 4 if scenario_index >= 0 else -1
+        rotation_num = scenario_index % 4 if scenario_index >= 0 else 0
         rotation_names = ["Original", "90° CW", "180° CW", "270° CW"]
 
-        print(f"[IntersectionEnv._reset] Using scenario {scenario_index}/100")
-        print(f"  Base scenario {base_scenario_num} ({rotation_names[rotation_num]})")
-        print(f"  Placed {len(safe_static_scenario)}/{len(chosen_scenario['static'])} static vehicles safely")
+        # (verbose prints removed)
+
+        self.last_scenario_index = int(scenario_index)
+        self.last_base_scenario = int(base_scenario_num)
+        self.last_rotation = int(rotation_num)
+        self.last_static_placed = int(len(safe_static_scenario))
+        self.last_static_total = int(len(chosen_scenario["static"]))
 
     def step(self, action: int) -> tuple[np.ndarray, float, bool, bool, dict]:
+        self._reward_printed_this_step = False
         obs, reward, terminated, truncated, info = super().step(action)
         self._clear_vehicles()
         return obs, reward, terminated, truncated, info
