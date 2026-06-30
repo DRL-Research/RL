@@ -120,7 +120,7 @@ def main():
     os.makedirs("experiments/process_logs", exist_ok=True)
 
     # Spawn a pool of processes to avoid memory exhaustion
-    max_concurrent = 2
+    max_concurrent = 4
     print(f"\nInitializing process pool with {max_concurrent} concurrent workers...")
     pool = multiprocessing.Pool(processes=max_concurrent)
     
