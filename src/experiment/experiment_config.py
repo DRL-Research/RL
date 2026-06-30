@@ -119,6 +119,18 @@ class Experiment:
     MA_GA_FASTER_SCALE: float = 1.25
     MA_GA_MAX_PREDICTED_SPEED: float = 1.0
 
+    # IPPO configuration
+    IPPO_ACTOR_LR: float = 3e-4
+    IPPO_CRITIC_LR: float = 1e-3
+    IPPO_GAMMA: float = 0.99
+    IPPO_GAE_LAMBDA: float = 0.95
+    IPPO_CLIP_EPSILON: float = 0.2
+    IPPO_ENTROPY_COEF: float = 0.01
+    IPPO_EPOCHS: int = 10
+    IPPO_BATCH_SIZE: int = 64
+    IPPO_HIDDEN_DIM: int = 64
+    IPPO_ROLLOUT_STEPS: int = 2048
+
     # Computed fields (not passed via __init__)
     EXPERIMENT_PATH: str = field(init=False)
     SAVE_MODEL_DIRECTORY: str = field(init=False)
