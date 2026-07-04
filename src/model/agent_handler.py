@@ -104,7 +104,7 @@ class Driver(gym.Env):
         # Environment state
         self.current_state = None
         # Create the underlying Highway environment
-        self.highway_env = gym.make('RELintersection-v0', render_mode=experiment.RENDER_MODE, config=self.config)
+        self.highway_env = gym.make(experiment.ENV_ID, render_mode=experiment.RENDER_MODE, config=self.config)
 
     def _get_unwrapped_env(self):
         env = self.highway_env

@@ -10,7 +10,7 @@ import multiprocessing
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 
-def run_single_experiment_process(alg_name, alg_key, seed, num_episodes, experiment_name, render_mode=None):
+def run_single_experiment_process(alg_name, alg_key, seed, num_episodes, experiment_name, render_mode=None, env_id="RELintersection-v0"):
     """
     Subprocess entrypoint that runs a single algorithm and seed configuration.
     All imports are local to ensure compatibility with Windows process spawning.
@@ -23,7 +23,7 @@ def run_single_experiment_process(alg_name, alg_key, seed, num_episodes, experim
     import numpy as np
     import torch
 
-    from highwayenv.utils import patch_intersection_env, register_intersection_env
+    from highwayenv.utils import patch_intersection_env, register_intersection_env, register_roundabout_env, register_double_intersection_env
     from src.experiment import scenarios_config as sc
     from src.experiment.experiment_config import Experiment
     from src.training.training_handler import run_experiment
@@ -39,6 +39,8 @@ def run_single_experiment_process(alg_name, alg_key, seed, num_episodes, experim
     print(f"[{alg_name} | Seed {seed}] Initializing environment patches...")
     patch_intersection_env()
     register_intersection_env()
+    register_roundabout_env()
+    register_double_intersection_env()
 
     # Set seeds
     random.seed(seed)
@@ -48,6 +50,7 @@ def run_single_experiment_process(alg_name, alg_key, seed, num_episodes, experim
     config = Experiment(
         ALGORITHM=alg_key,
         RENDER_MODE=render_mode,
+        ENV_ID=env_id,
         EXPERIMENT_ID=f"Compare_{alg_name}_S{seed}",
         CYCLES=3,
         EPISODES_PER_CYCLE=num_episodes
@@ -100,12 +103,14 @@ def main():
                         help="Gymnasium render mode")
     parser.add_argument("--experiment-name", type=str, default="experiment_default_name",
                         help="The name of experiment for logging and results dir")
+    parser.add_argument("--env", type=str, default="RELintersection-v0", help="Environment ID to run")
     args = parser.parse_args()
 
     experiment_name = os.path.join("experiments_results", args.experiment_name)
     seeds = [int(s) for s in args.seeds.split(",")]
     num_episodes = args.episodes
     render_mode = args.render_mode
+    env_id = args.env
     if render_mode in ["none", "None", ""]:
         render_mode = None
 
@@ -113,6 +118,7 @@ def main():
     print("      Parallel Cooperative MARL Experiment        ")
     print(f"      Seeds: {seeds} | Episodes: {num_episodes}   ")
     print(f"      Experiment Directory: {experiment_name}     ")
+    print(f"      Environment: {env_id}                       ")
     print("==================================================")
 
     algorithms = {
@@ -155,7 +161,7 @@ def main():
             print(f"Queueing process for {alg_name} (Seed {seed}) in pool...")
             res = pool.apply_async(
                 run_single_experiment_process,
-                args=(alg_name, alg_key, seed, num_episodes, experiment_name, render_mode)
+                args=(alg_name, alg_key, seed, num_episodes, experiment_name, render_mode, env_id)
             )
             async_results.append((alg_name, seed, res))
 

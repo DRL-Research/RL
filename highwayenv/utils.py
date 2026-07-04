@@ -35,3 +35,18 @@ def register_intersection_env():
             # entry_point="highwayenv.intersection_class:IntersectionEnv",
             entry_point="highwayenv.intersection_class:MultiAgentIntersectionEnv",
         )
+
+def register_roundabout_env():
+    if "RELroundabout-v0" not in registry:
+        register(
+            id="RELroundabout-v0",
+            entry_point="highwayenv.roundabout_class:MultiAgentRoundaboutEnv",
+        )
+
+
+def register_double_intersection_env():
+    if "RELdouble-intersection-v0" not in registry:
+        register(
+            id="RELdouble-intersection-v0",
+            entry_point="highwayenv.double_intersection_class:MultiAgentDoubleIntersectionEnv",
+        )

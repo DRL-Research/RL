@@ -93,7 +93,7 @@ class IPPOTrainer:
         self.algorithm = "ippo"
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        self.env = gym.make("RELintersection-v0", render_mode=experiment_config.RENDER_MODE, config=env_config)
+        self.env = gym.make(experiment_config.ENV_ID, render_mode=experiment_config.RENDER_MODE, config=env_config)
         self.env_config = env_config
         self.num_agents = len(env_config["controlled_cars"])
         self.action_dim = int(experiment_config.ACTION_SPACE_SIZE)
