@@ -116,10 +116,10 @@ def main():
     print("==================================================")
 
     algorithms = {
-        "MAPS": "experiment",
-        # "VN-MA-DDPG": "vn_maddpg",
-        # "MA-GA-DDPG": "ma_ga_ddpg",
-        # "IPPO": "ippo"
+        # "MAPS": "experiment",
+        "VN-MA-DDPG": "vn_maddpg",
+        "MA-GA-DDPG": "ma_ga_ddpg",
+        "IPPO": "ippo"
     }
 
     # Ensure histories and logs directory is clean/setup
