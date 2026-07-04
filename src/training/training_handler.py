@@ -5,7 +5,6 @@ import torch
 from gymnasium import spaces
 from stable_baselines3.common.buffers import RolloutBuffer
 
-from src.baseline.vn_maddpg import canonicalize_algorithm_name, run_baseline_experiment
 from src.model.model_handler import load_models, save_models
 from src.plotting_utils.plotting_utils import plot_training_results
 from src.project_globals import rollout_buffers
@@ -14,8 +13,14 @@ from src.training.general_utils import (
     setup_experiment_dirs,
     initialize_models,
     setup_loggers,
-    close_everything, ensure_tensor, )
-from src.training.training_loop_utils import init_training_results, prepare_models_for_cycle, perform_training_phase
+    close_everything,
+    ensure_tensor,
+)
+from src.training.training_loop_utils import (
+    init_training_results,
+    prepare_models_for_cycle,
+    perform_training_phase,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -25,63 +30,86 @@ logger = logging.getLogger(__name__)
 # Training Loop
 ##########################################
 
-def training_loop(experiment, env, agent_model, master_model):
+def training_loop(experiment, env, agent_model):
     """
     Main training loop that orchestrates cycles and episodes.
     """
 
-    # Add rollout buffer per controlled car
-    for _ in env.env.config["controlled_cars"]:
-        new_rollout_buffer_instance = RolloutBuffer(
-            buffer_size=experiment.N_STEPS,
-            observation_space=spaces.Box(low=-np.inf, high=np.inf, shape=(experiment.STATE_INPUT_SIZE,)),
-            action_space=spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32),
-            gamma=0.99,
-            gae_lambda=0.95,
-            n_envs=1
-        )
-        rollout_buffers.append(new_rollout_buffer_instance)
+    # Prepare a single rollout buffer for the joint observation/action pair
+    rollout_buffers.clear()
+    base_env = env.envs[0] if hasattr(env, "envs") else env
+    num_cars = getattr(base_env, "num_cars", experiment.CARS_AMOUNT)
+    obs_dim = experiment.AGENT_STATE_SIZE * num_cars
+
+    obs_low = np.full((obs_dim,), -np.finfo(np.float32).max, dtype=np.float32)
+    obs_high = np.full((obs_dim,), np.finfo(np.float32).max, dtype=np.float32)
+
+    joint_action_space = spaces.MultiDiscrete(
+        np.full(num_cars, experiment.ACTION_SPACE_SIZE, dtype=np.int64)
+    )
+
+    new_rollout_buffer_instance = RolloutBuffer(
+        buffer_size=experiment.N_STEPS,
+        observation_space=spaces.Box(low=obs_low, high=obs_high, dtype=np.float32),
+        action_space=joint_action_space,
+        gamma=0.99,
+        gae_lambda=0.95,
+        n_envs=1
+    )
+    rollout_buffers.append(new_rollout_buffer_instance)
 
 
     collision_counter, episode_counter, total_steps = 0, 0, 0
 
     results = init_training_results()
-    results["success_flags"] = []
-    results["collision_flags"] = []
-    results["episode_lengths"] = []
 
     for cycle_num in range(1, experiment.CYCLES + 1):
         print('Cycle', cycle_num,'out of ', experiment.CYCLES)
-        train_both, training_master, training_agent = prepare_models_for_cycle(cycle_num, experiment.CYCLES,
-                                                                               master_model, agent_model)
+        train_both, training_master, training_agent = prepare_models_for_cycle(
+            cycle_num,
+            experiment.CYCLES,
+            None,
+            agent_model,
+        )
         for _ in range(experiment.EPISODES_PER_CYCLE):
 
             episode_counter += 1
             print('This is the ', episode_counter, 'Out of', experiment.EPISODES_PER_CYCLE * experiment.CYCLES, 'episodes')
-            episode_rewards, actions, steps, crashed = process_episode(episode_counter, total_steps, env, master_model,
-                                                              agent_model, experiment, train_both, training_master)
+            episode_rewards, actions, steps, crashed = process_episode(
+                episode_counter,
+                total_steps,
+                env,
+                agent_model,
+                experiment,
+                train_both,
+                training_master,
+            )
             if crashed:
                 collision_counter += 1
 
             total_steps += steps
             results["episode_rewards"].append(episode_rewards)
             results["all_actions"].append(actions)
-            results["success_flags"].append(0 if crashed else 1)
-            results["collision_flags"].append(1 if crashed else 0)
-            results["episode_lengths"].append(steps)
 
             # Prepare state for training
             with torch.no_grad():
-                _, _ = env.reset()
-                full_state = env.env.current_state
-                state_tensor = ensure_tensor(full_state)
+                last_obs, _ = env.reset()
+                state_tensor = ensure_tensor(last_obs)
 
             if episode_counter % experiment.EPISODE_AMOUNT_FOR_TRAIN == 0:
-                perform_training_phase(train_both, training_master, training_agent, master_model, agent_model, full_state,
-                                   state_tensor, results)
+                perform_training_phase(
+                    train_both,
+                    training_master,
+                    training_agent,
+                    None,
+                    agent_model,
+                    last_obs,
+                    state_tensor,
+                    results,
+                )
 
     print("Training completed.")
-    return agent_model, master_model, collision_counter, results["episode_rewards"], results["all_actions"], results
+    return agent_model, None, collision_counter, results["episode_rewards"], results["all_actions"], results
 
 #
 # def training_loop(experiment, env, agent_model, master_model):
@@ -144,9 +172,10 @@ def run_evaluation(experiment_config, env, agent_model):
 
         while not done and not truncated:
             action, _ = agent_model.predict(obs, deterministic=True)
-            obs, reward, done, truncated, info = env.step(action)
+            joint_action = np.asarray(action).astype(np.int64).flatten()
+            obs, reward, done, truncated, info = env.step(tuple(int(a) for a in joint_action))
             episode_reward += reward
-            actions.append(action[0])
+            actions.append(joint_action.tolist())
             env.render()
 
         eval_rewards.append(episode_reward)
@@ -162,10 +191,10 @@ def run_evaluation(experiment_config, env, agent_model):
 # Inference & Training Mode Handlers
 ##########################################
 
-def run_inference_mode(experiment_config, wrapped_env, agent_model, master_model, agent_logger, master_logger):
+def run_inference_mode(experiment_config, wrapped_env, agent_model, agent_logger):
     """Run inference episodes only."""
     if experiment_config.LOAD_PREVIOUS_WEIGHT and experiment_config.LOAD_MODEL_DIRECTORY:
-        loaded = load_models(agent_model, master_model, experiment_config.LOAD_MODEL_DIRECTORY)
+        loaded = load_models(agent_model, None, experiment_config.LOAD_MODEL_DIRECTORY)
         if loaded:
             print("Models will be trained from loaded weights!")
         else:
@@ -174,21 +203,20 @@ def run_inference_mode(experiment_config, wrapped_env, agent_model, master_model
         print("Starting inference with untrained models (No previous weights loaded)")
 
     eval_rewards, eval_actions = run_evaluation(experiment_config, wrapped_env, agent_model)
-    close_everything(wrapped_env, agent_logger, master_logger)
-    return agent_model, master_model, 0
+    close_everything(wrapped_env, agent_logger)
+    return agent_model, None, 0
 
 
-def run_training_mode(experiment_config, wrapped_env, agent_model, master_model, agent_logger, master_logger):
+def run_training_mode(experiment_config, wrapped_env, agent_model, agent_logger):
     """Run the training loop and handle saving/logging."""
-    agent_model, master_model, collision_counter, all_rewards, all_actions, training_results = (
-        training_loop(experiment=experiment_config, env=wrapped_env, agent_model=agent_model, master_model=master_model))
-    save_models(agent_model, master_model, experiment_config.SAVE_MODEL_DIRECTORY)
-    plot_training_results(experiment_config, training_results, show_plots=False)
+    agent_model, _, collision_counter, all_rewards, all_actions, training_results = (
+        training_loop(experiment=experiment_config, env=wrapped_env, agent_model=agent_model))
+    save_models(agent_model, None, experiment_config.SAVE_MODEL_DIRECTORY)
+    plot_training_results(experiment_config, training_results, show_plots=True)
     #log_training_results_to_neptune(experiment_config.logger, training_results)
     print("Training completed.")
     print("Total collisions:", collision_counter)
-    #close_everything(wrapped_env, agent_logger, master_logger)
-    return (agent_model, master_model), training_results, collision_counter
+    return agent_model, None, collision_counter
 
 
 ##########################################
@@ -200,24 +228,23 @@ def run_experiment(experiment_config, env_config):
         f"Environment configuration: {len(env_config['controlled_cars'])} controlled cars, {len(env_config['static_cars'])} static cars"
     )
     setup_experiment_dirs(experiment_config.EXPERIMENT_PATH)
-
-    algorithm_name = canonicalize_algorithm_name(getattr(experiment_config, "ALGORITHM", "experiment"))
-    if algorithm_name != "experiment":
-        print(f"Running baseline algorithm: {algorithm_name}")
-        return run_baseline_experiment(experiment_config, env_config)
-
-    master_model, agent_model, wrapped_env = initialize_models(experiment_config, env_config)
-    agent_logger, master_logger = setup_loggers(experiment_config.EXPERIMENT_PATH)
+    agent_model, wrapped_env = initialize_models(experiment_config, env_config)
+    agent_logger = setup_loggers(experiment_config.EXPERIMENT_PATH)
     agent_model.set_logger(agent_logger)
-    master_model.set_logger(master_logger)
 
     if experiment_config.ONLY_INFERENCE:
         print("Running in inference-only mode")
         return run_inference_mode(
-            experiment_config, wrapped_env, agent_model, master_model, agent_logger, master_logger
+            experiment_config,
+            wrapped_env,
+            agent_model,
+            agent_logger,
         )
     else:
         print("Running in training mode")
         return run_training_mode(
-            experiment_config, wrapped_env, agent_model, master_model, agent_logger, master_logger
+            experiment_config,
+            wrapped_env,
+            agent_model,
+            agent_logger,
         )

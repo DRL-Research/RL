@@ -49,7 +49,7 @@ def run_single_experiment_process(alg_name, alg_key, seed, num_episodes, experim
         ALGORITHM=alg_key,
         RENDER_MODE=render_mode,
         EXPERIMENT_ID=f"Compare_{alg_name}_S{seed}",
-        CYCLES=1,
+        CYCLES=3,
         EPISODES_PER_CYCLE=num_episodes
     )
     config.LOAD_PREVIOUS_WEIGHT = False
@@ -102,7 +102,7 @@ def main():
                         help="The name of experiment for logging and results dir")
     args = parser.parse_args()
 
-    experiment_name = args.experiment_name
+    experiment_name = os.path.join("experiments_results", args.experiment_name)
     seeds = [int(s) for s in args.seeds.split(",")]
     num_episodes = args.episodes
     render_mode = args.render_mode
@@ -116,10 +116,10 @@ def main():
     print("==================================================")
 
     algorithms = {
-        # "MAPS": "experiment",
-        "VN-MA-DDPG": "vn_maddpg",
-        "MA-GA-DDPG": "ma_ga_ddpg",
-        "IPPO": "ippo"
+        "MAPS": "experiment",
+        # "VN-MA-DDPG": "vn_maddpg",
+        # "MA-GA-DDPG": "ma_ga_ddpg",
+        # "IPPO": "ippo"
     }
 
     # Ensure histories and logs directory is clean/setup
