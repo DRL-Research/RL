@@ -138,9 +138,9 @@ def main():
     algorithms = {
         # "MAPS": "experiment",
         "IDM": "idm",
-        "VN-MA-DDPG": "vn_maddpg",
-        "MA-GA-DDPG": "ma_ga_ddpg",
-        "IPPO": "ippo"
+        # "VN-MA-DDPG": "vn_maddpg",
+        # "MA-GA-DDPG": "ma_ga_ddpg",
+        # "IPPO": "ippo"
     }
 
     # Ensure histories and logs directory is clean/setup
