@@ -64,7 +64,21 @@ def run_single_experiment_process(alg_name, alg_key, seed, num_episodes, experim
     print(f"[{alg_name} | Seed {seed}] Starting training run...")
     start_time = time.time()
     try:
-        _, history, _ = run_experiment(config, env_config)
+        if alg_key == "idm":
+            from src.baseline.idm import run_idm_experiment
+            _, history, _ = run_idm_experiment(config, env_config)
+        elif alg_key == "ippo":
+            from src.baseline.ippo import run_ippo_experiment
+            _, history, _ = run_ippo_experiment(config, env_config)
+        elif alg_key == "ma_ga_ddpg":
+            from src.baseline.ma_ga_ddpg import run_ma_ga_ddpg_experiment
+            _, history, _ = run_ma_ga_ddpg_experiment(config, env_config)
+        elif alg_key == "vn_maddpg":
+            from src.baseline.vn_maddpg import run_baseline_experiment
+            _, history, _ = run_baseline_experiment(config, env_config)
+        else:
+            from src.training.training_handler import run_experiment
+            _, history, _ = run_experiment(config, env_config)
 
         # Save history to a JSON file (extremely safe and robust cross-process)
         histories_dir = os.path.join(experiment_name, "histories")
@@ -123,6 +137,7 @@ def main():
 
     algorithms = {
         # "MAPS": "experiment",
+        "IDM": "idm",
         "VN-MA-DDPG": "vn_maddpg",
         "MA-GA-DDPG": "ma_ga_ddpg",
         "IPPO": "ippo"
