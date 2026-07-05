@@ -220,6 +220,7 @@ base_complete_scenarios_3_cars = [
 ]
 
 
+
 roundabout_base_scenarios = [
     # S1: 2 active on opposite approaches, 4 staggered
     {"agents": [
@@ -372,6 +373,8 @@ roundabout_base_scenarios = [
     ], "static": []},
 ]
 
+roundabout_base_scenarios = base_complete_scenarios_3_cars
+
 
 # ── Roundabout CONFLICT scenarios (coordination-critical) ────────────────────
 # All vehicles enter the ring simultaneously (offset=0 or near-0).
@@ -471,6 +474,9 @@ roundabout_conflict_base_scenarios = [
         (('o1', 'ir1', 0), "o3",   0),   # 2 arcs
     ], "static": []},
 ]
+
+roundabout_conflict_base_scenarios = base_complete_scenarios_3_cars
+
 
 ROUNDABOUT_CONFLICT_HELD_OUT_INDICES = frozenset([5, 18, 27, 34])
 
@@ -573,6 +579,8 @@ double_intersection_conflict_base_scenarios = [
         (('B_o2', 'B_ir2', 0), "A_o1",  0),
     ], "static": []},
 ]
+
+double_intersection_conflict_base_scenarios = base_complete_scenarios_3_cars
 
 DOUBLE_INTERSECTION_CONFLICT_HELD_OUT_INDICES = frozenset([2, 7])
 
@@ -779,15 +787,17 @@ double_intersection_base_scenarios = [
     ], "static": []},
 ]
 
+double_intersection_base_scenarios = double_intersection_conflict_base_scenarios
+
 # Appended procedural pools (50 conservative bases per layout — see extra_solvable_scenarios.py).
 from src.experiment import extra_solvable_scenarios as _extra_sol  # noqa: E402
 
-base_complete_scenarios_6_cars = (
-    base_complete_scenarios_6_cars + list(_extra_sol.EXTRA_INTERSECTION_6CAR_50)
-)
-roundabout_base_scenarios = (
-    roundabout_base_scenarios + list(_extra_sol.EXTRA_ROUNDABOUT_50)
-)
-double_intersection_base_scenarios = (
-    double_intersection_base_scenarios + list(_extra_sol.EXTRA_DOUBLE_INTERSECTION_50)
-)
+# base_complete_scenarios_6_cars = (
+#     base_complete_scenarios_6_cars + list(_extra_sol.EXTRA_INTERSECTION_6CAR_50)
+# )
+# roundabout_base_scenarios = (
+#     roundabout_base_scenarios + list(_extra_sol.EXTRA_ROUNDABOUT_50)
+# )
+# double_intersection_base_scenarios = (
+#     double_intersection_base_scenarios + list(_extra_sol.EXTRA_DOUBLE_INTERSECTION_50)
+# )

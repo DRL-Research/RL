@@ -6,7 +6,6 @@ import numpy as np
 from highway_env.road.lane import AbstractLane, CircularLane, LineType, StraightLane
 from highway_env.road.regulation import RegulatedRoad
 from highway_env.road.road import RoadNetwork
-from highway_env.vehicle.kinematics import Vehicle
 
 from highwayenv.intersection_class import (
     IntersectionEnv,
@@ -15,9 +14,6 @@ from highwayenv.intersection_class import (
 from src.experiment.scenarios import (
     double_intersection_base_scenarios,
     double_intersection_conflict_base_scenarios,
-    DOUBLE_INTERSECTION_HELD_OUT_INDICES,
-    DOUBLE_INTERSECTION_EXCLUDED_INDICES,
-    DOUBLE_INTERSECTION_CONFLICT_HELD_OUT_INDICES,
 )
 from src import project_globals
 
@@ -26,24 +22,6 @@ class DoubleIntersectionEnv(IntersectionEnv):
     """
     Two 4-way intersections placed side-by-side and connected by a
     bidirectional road between A's east arm and B's west arm.
-
-    Layout
-    ======
-                 A_o2              B_o2
-                  |                 |
-        A_o1 -- [A] -- connector -- [B] -- B_o3
-                  |                 |
-                 A_o0              B_o0
-
-    Node naming: every node gets an "A_" or "B_" prefix.
-
-    Connector (bidirectional):
-      A→B:  A_il3 → B_ir1   (A east exit  → B west entry)
-      B→A:  B_il1 → A_ir3   (B west exit  → A east entry)
-
-    Outer exits where has_arrived triggers:
-      A: A_o0 (south), A_o1 (west), A_o2 (north)   [east replaced by connector]
-      B: B_o0 (south), B_o2 (north), B_o3 (east)   [west replaced by connector]
     """
 
     OUTER_EXIT_TARGETS = {
@@ -74,18 +52,18 @@ class DoubleIntersectionEnv(IntersectionEnv):
                 priority = 3 if is_horizontal else 1
                 rotation = np.array([
                     [np.cos(angle), -np.sin(angle)],
-                    [np.sin(angle),  np.cos(angle)],
+                    [np.sin(angle), np.cos(angle)],
                 ])
 
-                o  = prefix + "o"  + str(corner)
+                o = prefix + "o" + str(corner)
                 ir = prefix + "ir" + str(corner)
                 il_right = prefix + "il" + str((corner - 1) % 4)
-                il_left  = prefix + "il" + str((corner + 1) % 4)
-                il_str   = prefix + "il" + str((corner + 2) % 4)
+                il_left = prefix + "il" + str((corner + 1) % 4)
+                il_str = prefix + "il" + str((corner + 2) % 4)
 
                 if corner != skip_approach:
                     start = center + rotation @ np.array([lane_width / 2, access_length + outer_distance])
-                    end   = center + rotation @ np.array([lane_width / 2, outer_distance])
+                    end = center + rotation @ np.array([lane_width / 2, outer_distance])
                     net.add_lane(o, ir, StraightLane(start, end, line_types=[s, c],
                                                      priority=priority, speed_limit=10))
 
@@ -103,17 +81,17 @@ class DoubleIntersectionEnv(IntersectionEnv):
                     clockwise=False, line_types=[n, n], priority=priority - 1, speed_limit=10))
 
                 start = center + rotation @ np.array([lane_width / 2, outer_distance])
-                end   = center + rotation @ np.array([lane_width / 2, -outer_distance])
+                end = center + rotation @ np.array([lane_width / 2, -outer_distance])
                 net.add_lane(ir, il_str, StraightLane(start, end, line_types=[s, n],
                                                       priority=priority, speed_limit=10))
 
                 exit_corner = (corner - 1) % 4
                 if exit_corner != skip_exit:
                     il_exit = prefix + "il" + str(exit_corner)
-                    o_exit  = prefix + "o"  + str(exit_corner)
+                    o_exit = prefix + "o" + str(exit_corner)
                     start = center + rotation @ np.flip(
                         [lane_width / 2, access_length + outer_distance], axis=0)
-                    end   = center + rotation @ np.flip(
+                    end = center + rotation @ np.flip(
                         [lane_width / 2, outer_distance], axis=0)
                     net.add_lane(il_exit, o_exit,
                                  StraightLane(end, start, line_types=[n, c],
@@ -124,37 +102,30 @@ class DoubleIntersectionEnv(IntersectionEnv):
 
         # ── Connector lanes (A→B and B→A) ────────────────────────────────────
         a_il3_pos = center_a + np.array([outer_distance, lane_width / 2])
-
         angle_west = np.radians(90)
         rot_west = np.array([
             [np.cos(angle_west), -np.sin(angle_west)],
-            [np.sin(angle_west),  np.cos(angle_west)],
+            [np.sin(angle_west), np.cos(angle_west)],
         ])
         b_ir1_pos = center_b + rot_west @ np.array([lane_width / 2, outer_distance])
-
         net.add_lane("A_il3", "B_ir1",
-                     StraightLane(a_il3_pos, b_ir1_pos, line_types=[s, c],
-                                  priority=2, speed_limit=10))
+                     StraightLane(a_il3_pos, b_ir1_pos, line_types=[s, c], priority=2, speed_limit=10))
 
         b_il1_pos = center_b + np.array([-outer_distance, -lane_width / 2])
-
         angle_east = np.radians(270)
         rot_east = np.array([
             [np.cos(angle_east), -np.sin(angle_east)],
-            [np.sin(angle_east),  np.cos(angle_east)],
+            [np.sin(angle_east), np.cos(angle_east)],
         ])
         a_ir3_pos = center_a + rot_east @ np.array([lane_width / 2, outer_distance])
-
         net.add_lane("B_il1", "A_ir3",
-                     StraightLane(b_il1_pos, a_ir3_pos, line_types=[s, c],
-                                  priority=2, speed_limit=10))
+                     StraightLane(b_il1_pos, a_ir3_pos, line_types=[s, c], priority=2, speed_limit=10))
 
-        road = RegulatedRoad(
+        self.road = RegulatedRoad(
             network=net,
             np_random=self.np_random,
             record_history=self.config["show_trajectories"],
         )
-        self.road = road
 
     def has_arrived(self, vehicle, exit_distance: float = 25) -> bool:
         src, dst = vehicle.lane_index[0], vehicle.lane_index[1]
@@ -163,6 +134,40 @@ class DoubleIntersectionEnv(IntersectionEnv):
         if "_il" not in src:
             return False
         return vehicle.lane.local_coordinates(vehicle.position)[0] >= exit_distance
+
+    def _make_vehicles(self, n_vehicles: int = 1) -> None:
+        """
+        Override parent's _make_vehicles to prevent KeyErrors.
+        The parent class attempts to spawn vehicles on single-intersection
+        lanes (like 'o0') which no longer exist in our double-intersection map.
+        We initialize the objects on a valid lane here, and _reset() will
+        immediately move them to their correct scenario positions.
+        """
+        from highway_env.vehicle.kinematics import Vehicle
+
+        self.controlled_vehicles = []
+
+        # 1. Spawn controlled agents using the environment's action_type
+        # to ensure IPPO/RL action bindings work correctly.
+        agent_count = self.config.get("controlled_vehicles", 3)
+        if hasattr(self, "action_type") and hasattr(self.action_type, "vehicle_class"):
+            vehicle_class = self.action_type.vehicle_class
+        else:
+            vehicle_class = Vehicle
+
+        # Place agents temporarily at A_o0
+        for _ in range(agent_count):
+            lane = self.road.network.get_lane(("A_o0", "A_ir0", 0))
+            vehicle = vehicle_class.make_on_lane(self.road, lane, speed=0)
+            self.controlled_vehicles.append(vehicle)
+            self.road.vehicles.append(vehicle)
+
+        # 2. Spawn buffer static vehicles for the scenarios to utilize.
+        # We spawn a generous buffer so _reset() has enough objects to pull from.
+        for _ in range(n_vehicles + 10):
+            lane = self.road.network.get_lane(("B_o0", "B_ir0", 0))
+            vehicle = Vehicle.make_on_lane(self.road, lane, speed=0)
+            self.road.vehicles.append(vehicle)
 
     def _clear_vehicles(self) -> None:
         def is_leaving(vehicle):
@@ -179,8 +184,39 @@ class DoubleIntersectionEnv(IntersectionEnv):
             if v in self.controlled_vehicles or not is_leaving(v)
         ]
 
+    def _adapt_scenario(self, scenario: dict) -> dict:
+        """
+        Translates single-intersection scenarios (o0, o1, etc.) into the
+        Double Intersection network layout (A_o0, B_o3, etc.).
+        """
+        node_map = {
+            'o0': 'A_o0',  # South defaults to Intersection A
+            'ir0': 'A_ir0',
+            'o1': 'A_o1',  # West must be Intersection A
+            'ir1': 'A_ir1',
+            'o2': 'A_o2',  # North defaults to Intersection A
+            'ir2': 'A_ir2',
+            'o3': 'B_o3',  # East must be Intersection B
+            'ir3': 'B_ir3'
+        }
+
+        def map_lane(lane_key):
+            if isinstance(lane_key, tuple) and len(lane_key) == 3:
+                u, v, idx = lane_key
+                return (node_map.get(u, u), node_map.get(v, v), idx)
+            return lane_key
+
+        adapted = {"agents": [], "static": []}
+
+        for lane_key, dest, off in scenario.get("agents", []):
+            adapted["agents"].append((map_lane(lane_key), node_map.get(dest, dest), off))
+
+        for lane_key, dest, off in scenario.get("static", []):
+            adapted["static"].append((map_lane(lane_key), node_map.get(dest, dest), off))
+
+        return adapted
+
     def _reset(self) -> None:
-        # Reset flags to the correct size (mirrors IntersectionEnv._reset)
         project_globals.after_is_arrived_flags = [False] * len(self.controlled_vehicles)
 
         self._make_road()
@@ -190,50 +226,34 @@ class DoubleIntersectionEnv(IntersectionEnv):
 
         BASE_LONG = 40
 
-        # Regular scenarios (stagger + cross A↔B) — length from scenarios.py pool
         all_regular = list(double_intersection_base_scenarios)
-        # Conflict scenarios (10 total, no rotations)
         all_conflict = list(double_intersection_conflict_base_scenarios)
 
-        if not all_regular:
+        if not all_regular and not all_conflict:
             print("[DoubleIntersectionEnv._reset] WARNING: no scenarios loaded!")
             return
 
-        use_held_out = self.config.get("use_held_out_scenarios", False)
         use_conflict_only = self.config.get("use_conflict_scenarios_only", False)
         conflict_ratio = self.config.get("conflict_ratio", 0.0)
-        custom_regular = self.config.get("custom_regular_scenarios") or []
-        custom_only = bool(self.config.get("custom_regular_only", False))
-
-        _excluded_regular = DOUBLE_INTERSECTION_HELD_OUT_INDICES | DOUBLE_INTERSECTION_EXCLUDED_INDICES
-        active_regular = [s for i, s in enumerate(all_regular) if i not in _excluded_regular]
-        active_conflict = [s for i, s in enumerate(all_conflict)
-                           if i not in DOUBLE_INTERSECTION_CONFLICT_HELD_OUT_INDICES]
 
         chosen_scenario = None
         force_idx = self.config.get("force_scenario_index", None)
+
         if force_idx is not None:
             chosen_scenario = all_regular[int(force_idx) % len(all_regular)]
-        elif custom_regular and custom_only:
-            ix_pick = self.config.get("custom_regular_episode_index", None)
-            if ix_pick is not None:
-                chosen_scenario = custom_regular[int(ix_pick) % len(custom_regular)]
-            else:
-                chosen_scenario = random.choice(custom_regular)
-        elif use_held_out:
-            held_regular = [all_regular[i] for i in sorted(DOUBLE_INTERSECTION_HELD_OUT_INDICES)
-                            if i < len(all_regular)]
-            held_conflict = [all_conflict[i] for i in sorted(DOUBLE_INTERSECTION_CONFLICT_HELD_OUT_INDICES)
-                             if i < len(all_conflict)]
-            held_out_pool = held_regular + held_conflict
-            chosen_scenario = random.choice(held_out_pool) if held_out_pool else random.choice(all_regular)
-        elif use_conflict_only:
-            chosen_scenario = random.choice(active_conflict if active_conflict else all_conflict)
-        elif conflict_ratio > 0.0 and active_conflict and random.random() < conflict_ratio:
-            chosen_scenario = random.choice(active_conflict)
+        elif use_conflict_only and all_conflict:
+            chosen_scenario = random.choice(all_conflict)
+        elif conflict_ratio > 0.0 and all_conflict and random.random() < conflict_ratio:
+            chosen_scenario = random.choice(all_conflict)
+        elif all_regular:
+            chosen_scenario = random.choice(all_regular)
         else:
-            chosen_scenario = random.choice(active_regular)
+            chosen_scenario = random.choice(all_conflict)
+
         assert chosen_scenario is not None
+
+        # Translate single-intersection nodes to the double-intersection map
+        adapted_scenario = self._adapt_scenario(chosen_scenario)
 
         all_scenarios = all_regular + all_conflict
         try:
@@ -241,7 +261,7 @@ class DoubleIntersectionEnv(IntersectionEnv):
         except ValueError:
             self.last_scenario_index = -1
 
-        for i, (lane_key, destination, off) in enumerate(chosen_scenario["agents"]):
+        for i, (lane_key, destination, off) in enumerate(adapted_scenario["agents"]):
             vehicle = self.controlled_vehicles[i]
             lane = self.road.network.get_lane(lane_key)
             vehicle.position = np.array(lane.position(BASE_LONG + off, 0))
@@ -257,7 +277,7 @@ class DoubleIntersectionEnv(IntersectionEnv):
         controlled_count = len(self.controlled_vehicles)
 
         safe_static_scenario = []
-        for lane_key, destination, off in chosen_scenario["static"]:
+        for lane_key, destination, off in adapted_scenario["static"]:
             lane = self.road.network.get_lane(lane_key)
             position = np.array(lane.position(BASE_LONG + off, 0))
 
@@ -290,8 +310,6 @@ class DoubleIntersectionEnv(IntersectionEnv):
                 vehicle.plan_route_to(destination)
             else:
                 vehicle.route = [lane_key]
-
-        pass  # verbose print removed
 
 
 class MultiAgentDoubleIntersectionEnv(DoubleIntersectionEnv, MultiAgentIntersectionEnv):

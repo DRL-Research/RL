@@ -15,8 +15,6 @@ from highwayenv.intersection_class import (
 from src.experiment.scenarios import (
     roundabout_base_scenarios,
     roundabout_conflict_base_scenarios,
-    ROUNDABOUT_HELD_OUT_INDICES,
-    ROUNDABOUT_CONFLICT_HELD_OUT_INDICES,
 )
 from src import project_globals
 
@@ -42,7 +40,7 @@ class RoundaboutEnv(IntersectionEnv):
 
     def _make_road(self) -> None:
         lane_width = AbstractLane.DEFAULT_WIDTH
-        radius = 40.0           # large enough ring for 6 vehicles (was 20m → too tight)
+        radius = 40.0  # large enough ring for 6 vehicles (was 20m → too tight)
         access_length = 100.0
         connector_length = 8.0  # slightly longer exit connector for the bigger ring
         speed_limit = 10
@@ -55,16 +53,16 @@ class RoundaboutEnv(IntersectionEnv):
             rot_angle = np.radians(90 * corner)
             rotation = np.array([
                 [np.cos(rot_angle), -np.sin(rot_angle)],
-                [np.sin(rot_angle),  np.cos(rot_angle)],
+                [np.sin(rot_angle), np.cos(rot_angle)],
             ])
 
             outward = rotation @ np.array([0.0, 1.0])
-            tangent  = rotation @ np.array([1.0, 0.0])
+            tangent = rotation @ np.array([1.0, 0.0])
 
             junction = center + outward * radius
 
             approach_shift = tangent * (lane_width / 2)
-            exit_shift     = -tangent * (lane_width / 2)
+            exit_shift = -tangent * (lane_width / 2)
 
             # ── Approach spur: o{i} → ir{i} ─────────────────────────────────────
             approach_outer = junction + outward * access_length + approach_shift
@@ -78,7 +76,7 @@ class RoundaboutEnv(IntersectionEnv):
             # ── Ring arc: ir{i} → ir{(i-1)%4} (CCW flow) ───────────────────────
             prev_corner = (corner - 1) % 4
             ang_start = np.arctan2(outward[1], outward[0])
-            ang_end   = ang_start - np.pi / 2
+            ang_end = ang_start - np.pi / 2
 
             net.add_lane(
                 "ir" + str(corner), "ir" + str(prev_corner),
@@ -92,7 +90,7 @@ class RoundaboutEnv(IntersectionEnv):
 
             # ── Exit connector: ir{i} → il{i} ───────────────────────────────────
             exit_conn_start = junction + exit_shift
-            exit_conn_end   = junction + outward * connector_length + exit_shift
+            exit_conn_end = junction + outward * connector_length + exit_shift
             net.add_lane(
                 "ir" + str(corner), "il" + str(corner),
                 StraightLane(exit_conn_start, exit_conn_end,
@@ -148,39 +146,17 @@ class RoundaboutEnv(IntersectionEnv):
             print("[RoundaboutEnv._reset] WARNING: no scenarios loaded!")
             return
 
-        use_held_out = self.config.get("use_held_out_scenarios", False)
         use_conflict_only = self.config.get("use_conflict_scenarios_only", False)
         conflict_ratio = self.config.get("conflict_ratio", 0.0)
-        custom_regular = self.config.get("custom_regular_scenarios") or []
-        custom_only = bool(self.config.get("custom_regular_only", False))
 
-        active_regular = [s for i, s in enumerate(all_regular)
-                          if i not in ROUNDABOUT_HELD_OUT_INDICES]
-        active_conflict = [s for i, s in enumerate(all_conflict)
-                           if i not in ROUNDABOUT_CONFLICT_HELD_OUT_INDICES]
-
-        force_idx = self.config.get("force_scenario_index", None)
-        if force_idx is not None:
-            chosen_scenario = all_regular[int(force_idx) % len(all_regular)]
-        elif custom_regular and custom_only:
-            ix_pick = self.config.get("custom_regular_episode_index", None)
-            if ix_pick is not None:
-                chosen_scenario = custom_regular[int(ix_pick) % len(custom_regular)]
-            else:
-                chosen_scenario = random.choice(custom_regular)
-        elif use_held_out:
-            held_regular = [all_regular[i] for i in sorted(ROUNDABOUT_HELD_OUT_INDICES)
-                            if i < len(all_regular)]
-            held_conflict = [all_conflict[i] for i in sorted(ROUNDABOUT_CONFLICT_HELD_OUT_INDICES)
-                             if i < len(all_conflict)]
-            held_out_pool = held_regular + held_conflict
-            chosen_scenario = random.choice(held_out_pool) if held_out_pool else random.choice(all_regular)
-        elif use_conflict_only:
-            chosen_scenario = random.choice(active_conflict if active_conflict else all_conflict)
-        elif conflict_ratio > 0.0 and active_conflict and random.random() < conflict_ratio:
-            chosen_scenario = random.choice(active_conflict)
+        # Strictly select from base and conflict scenarios
+        if use_conflict_only and all_conflict:
+            chosen_scenario = random.choice(all_conflict)
+        elif conflict_ratio > 0.0 and all_conflict and random.random() < conflict_ratio:
+            chosen_scenario = random.choice(all_conflict)
         else:
-            chosen_scenario = random.choice(active_regular)
+            chosen_scenario = random.choice(all_regular)
+
         assert chosen_scenario is not None
 
         all_scenarios = all_regular + all_conflict
@@ -238,8 +214,6 @@ class RoundaboutEnv(IntersectionEnv):
                 vehicle.plan_route_to(destination)
             else:
                 vehicle.route = [lane_key]
-
-        pass  # verbose print removed
 
 
 class MultiAgentRoundaboutEnv(RoundaboutEnv, MultiAgentIntersectionEnv):

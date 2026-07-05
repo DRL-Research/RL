@@ -52,7 +52,7 @@ def run_single_experiment_process(alg_name, alg_key, seed, num_episodes, experim
         RENDER_MODE=render_mode,
         ENV_ID=env_id,
         EXPERIMENT_ID=f"Compare_{alg_name}_S{seed}",
-        CYCLES=3,
+        CYCLES=1,
         EPISODES_PER_CYCLE=num_episodes
     )
     config.LOAD_PREVIOUS_WEIGHT = False
@@ -123,9 +123,9 @@ def main():
 
     algorithms = {
         "MAPS": "experiment",
-        # "VN-MA-DDPG": "vn_maddpg",
-        # "MA-GA-DDPG": "ma_ga_ddpg",
-        # "IPPO": "ippo"
+        "VN-MA-DDPG": "vn_maddpg",
+        "MA-GA-DDPG": "ma_ga_ddpg",
+        "IPPO": "ippo"
     }
 
     # Ensure histories and logs directory is clean/setup
