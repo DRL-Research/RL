@@ -125,7 +125,8 @@ def main():
         # "MAPS": "experiment",
         "VN-MA-DDPG": "vn_maddpg",
         "MA-GA-DDPG": "ma_ga_ddpg",
-        "IPPO": "ippo"
+        "IPPO": "ippo",
+        "COMA": "coma"
     }
 
     # Ensure histories and logs directory is clean/setup

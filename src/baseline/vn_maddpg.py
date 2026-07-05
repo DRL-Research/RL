@@ -24,11 +24,11 @@ def canonicalize_algorithm_name(algorithm_name: str | None) -> str:
         return "attention_maddpg"
     if normalized_name in {"ma-ga-ddpg", "maga_ddpg", "maga"}:
         return "ma_ga_ddpg"
-    if normalized_name in {"experiment", "maddpg", "vn_maddpg", "attention_maddpg", "ma_ga_ddpg", "ippo"}:
+    if normalized_name in {"experiment", "maddpg", "vn_maddpg", "attention_maddpg", "ma_ga_ddpg", "ippo", "coma"}:
         return normalized_name
     raise ValueError(
         f"Unsupported algorithm '{algorithm_name}'. "
-        "Expected one of: experiment, baseline, maddpg, vn_maddpg, attention_maddpg, ma_ga_ddpg, ippo."
+        "Expected one of: experiment, baseline, maddpg, vn_maddpg, attention_maddpg, ma_ga_ddpg, ippo, coma."
     )
 
 
@@ -763,6 +763,9 @@ class BaselineTrainer:
 
 def run_baseline_experiment(experiment_config, env_config: dict[str, Any]):
     algorithm_name = canonicalize_algorithm_name(getattr(experiment_config, "ALGORITHM", "experiment"))
+    if algorithm_name == "coma":
+        from src.baseline.coma import run_coma_experiment
+        return run_coma_experiment(experiment_config, env_config)
     if algorithm_name == "ippo":
         from src.baseline.ippo import run_ippo_experiment
         return run_ippo_experiment(experiment_config, env_config)

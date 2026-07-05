@@ -8,7 +8,7 @@ from logger.neptune_logger import NeptuneLogger
 
 @dataclass
 class Experiment:
-    ALGORITHM: str = "experiment"  # experiment | baseline | maddpg | vn_maddpg | attention_maddpg | ma_ga_ddpg
+    ALGORITHM: str = "experiment"  # experiment | baseline | maddpg | vn_maddpg | attention_maddpg | ma_ga_ddpg | ippo | coma
     LOAD_PREVIOUS_WEIGHT = True
     BYPASS_RANDOM_INITIALIZATION = False
 
@@ -131,6 +131,19 @@ class Experiment:
     IPPO_BATCH_SIZE: int = 64
     IPPO_HIDDEN_DIM: int = 64
     IPPO_ROLLOUT_STEPS: int = 2048
+
+    # COMA configuration
+    COMA_ACTOR_LR: float = 3e-4
+    COMA_CRITIC_LR: float = 1e-3
+    COMA_GAMMA: float = 0.99
+    COMA_GAE_LAMBDA: float = 0.95
+    COMA_CLIP_EPSILON: float = 0.2
+    COMA_ENTROPY_COEF: float = 0.01
+    COMA_EPOCHS: int = 10
+    COMA_BATCH_SIZE: int = 64
+    COMA_HIDDEN_DIM: int = 64
+    COMA_ROLLOUT_STEPS: int = 2048
+    COMA_TARGET_UPDATE_INTERVAL: int = 10
 
     # Computed fields (not passed via __init__)
     EXPERIMENT_PATH: str = field(init=False)
