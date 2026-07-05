@@ -122,7 +122,7 @@ def main():
     print("==================================================")
 
     algorithms = {
-        "MAPS": "experiment",
+        # "MAPS": "experiment",
         "VN-MA-DDPG": "vn_maddpg",
         "MA-GA-DDPG": "ma_ga_ddpg",
         "IPPO": "ippo"
