@@ -45,7 +45,7 @@ class CustomControlledVehicle(ControlledVehicle):
         if action == "FASTER":
             self.target_speed = min(self.max_speed, self.target_speed + self.DELTA_SPEED)
         elif action == "SLOWER":
-            self.target_speed = max(5, self.target_speed - self.DELTA_SPEED)
+            self.target_speed = max(0, self.target_speed - self.DELTA_SPEED)
         elif action == "LANE_RIGHT":
             _from, _to, _id = self.target_lane_index
             target_lane_index = (
