@@ -34,6 +34,52 @@ class IDMAgent:
             front_vehicle, rear_vehicle = idm_v.road.neighbour_vehicles(idm_v, idm_v.lane_index)
             acc = idm_v.acceleration(ego_vehicle=idm_v, front_vehicle=front_vehicle, rear_vehicle=rear_vehicle)
             
+            # --- Intersection Yielding Logic ---
+            d_ego = np.linalg.norm(v.position)
+            vel_ego = np.array([v.speed * np.cos(v.heading), v.speed * np.sin(v.heading)])
+            if hasattr(v, 'velocity'): vel_ego = v.velocity
+                
+            approaching_ego = np.dot(v.position, vel_ego) < 0
+            
+            if approaching_ego and d_ego < 50.0:
+                tti_ego = d_ego / max(v.speed, 0.1)
+                
+                for other in env_unwrapped.road.vehicles:
+                    if other is v:
+                        continue
+                        
+                    # Ignore vehicles in our own lane since IDM handles them
+                    if hasattr(other, 'lane_index') and other.lane_index == v.lane_index:
+                        continue
+                        
+                    d_other = np.linalg.norm(other.position)
+                    vel_other = np.array([other.speed * np.cos(other.heading), other.speed * np.sin(other.heading)])
+                    if hasattr(other, 'velocity'): vel_other = other.velocity
+                        
+                    approaching_other = np.dot(other.position, vel_other) < 0
+                    
+                    # 1. Other vehicle is already inside the intersection
+                    if d_other < 10.0:
+                        if d_ego < 30.0:
+                            acc = -5.0
+                            break
+                            
+                    # 2. Other vehicle is also approaching
+                    if approaching_other and d_other < 50.0:
+                        tti_other = d_other / max(other.speed, 0.1)
+                        
+                        # Collision risk: arriving around the same time
+                        if abs(tti_ego - tti_other) < 2.5:
+                            # Rule: vehicle further away yields
+                            if d_ego > d_other + 0.5:
+                                acc = -5.0
+                                break
+                            # Tie-break using memory address
+                            elif abs(d_ego - d_other) <= 0.5 and id(v) > id(other):
+                                acc = -5.0
+                                break
+            # -----------------------------------
+            
             # Map IDM acceleration to discrete actions: 1 = FASTER, 0 = SLOWER
             if acc > 0:
                 actions.append(1)
