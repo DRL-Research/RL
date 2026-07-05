@@ -123,10 +123,11 @@ def main():
 
     algorithms = {
         # "MAPS": "experiment",
-        # "VN-MA-DDPG": "vn_maddpg",
-        # "MA-GA-DDPG": "ma_ga_ddpg",
-        # "IPPO": "ippo",
-        "COMA": "coma"
+        "VN-MA-DDPG": "vn_maddpg",
+        "MA-GA-DDPG": "ma_ga_ddpg",
+        "IPPO": "ippo",
+        "COMA": "coma",
+        "VDN": "vdn"
     }
 
     # Ensure histories and logs directory is clean/setup

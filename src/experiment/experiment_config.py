@@ -145,6 +145,17 @@ class Experiment:
     COMA_ROLLOUT_STEPS: int = 2048
     COMA_TARGET_UPDATE_INTERVAL: int = 10
 
+    # VDN configuration
+    VDN_LR: float = 1e-3
+    VDN_GAMMA: float = 0.99
+    VDN_BATCH_SIZE: int = 64
+    VDN_BUFFER_SIZE: int = 100000
+    VDN_TARGET_UPDATE_INTERVAL: int = 100
+    VDN_HIDDEN_DIM: int = 64
+    VDN_EPSILON_START: float = 1.0
+    VDN_EPSILON_MIN: float = 0.05
+    VDN_EPSILON_DECAY: float = 0.995
+
     # Computed fields (not passed via __init__)
     EXPERIMENT_PATH: str = field(init=False)
     SAVE_MODEL_DIRECTORY: str = field(init=False)

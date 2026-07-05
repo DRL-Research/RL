@@ -2,6 +2,8 @@ import copy
 import csv
 import logging
 import os
+import random
+from collections import deque
 from typing import Any
 
 import gymnasium as gym
@@ -11,12 +13,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from torch.distributions import Categorical
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class ActorNetwork(nn.Module):
+class QNetwork(nn.Module):
     def __init__(self, observation_dim: int, action_dim: int, hidden_dim: int) -> None:
         super().__init__()
         self.network = nn.Sequential(
@@ -27,75 +27,34 @@ class ActorNetwork(nn.Module):
             nn.Linear(hidden_dim, action_dim),
         )
 
-    def forward(self, observation: torch.Tensor) -> Categorical:
-        logits = self.network(observation)
-        return Categorical(logits=logits)
+    def forward(self, observation: torch.Tensor) -> torch.Tensor:
+        return self.network(observation)
 
+class VDNReplayBuffer:
+    def __init__(self, capacity: int):
+        self.buffer = deque(maxlen=capacity)
 
-class CentralCriticNetwork(nn.Module):
-    def __init__(self, global_state_dim: int, other_action_dim: int, action_dim: int, hidden_dim: int) -> None:
-        super().__init__()
-        self.network = nn.Sequential(
-            nn.Linear(global_state_dim + other_action_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, action_dim),
-        )
+    def add(self, state, action, reward, next_state, done):
+        self.buffer.append((state, action, reward, next_state, done))
 
-    def forward(self, global_state: torch.Tensor, other_actions: torch.Tensor) -> torch.Tensor:
-        return self.network(torch.cat([global_state, other_actions], dim=-1))
-
-
-class COMARolloutBuffer:
-    def __init__(self):
-        self.states = []
-        self.actions = []
-        self.rewards = []
-        self.next_states = []
-        self.dones = []
-        self.log_probs = []
-        
-        self.global_states = []
-        self.joint_actions = []
-
-    def add(self, state, action, reward, next_state, done, log_prob, global_state, joint_action):
-        self.states.append(state)
-        self.actions.append(action)
-        self.rewards.append(reward)
-        self.next_states.append(next_state)
-        self.dones.append(done)
-        self.log_probs.append(log_prob)
-        self.global_states.append(global_state)
-        self.joint_actions.append(joint_action)
-
-    def clear(self):
-        self.states.clear()
-        self.actions.clear()
-        self.rewards.clear()
-        self.next_states.clear()
-        self.dones.clear()
-        self.log_probs.clear()
-        self.global_states.clear()
-        self.joint_actions.clear()
-
-    def get(self):
+    def sample(self, batch_size: int):
+        batch = random.sample(self.buffer, batch_size)
+        states, actions, rewards, next_states, dones = zip(*batch)
         return (
-            np.array(self.states, dtype=np.float32),
-            np.array(self.actions, dtype=np.int64),
-            np.array(self.rewards, dtype=np.float32),
-            np.array(self.next_states, dtype=np.float32),
-            np.array(self.dones, dtype=np.float32),
-            np.array(self.log_probs, dtype=np.float32),
-            np.array(self.global_states, dtype=np.float32),
-            np.array(self.joint_actions, dtype=np.int64)
+            np.array(states, dtype=np.float32),
+            np.array(actions, dtype=np.int64),
+            np.array(rewards, dtype=np.float32),
+            np.array(next_states, dtype=np.float32),
+            np.array(dones, dtype=np.float32)
         )
+        
+    def __len__(self):
+        return len(self.buffer)
 
-
-class COMATrainer:
+class VDNTrainer:
     def __init__(self, experiment_config, env_config: dict[str, Any]) -> None:
         self.experiment_config = experiment_config
-        self.algorithm = "coma"
+        self.algorithm = "vdn"
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.env = gym.make(experiment_config.ENV_ID, render_mode=experiment_config.RENDER_MODE, config=env_config)
@@ -105,44 +64,32 @@ class COMATrainer:
         self.observation_dim = int(experiment_config.AGENT_STATE_SIZE)
         self.total_episodes = int(experiment_config.EPISODES_PER_CYCLE * experiment_config.CYCLES)
 
-        hidden_dim = int(getattr(experiment_config, "COMA_HIDDEN_DIM", 64))
-        self.lr_actor = float(getattr(experiment_config, "COMA_ACTOR_LR", 3e-4))
-        self.lr_critic = float(getattr(experiment_config, "COMA_CRITIC_LR", 1e-3))
-        self.gamma = float(getattr(experiment_config, "COMA_GAMMA", 0.99))
-        self.gae_lambda = float(getattr(experiment_config, "COMA_GAE_LAMBDA", 0.95))
-        self.clip_epsilon = float(getattr(experiment_config, "COMA_CLIP_EPSILON", 0.2))
-        self.entropy_coef = float(getattr(experiment_config, "COMA_ENTROPY_COEF", 0.01))
-        self.ppo_epochs = int(getattr(experiment_config, "COMA_EPOCHS", 10))
-        self.batch_size = int(getattr(experiment_config, "COMA_BATCH_SIZE", 64))
-        self.rollout_steps = int(getattr(experiment_config, "COMA_ROLLOUT_STEPS", 2048))
+        hidden_dim = int(getattr(experiment_config, "VDN_HIDDEN_DIM", 64))
+        self.lr = float(getattr(experiment_config, "VDN_LR", 1e-3))
+        self.gamma = float(getattr(experiment_config, "VDN_GAMMA", 0.99))
+        self.batch_size = int(getattr(experiment_config, "VDN_BATCH_SIZE", 64))
+        buffer_size = int(getattr(experiment_config, "VDN_BUFFER_SIZE", 100000))
+        self.target_update_interval = getattr(experiment_config, "VDN_TARGET_UPDATE_INTERVAL", 100)
+        
+        self.epsilon = float(getattr(experiment_config, "VDN_EPSILON_START", 1.0))
+        self.epsilon_min = float(getattr(experiment_config, "VDN_EPSILON_MIN", 0.05))
+        self.epsilon_decay = float(getattr(experiment_config, "VDN_EPSILON_DECAY", 0.995))
 
-        self.actors = [
-            ActorNetwork(self.observation_dim, self.action_dim, hidden_dim).to(self.device)
+        self.q_networks = nn.ModuleList([
+            QNetwork(self.observation_dim, self.action_dim, hidden_dim).to(self.device)
             for _ in range(self.num_agents)
-        ]
+        ])
         
-        # Centralized Critic for each agent.
-        # Takes global state and the actions of ALL OTHER agents
-        self.global_state_dim = self.observation_dim * self.num_agents
-        self.other_action_dim = self.action_dim * (self.num_agents - 1)
-        
-        self.critics = [
-            CentralCriticNetwork(self.global_state_dim, self.other_action_dim, self.action_dim, hidden_dim).to(self.device)
-            for _ in range(self.num_agents)
-        ]
-        self.target_critics = [copy.deepcopy(critic) for critic in self.critics]
-        self.target_update_interval = getattr(experiment_config, "COMA_TARGET_UPDATE_INTERVAL", 10)
+        self.target_q_networks = copy.deepcopy(self.q_networks)
         self.train_step = 0
         
-        self.actor_optimizers = [torch.optim.Adam(actor.parameters(), lr=self.lr_actor) for actor in self.actors]
-        self.critic_optimizers = [torch.optim.Adam(critic.parameters(), lr=self.lr_critic) for critic in self.critics]
+        self.optimizer = torch.optim.Adam(self.q_networks.parameters(), lr=self.lr)
 
-        self.buffers = [COMARolloutBuffer() for _ in range(self.num_agents)]
+        self.buffer = VDNReplayBuffer(buffer_size)
         
         self.history = {
             "episode_rewards": [],
-            "actor_losses": [],
-            "critic_losses": [],
+            "q_losses": [],
             "success_flags": [],
             "collision_flags": [],
             "episode_lengths": [],
@@ -178,120 +125,52 @@ class COMATrainer:
         controlled_vehicles = getattr(self.env.unwrapped, "controlled_vehicles", [])
         return any(getattr(vehicle, "crashed", False) for vehicle in controlled_vehicles[: self.num_agents])
 
-    def _get_other_actions(self, joint_actions, target_agent_index):
-        # joint_actions is of shape [batch, num_agents]
-        # output one-hot actions of other agents: [batch, (num_agents-1)*action_dim]
-        batch_size = joint_actions.shape[0]
-        other_actions_one_hot = torch.zeros((batch_size, self.num_agents - 1, self.action_dim), device=self.device)
-        idx = 0
-        for i in range(self.num_agents):
-            if i != target_agent_index:
-                actions_i = joint_actions[:, i]
-                other_actions_one_hot[:, idx].scatter_(1, actions_i.unsqueeze(1), 1.0)
-                idx += 1
-        return other_actions_one_hot.view(batch_size, -1)
-
-    def _update_agent(self, agent_index: int):
-        states, actions, rewards, next_states, dones, old_log_probs, global_states, joint_actions = self.buffers[agent_index].get()
-        
-        if len(states) == 0:
-            return None, None
+    def _update_network(self):
+        if len(self.buffer) < self.batch_size:
+            return None
             
+        states, actions, rewards, next_states, dones = self.buffer.sample(self.batch_size)
+        
         states_t = torch.tensor(states, dtype=torch.float32, device=self.device)
         actions_t = torch.tensor(actions, dtype=torch.long, device=self.device)
         rewards_t = torch.tensor(rewards, dtype=torch.float32, device=self.device)
         next_states_t = torch.tensor(next_states, dtype=torch.float32, device=self.device)
         dones_t = torch.tensor(dones, dtype=torch.float32, device=self.device)
-        old_log_probs_t = torch.tensor(old_log_probs, dtype=torch.float32, device=self.device)
-        global_states_t = torch.tensor(global_states, dtype=torch.float32, device=self.device)
-        joint_actions_t = torch.tensor(joint_actions, dtype=torch.long, device=self.device)
-
-        other_actions_t = self._get_other_actions(joint_actions_t, agent_index)
         
-        # Calculate advantages using COMA formula:
-        # A(o_i, a_i) = Q(s, a_i, u_{-i}) - \sum_{a'} \pi(a'|o_i) Q(s, a', u_{-i})
-        with torch.no_grad():
-            q_values = self.critics[agent_index](global_states_t, other_actions_t) # [batch, action_dim]
+        q_tot = 0
+        target_q_tot = 0
+        
+        for i in range(self.num_agents):
+            q_i = self.q_networks[i](states_t[:, i])
+            q_i_taken = q_i.gather(1, actions_t[:, i].unsqueeze(1)).squeeze(1)
+            q_tot = q_tot + q_i_taken
             
-            # Get actor probabilities
-            dist = self.actors[agent_index](states_t)
-            pi_probs = dist.probs # [batch, action_dim]
-            
-            baseline = (pi_probs * q_values).sum(dim=1)
-            q_executed = q_values.gather(1, actions_t.unsqueeze(1)).squeeze(1)
-            advantages = q_executed - baseline
-
-        dataset_size = len(states)
-        indices = np.arange(dataset_size)
+            with torch.no_grad():
+                target_q_i = self.target_q_networks[i](next_states_t[:, i])
+                target_q_i_max = target_q_i.max(dim=1)[0]
+                target_q_tot = target_q_tot + target_q_i_max
+                
+        # VDN targets
+        y = rewards_t + self.gamma * (1 - dones_t) * target_q_tot
         
-        actor_losses = []
-        critic_losses = []
+        loss = F.mse_loss(q_tot, y.detach())
         
-        for _ in range(self.ppo_epochs):
-            np.random.shuffle(indices)
-            for start_idx in range(0, dataset_size, self.batch_size):
-                batch_idx = indices[start_idx:start_idx + self.batch_size]
-                if len(batch_idx) == 0: continue
-                
-                b_states = states_t[batch_idx]
-                b_actions = actions_t[batch_idx]
-                b_old_log_probs = old_log_probs_t[batch_idx]
-                b_advantages = advantages[batch_idx]
-                b_rewards = rewards_t[batch_idx]
-                b_dones = dones_t[batch_idx]
-                
-                b_global_states = global_states_t[batch_idx]
-                b_other_actions = other_actions_t[batch_idx]
-                
-                # ACTOR UPDATE
-                dist = self.actors[agent_index](b_states)
-                new_log_probs = dist.log_prob(b_actions)
-                entropy = dist.entropy().mean()
-                
-                ratio = torch.exp(new_log_probs - b_old_log_probs)
-                surr1 = ratio * b_advantages
-                surr2 = torch.clamp(ratio, 1.0 - self.clip_epsilon, 1.0 + self.clip_epsilon) * b_advantages
-                actor_loss = -torch.min(surr1, surr2).mean() - self.entropy_coef * entropy
-                
-                self.actor_optimizers[agent_index].zero_grad()
-                actor_loss.backward()
-                nn.utils.clip_grad_norm_(self.actors[agent_index].parameters(), 0.5)
-                self.actor_optimizers[agent_index].step()
-                
-                # CRITIC UPDATE
-                # For critic, we can use TD(0) or MC. COMA usually uses TD(0) or TD(\lambda)
-                # Let's compute MC returns.
-                returns = torch.zeros_like(b_rewards, device=self.device)
-                G = 0
-                for t in reversed(range(len(b_rewards))):
-                    G = b_rewards[t] + self.gamma * G * (1 - b_dones[t])
-                    returns[t] = G
-                
-                q_vals = self.critics[agent_index](b_global_states, b_other_actions)
-                q_vals_executed = q_vals.gather(1, b_actions.unsqueeze(1)).squeeze(1)
-                critic_loss = F.mse_loss(q_vals_executed, returns)
-                
-                self.critic_optimizers[agent_index].zero_grad()
-                critic_loss.backward()
-                nn.utils.clip_grad_norm_(self.critics[agent_index].parameters(), 0.5)
-                self.critic_optimizers[agent_index].step()
-                
-                actor_losses.append(actor_loss.item())
-                critic_losses.append(critic_loss.item())
-
-        self.buffers[agent_index].clear()
+        self.optimizer.zero_grad()
+        loss.backward()
+        nn.utils.clip_grad_norm_(self.q_networks.parameters(), 0.5)
+        self.optimizer.step()
         
         self.train_step += 1
         if self.train_step % self.target_update_interval == 0:
-            self.target_critics[agent_index].load_state_dict(self.critics[agent_index].state_dict())
-        
-        return np.mean(actor_losses) if actor_losses else None, np.mean(critic_losses) if critic_losses else None
+            for q_net, t_q_net in zip(self.q_networks, self.target_q_networks):
+                t_q_net.load_state_dict(q_net.state_dict())
+                
+        return loss.item()
 
     def _run_episode(self, episode_index: int, training: bool) -> dict[str, Any]:
         raw_observation, _ = self.env.reset()
         prepared_observation = self._prepare_observation(raw_observation)
         agent_observations = self._extract_agent_observations(prepared_observation)
-        global_state = agent_observations.flatten()
         agent_finished = np.zeros(self.num_agents, dtype=bool)
 
         episode_reward = 0.0
@@ -299,32 +178,26 @@ class COMATrainer:
         collision_occurred = False
         terminated = False
         truncated = False
+        
+        losses = []
 
         while not terminated and not truncated:
             actions = []
-            log_probs = []
 
             for agent_index in range(self.num_agents):
                 if agent_finished[agent_index]:
                     actions.append(0)
-                    log_probs.append(0.0)
                     continue
-
-                obs_t = torch.tensor(agent_observations[agent_index], dtype=torch.float32, device=self.device).unsqueeze(0)
                 
-                with torch.no_grad():
-                    dist = self.actors[agent_index](obs_t)
-                    
-                    if not training:
-                        action = torch.argmax(dist.logits, dim=-1).item()
-                        log_prob = dist.log_prob(torch.tensor([action], device=self.device)).item()
-                    else:
-                        action_t = dist.sample()
-                        action = action_t.item()
-                        log_prob = dist.log_prob(action_t).item()
+                if training and random.random() < self.epsilon:
+                    action = random.randint(0, self.action_dim - 1)
+                else:
+                    obs_t = torch.tensor(agent_observations[agent_index], dtype=torch.float32, device=self.device).unsqueeze(0)
+                    with torch.no_grad():
+                        q_vals = self.q_networks[agent_index](obs_t)
+                        action = torch.argmax(q_vals, dim=-1).item()
                 
                 actions.append(action)
-                log_probs.append(log_prob)
 
             if self.experiment_config.RENDER_MODE is not None:
                 self.env.render()
@@ -353,35 +226,43 @@ class COMATrainer:
                 rewards = np.asarray(reward_values[: self.num_agents], dtype=np.float32)
             rewards = rewards * active_mask
 
-            if training:
-                for agent_index in range(self.num_agents):
-                    if active_mask[agent_index] > 0:
-                        self.buffers[agent_index].add(
-                            agent_observations[agent_index],
-                            actions[agent_index],
-                            rewards[agent_index],
-                            next_agent_observations[agent_index],
-                            done_flags[agent_index],
-                            log_probs[agent_index],
-                            global_state,
-                            actions
-                        )
+            joint_reward = float(np.sum(rewards))
+            
+            # Use max to get joint done flag (if any agent is active and env is done, or if all are done)
+            joint_done = float(episode_finished)
 
-            episode_reward += float(reward)
+            if training:
+                # Store joint transition
+                self.buffer.add(
+                    agent_observations,
+                    actions,
+                    joint_reward,
+                    next_agent_observations,
+                    joint_done
+                )
+                
+                loss = self._update_network()
+                if loss is not None:
+                    losses.append(loss)
+
+            episode_reward += joint_reward
             episode_length += 1
             collision_occurred = collision_occurred or self._has_any_controlled_collision(info)
 
             agent_finished = np.logical_or(agent_finished, done_flags.astype(bool))
             agent_observations = next_agent_observations
-            global_state = agent_observations.flatten()
 
         episode_success = bool(terminated and not truncated and not collision_occurred)
+        
+        if training and self.epsilon > self.epsilon_min:
+            self.epsilon *= self.epsilon_decay
 
         return {
             "episode_reward": episode_reward,
             "episode_length": episode_length,
             "collision": collision_occurred,
             "success": episode_success,
+            "loss": np.mean(losses) if losses else 0.0
         }
 
     def train(self) -> tuple[int, dict[str, list[Any]]]:
@@ -397,40 +278,19 @@ class COMATrainer:
             self.history["success_flags"].append(int(episode_result["success"]))
             self.history["collision_flags"].append(int(episode_result["collision"]))
             self.history["episode_lengths"].append(episode_result["episode_length"])
-
-            if total_steps >= self.rollout_steps:
-                actor_losses = []
-                critic_losses = []
-                for agent_index in range(self.num_agents):
-                    a_loss, c_loss = self._update_agent(agent_index)
-                    if a_loss is not None:
-                        actor_losses.append(a_loss)
-                    if c_loss is not None:
-                        critic_losses.append(c_loss)
-                
-                avg_a_loss = np.mean(actor_losses) if actor_losses else 0.0
-                avg_c_loss = np.mean(critic_losses) if critic_losses else 0.0
-                
-                # Append to history for the last 'rollout_steps' episodes
-                rem = len(self.history["episode_rewards"]) - len(self.history["actor_losses"])
-                self.history["actor_losses"].extend([avg_a_loss] * rem)
-                self.history["critic_losses"].extend([avg_c_loss] * rem)
-                total_steps = 0
+            self.history["q_losses"].append(episode_result["loss"])
 
             logger.info(
-                "[%s] Episode %d/%d | reward=%.2f | success=%s | collision=%s",
+                "[%s] Episode %d/%d | reward=%.2f | loss=%.4f | epsilon=%.3f | success=%s | collision=%s",
                 self.algorithm,
                 episode_index,
                 self.total_episodes,
                 episode_result["episode_reward"],
+                episode_result["loss"],
+                self.epsilon,
                 episode_result["success"],
                 episode_result["collision"],
             )
-            
-        rem = len(self.history["episode_rewards"]) - len(self.history["actor_losses"])
-        if rem > 0:
-            self.history["actor_losses"].extend([0.0] * rem)
-            self.history["critic_losses"].extend([0.0] * rem)
 
         self._save_checkpoint()
         self._write_progress_csv()
@@ -464,8 +324,7 @@ class COMATrainer:
         checkpoint = {
             "algorithm": self.algorithm,
             "num_agents": self.num_agents,
-            "actors": [actor.state_dict() for actor in self.actors],
-            "critics": [critic.state_dict() for critic in self.critics],
+            "q_networks": [q.state_dict() for q in self.q_networks],
         }
         torch.save(checkpoint, checkpoint_path)
         logger.info("Saved baseline checkpoint to %s", checkpoint_path)
@@ -483,10 +342,8 @@ class COMATrainer:
             logger.warning("Failed to load checkpoint %s: %s", checkpoint_candidate, checkpoint_error)
             return False
 
-        for actor, actor_state in zip(self.actors, checkpoint["actors"]):
-            actor.load_state_dict(actor_state)
-        for critic, critic_state in zip(self.critics, checkpoint["critics"]):
-            critic.load_state_dict(critic_state)
+        for q_net, q_state in zip(self.q_networks, checkpoint["q_networks"]):
+            q_net.load_state_dict(q_state)
 
         logger.info("Loaded baseline checkpoint from %s", checkpoint_candidate)
         return True
@@ -499,14 +356,13 @@ class COMATrainer:
             with open(csv_path, mode="w", newline="", encoding="utf-8") as f:
                 writer = csv.writer(f)
                 writer.writerow([
-                    "Episode", "Reward", "ActorLoss", "CriticLoss", "Success", "Collision", "Length"
+                    "Episode", "Reward", "QLoss", "Success", "Collision", "Length"
                 ])
                 for idx in range(len(self.history["episode_rewards"])):
                     writer.writerow([
                         idx + 1,
                         self.history["episode_rewards"][idx],
-                        self.history["actor_losses"][idx],
-                        self.history["critic_losses"][idx],
+                        self.history["q_losses"][idx],
                         self.history["success_flags"][idx],
                         self.history["collision_flags"][idx],
                         self.history["episode_lengths"][idx],
@@ -530,8 +386,7 @@ class COMATrainer:
         ax.legend()
 
         ax = axes[0, 1]
-        ax.plot(episodes, self.history["actor_losses"], label="Actor Loss", color="green", alpha=0.6)
-        ax.plot(episodes, self.history["critic_losses"], label="Critic Loss", color="red", alpha=0.6)
+        ax.plot(episodes, self.history["q_losses"], label="Q Loss", color="red", alpha=0.6)
         ax.set_title("Losses")
         ax.set_xlabel("Episode")
         ax.set_ylabel("Loss")
@@ -560,9 +415,9 @@ class COMATrainer:
         plt.savefig(plot_path)
         plt.close()
 
-def run_coma_experiment(experiment_config, env_config: dict[str, Any]):
+def run_vdn_experiment(experiment_config, env_config: dict[str, Any]):
     logger.info("Initializing %s experiment", experiment_config.ALGORITHM)
-    trainer = COMATrainer(experiment_config, env_config)
+    trainer = VDNTrainer(experiment_config, env_config)
     try:
         if getattr(experiment_config, "ONLY_INFERENCE", False):
             logger.info("Running baseline in inference-only mode")

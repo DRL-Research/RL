@@ -422,6 +422,7 @@ class IPPOTrainer:
 
     def _save_checkpoint(self) -> str:
         checkpoint_path = f"{self.experiment_config.SAVE_MODEL_DIRECTORY}_{self.algorithm}.pt"
+        os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
         checkpoint = {
             "algorithm": self.algorithm,
             "num_agents": self.num_agents,
