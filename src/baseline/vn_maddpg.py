@@ -24,11 +24,11 @@ def canonicalize_algorithm_name(algorithm_name: str | None) -> str:
         return "attention_maddpg"
     if normalized_name in {"ma-ga-ddpg", "maga_ddpg", "maga"}:
         return "ma_ga_ddpg"
-    if normalized_name in {"experiment", "maddpg", "vn_maddpg", "attention_maddpg", "ma_ga_ddpg", "ippo", "coma", "vdn"}:
+    if normalized_name in {"experiment", "maddpg", "vn_maddpg", "attention_maddpg", "ma_ga_ddpg", "ippo", "coma", "vdn", "social_attention"}:
         return normalized_name
     raise ValueError(
         f"Unsupported algorithm '{algorithm_name}'. "
-        "Expected one of: experiment, baseline, maddpg, vn_maddpg, attention_maddpg, ma_ga_ddpg, ippo, coma, vdn."
+        "Expected one of: experiment, baseline, maddpg, vn_maddpg, attention_maddpg, ma_ga_ddpg, ippo, coma, vdn, social_attention."
     )
 
 
@@ -769,6 +769,38 @@ def run_baseline_experiment(experiment_config, env_config: dict[str, Any]):
     if algorithm_name == "vdn":
         from src.baseline.vdn import run_vdn_experiment
         return run_vdn_experiment(experiment_config, env_config)
+    if algorithm_name == "social_attention":
+        import sys
+        import os
+        import numpy as np
+        
+        sa_dir = os.path.abspath('social_attention/intersection_env')
+        if sa_dir not in sys.path:
+            sys.path.insert(0, sa_dir)
+            
+        import train_model
+        
+        # Override globals to match the rest of the benchmark framework
+        train_model.NUM_EPISODES = getattr(experiment_config, "EPISODES_PER_CYCLE", 4000)
+        train_model.SAVE_DIR = getattr(experiment_config, "SAVE_MODEL_DIRECTORY", "checkpoints")
+        
+        # Disable wandb to prevent parallel logging collisions
+        os.environ["WANDB_MODE"] = "disabled"
+        
+        seed_val = getattr(experiment_config, "SEED", 42)
+        metrics = train_model.train(seed=seed_val)
+        
+        # Map social_attention metrics to standard benchmark history keys
+        if "arrival_rate" in metrics:
+            metrics["success_flags"] = metrics["arrival_rate"]
+        if "crash_rate" in metrics:
+            metrics["collision_flags"] = metrics["crash_rate"]
+        if "loss_history" in metrics:
+            metrics["actor_losses"] = metrics["loss_history"]
+            metrics["critic_losses"] = metrics["loss_history"] # DQN only has one loss
+            
+        collision_count = int(np.sum(metrics.get("crash_rate", [])))
+        return None, metrics, collision_count
     if algorithm_name == "ippo":
         from src.baseline.ippo import run_ippo_experiment
         return run_ippo_experiment(experiment_config, env_config)

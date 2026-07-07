@@ -55,6 +55,7 @@ def run_single_experiment_process(alg_name, alg_key, seed, num_episodes, experim
         CYCLES=1,
         EPISODES_PER_CYCLE=num_episodes
     )
+    config.SEED = seed
     config.LOAD_PREVIOUS_WEIGHT = False
     config.EXPERIMENT_PATH = os.path.join(experiment_name, f"Compare_{alg_name}_S{seed}")
     config.SAVE_MODEL_DIRECTORY = f"{config.EXPERIMENT_PATH}/trained_model"
@@ -127,7 +128,8 @@ def main():
         "MA-GA-DDPG": "ma_ga_ddpg",
         "IPPO": "ippo",
         "COMA": "coma",
-        "VDN": "vdn"
+        "VDN": "vdn",
+        "Social-Attention": "social_attention"
     }
 
     # Ensure histories and logs directory is clean/setup
