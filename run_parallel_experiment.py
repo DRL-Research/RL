@@ -128,7 +128,7 @@ def main():
         "MA-GA-DDPG": "ma_ga_ddpg",
         "IPPO": "ippo",
         "COMA": "coma",
-        "VDN": "vdn",
+        # "VDN": "vdn",
         "Social-Attention": "social_attention"
     }
 

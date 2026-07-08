@@ -1,0 +1,107 @@
+{
+  "comparison_root": "experiments\\25_06_2026-21_39_57_full_new_scenarios_suite_roundabout_comparison",
+  "plot_path": "experiments\\25_06_2026-21_39_57_full_new_scenarios_suite_roundabout_comparison\\plots\\multi_seed_algorithm_comparison.png",
+  "moving_avg_window": 50,
+  "seeds": [
+    11,
+    22,
+    33
+  ],
+  "algorithms": [
+    "experiment",
+    "vn_maddpg",
+    "ma_ga_ddpg"
+  ],
+  "runs": {
+    "experiment": [
+      {
+        "seed": 11,
+        "experiment_path": "experiments/25_06_2026-21_39_57_full_new_scenarios_suite_roundabout_experiment_seed_11",
+        "progress_csv": "experiments/25_06_2026-21_39_57_full_new_scenarios_suite_roundabout_experiment_seed_11\\comparison_logs\\progress.csv",
+        "label": "MAPS"
+      },
+      {
+        "seed": 22,
+        "experiment_path": "experiments/25_06_2026-21_53_15_full_new_scenarios_suite_roundabout_experiment_seed_22",
+        "progress_csv": "experiments/25_06_2026-21_53_15_full_new_scenarios_suite_roundabout_experiment_seed_22\\comparison_logs\\progress.csv",
+        "label": "MAPS"
+      },
+      {
+        "seed": 33,
+        "experiment_path": "experiments/25_06_2026-22_17_47_full_new_scenarios_suite_roundabout_experiment_seed_33",
+        "progress_csv": "experiments/25_06_2026-22_17_47_full_new_scenarios_suite_roundabout_experiment_seed_33\\comparison_logs\\progress.csv",
+        "label": "MAPS"
+      }
+    ],
+    "vn_maddpg": [
+      {
+        "seed": 11,
+        "experiment_path": "experiments/25_06_2026-22_25_56_full_new_scenarios_suite_roundabout_vn_maddpg_seed_11",
+        "progress_csv": "experiments/25_06_2026-22_25_56_full_new_scenarios_suite_roundabout_vn_maddpg_seed_11\\comparison_logs\\progress.csv",
+        "label": "VN-MA-DDPG"
+      },
+      {
+        "seed": 22,
+        "experiment_path": "experiments/25_06_2026-22_38_40_full_new_scenarios_suite_roundabout_vn_maddpg_seed_22",
+        "progress_csv": "experiments/25_06_2026-22_38_40_full_new_scenarios_suite_roundabout_vn_maddpg_seed_22\\comparison_logs\\progress.csv",
+        "label": "VN-MA-DDPG"
+      },
+      {
+        "seed": 33,
+        "experiment_path": "experiments/25_06_2026-22_51_21_full_new_scenarios_suite_roundabout_vn_maddpg_seed_33",
+        "progress_csv": "experiments/25_06_2026-22_51_21_full_new_scenarios_suite_roundabout_vn_maddpg_seed_33\\comparison_logs\\progress.csv",
+        "label": "VN-MA-DDPG"
+      }
+    ],
+    "ma_ga_ddpg": [
+      {
+        "seed": 11,
+        "experiment_path": "experiments/25_06_2026-23_04_22_full_new_scenarios_suite_roundabout_ma_ga_ddpg_seed_11",
+        "progress_csv": "experiments/25_06_2026-23_04_22_full_new_scenarios_suite_roundabout_ma_ga_ddpg_seed_11\\comparison_logs\\progress.csv",
+        "label": "MA-GA-DDPG"
+      },
+      {
+        "seed": 22,
+        "experiment_path": "experiments/25_06_2026-23_22_42_full_new_scenarios_suite_roundabout_ma_ga_ddpg_seed_22",
+        "progress_csv": "experiments/25_06_2026-23_22_42_full_new_scenarios_suite_roundabout_ma_ga_ddpg_seed_22\\comparison_logs\\progress.csv",
+        "label": "MA-GA-DDPG"
+      },
+      {
+        "seed": 33,
+        "experiment_path": "experiments/25_06_2026-23_29_48_full_new_scenarios_suite_roundabout_ma_ga_ddpg_seed_33",
+        "progress_csv": "experiments/25_06_2026-23_29_48_full_new_scenarios_suite_roundabout_ma_ga_ddpg_seed_33\\comparison_logs\\progress.csv",
+        "label": "MA-GA-DDPG"
+      }
+    ]
+  },
+  "plot_summary": {
+    "output_path": "experiments\\25_06_2026-21_39_57_full_new_scenarios_suite_roundabout_comparison\\plots\\multi_seed_algorithm_comparison.png",
+    "moving_avg_window": 50,
+    "algorithms": {
+      "experiment": {
+        "label": "MAPS",
+        "runs": [
+          "experiments/25_06_2026-21_39_57_full_new_scenarios_suite_roundabout_experiment_seed_11\\comparison_logs\\progress.csv",
+          "experiments/25_06_2026-21_53_15_full_new_scenarios_suite_roundabout_experiment_seed_22\\comparison_logs\\progress.csv",
+          "experiments/25_06_2026-22_17_47_full_new_scenarios_suite_roundabout_experiment_seed_33\\comparison_logs\\progress.csv"
+        ]
+      },
+      "vn_maddpg": {
+        "label": "VN-MA-DDPG",
+        "runs": [
+          "experiments/25_06_2026-22_25_56_full_new_scenarios_suite_roundabout_vn_maddpg_seed_11\\comparison_logs\\progress.csv",
+          "experiments/25_06_2026-22_38_40_full_new_scenarios_suite_roundabout_vn_maddpg_seed_22\\comparison_logs\\progress.csv",
+          "experiments/25_06_2026-22_51_21_full_new_scenarios_suite_roundabout_vn_maddpg_seed_33\\comparison_logs\\progress.csv"
+        ]
+      },
+      "ma_ga_ddpg": {
+        "label": "MA-GA-DDPG",
+        "runs": [
+          "experiments/25_06_2026-23_04_22_full_new_scenarios_suite_roundabout_ma_ga_ddpg_seed_11\\comparison_logs\\progress.csv",
+          "experiments/25_06_2026-23_22_42_full_new_scenarios_suite_roundabout_ma_ga_ddpg_seed_22\\comparison_logs\\progress.csv",
+          "experiments/25_06_2026-23_29_48_full_new_scenarios_suite_roundabout_ma_ga_ddpg_seed_33\\comparison_logs\\progress.csv"
+        ]
+      }
+    }
+  }
+}
