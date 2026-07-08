@@ -224,6 +224,24 @@ def run_training_mode(experiment_config, wrapped_env, agent_model, agent_logger)
 ##########################################
 
 def run_experiment(experiment_config, env_config):
+    algorithm = getattr(experiment_config, "ALGORITHM", "experiment").lower()
+
+    if algorithm == "coma":
+        from src.baseline.coma import run_coma_experiment
+        return run_coma_experiment(experiment_config, env_config)
+    elif algorithm == "ippo":
+        from src.baseline.ippo import run_ippo_experiment
+        return run_ippo_experiment(experiment_config, env_config)
+    elif algorithm == "vdn":
+        from src.baseline.vdn import run_vdn_experiment
+        return run_vdn_experiment(experiment_config, env_config)
+    elif algorithm in ("ma_ga_ddpg", "attention_maddpg", "ma-ga-ddpg", "attention-maddpg", "a_maddpg", "maga_ddpg", "maga"):
+        from src.baseline.ma_ga_ddpg import run_ma_ga_ddpg_experiment
+        return run_ma_ga_ddpg_experiment(experiment_config, env_config)
+    elif algorithm in ("maddpg", "vn_maddpg", "baseline"):
+        from src.baseline.vn_maddpg import run_baseline_experiment
+        return run_baseline_experiment(experiment_config, env_config)
+
     print(
         f"Environment configuration: {len(env_config['controlled_cars'])} controlled cars, {len(env_config['static_cars'])} static cars"
     )
