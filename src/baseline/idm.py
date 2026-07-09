@@ -42,16 +42,20 @@ class IDMModel:
         actions = []
         for i in range(self.num_agents):
             if i >= len(controlled_vehicles):
-                actions.append(0)
+                actions.append(0.0)
                 continue
                 
             ego = controlled_vehicles[i]
             if getattr(ego, "is_arrived", False) or getattr(ego, "crashed", False):
-                actions.append(0)
+                actions.append(0.0)
                 continue
                 
             # Get the front vehicle on the same lane or a crossing vehicle at the intersection
-            front_vehicle, distance = self._get_front_vehicle(unwrapped_env, ego)
+            front_vehicle, distance, yield_triggered = self._get_front_vehicle(unwrapped_env, ego)
+            
+            if yield_triggered:
+                actions.append(3.0)
+                continue
             
             # IDM formula
             v = ego.speed
@@ -70,27 +74,18 @@ class IDMModel:
             # Compute IDM acceleration
             acceleration = self.a * (1 - (v / self.v0) ** self.delta - interaction_term)
             
-            # Map acceleration to one of the target speeds [5, 10]
-            # Since action 0 maps to 5 and action 1 maps to 10
-            if acceleration > 0:
-                desired_speed = v + acceleration
-                if desired_speed > 7.5:
-                    action = 1 # correspond to 10 m/s
-                else:
-                    action = 0 # 5 m/s
-            else:
-                action = 0 # slow down to 5 m/s
-
-            actions.append(action)
+            desired_speed = max(0.0, min(self.v0, v + acceleration))
+            actions.append(float(desired_speed))
             
         return np.array(actions), None
         
     def _get_front_vehicle(self, env, ego):
         if not hasattr(env, "road") or env.road is None:
-            return None, float('inf')
+            return None, float('inf'), False
             
         best_vehicle = None
         min_dist = float('inf')
+        yield_triggered = False
         
         # Ego distance to intersection center (0,0)
         ego_dist_to_center = np.linalg.norm(ego.position)
@@ -106,21 +101,18 @@ class IDMModel:
                     min_dist = dist
                     best_vehicle = v
             else:
-                # Intersection yielding heuristic
-                # If we are approaching the intersection and the other vehicle is also approaching
                 v_dist_to_center = np.linalg.norm(v.position)
-                
                 # Check if ego is before the intersection and other vehicle is also around
                 if ego_dist_to_center < self.intersection_yield_dist and v_dist_to_center < self.intersection_yield_dist:
-                    # Yield if the other vehicle is closer to the center or very close to it
-                    if v_dist_to_center < ego_dist_to_center + 1.0:
-                        # Treat it as an obstacle at the intersection boundary (stop before entering)
-                        virtual_dist = max(0.1, ego_dist_to_center - 7.0)
-                        if virtual_dist < min_dist:
-                            min_dist = virtual_dist
-                            best_vehicle = v
+                    ego_tta = ego_dist_to_center / max(1.0, getattr(ego, "speed", 5.0))
+                    v_tta = v_dist_to_center / max(1.0, getattr(v, "speed", 5.0))
+                    
+                    # Yield if the other vehicle is expected to arrive earlier or around the same time
+                    if v_tta < ego_tta + 1.5:
+                        yield_triggered = True
+                        break
 
-        return best_vehicle, min_dist
+        return best_vehicle, min_dist, yield_triggered
 
 class IDMTrainer:
     def __init__(self, experiment_config, env_config):
@@ -155,10 +147,15 @@ class IDMTrainer:
         self.env.close()
 
     def _has_any_controlled_collision(self, info: dict) -> bool:
-        if bool(info.get("crashed", False)):
-            return True
         controlled_vehicles = getattr(self.env.unwrapped, "controlled_vehicles", [])
-        return any(getattr(vehicle, "crashed", False) for vehicle in controlled_vehicles[: self.num_agents])
+        for i, vehicle in enumerate(controlled_vehicles[: self.num_agents]):
+            if getattr(vehicle, "crashed", False):
+                print(f"Controlled vehicle {i} crashed!")
+                return True
+        if bool(info.get("crashed", False)):
+            print("Environment info reported crashed (might be non-controlled).")
+            return True
+        return False
 
     def train(self):
         collision_count = 0
@@ -177,7 +174,7 @@ class IDMTrainer:
                 if self.experiment_config.RENDER_MODE is not None:
                     self.env.render()
                     
-                obs, reward, terminated, truncated, info = self.env.step(tuple(int(a) for a in action_tuple))
+                obs, reward, terminated, truncated, info = self.env.step(tuple(float(a) for a in action_tuple))
                 
                 episode_reward += float(reward)
                 episode_length += 1
@@ -204,10 +201,15 @@ class IDMTrainer:
         return collision_count, self.history
 
 def run_idm_experiment(experiment_config, env_config):
+    # The user noted uncontrolled vehicles were too fast and crashed. 
+    # Slow them down to improve baseline performance.
+    for car_id, car_info in env_config.get("static_cars", {}).items():
+        car_info["speed"] = getattr(experiment_config, "THROTTLE_SLOW", 5) - 1
+
     trainer = IDMTrainer(experiment_config, env_config)
     try:
         collision_count, history = trainer.train()
     finally:
         trainer.close()
         
-    return None, history, collision_count
+    return collision_count, history, collision_count

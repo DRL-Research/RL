@@ -50,8 +50,17 @@ class CustomDiscreteAction(ActionType):
     def vehicle_class(self) -> Callable:
         return functools.partial(MDPVehicle, target_speeds=self.target_speeds)
 
-    def act(self, action: int | np.ndarray) -> None:
-        self.controlled_vehicle.act(self.actions[int(action)])
+    def act(self, action: Union[int, float, np.ndarray]) -> None:
+        if isinstance(action, (float, np.floating)):
+            self.controlled_vehicle.act(float(action))
+            return
+        
+        if int(action) == 2:
+            self.controlled_vehicle.act("IDLE")
+        elif int(action) == 3:
+            self.controlled_vehicle.act("EMERGENCY_BRAKE")
+        else:
+            self.controlled_vehicle.act(self.actions[int(action)])
 
     def get_available_actions(self) -> list[int]:
         """
