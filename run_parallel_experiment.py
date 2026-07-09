@@ -129,7 +129,8 @@ def main():
         "IPPO": "ippo",
         "COMA": "coma",
         "VDN": "vdn",
-        "Social-Attention": "social_attention"
+        "Social-Attention": "social_attention",
+        "IDM": "idm"
     }
 
     # Ensure histories and logs directory is clean/setup

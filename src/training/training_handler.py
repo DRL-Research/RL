@@ -241,6 +241,9 @@ def run_experiment(experiment_config, env_config):
     elif algorithm in ("maddpg", "vn_maddpg", "baseline"):
         from src.baseline.vn_maddpg import run_baseline_experiment
         return run_baseline_experiment(experiment_config, env_config)
+    elif algorithm == "idm":
+        from src.baseline.idm import run_idm_experiment
+        return run_idm_experiment(experiment_config, env_config)
 
     print(
         f"Environment configuration: {len(env_config['controlled_cars'])} controlled cars, {len(env_config['static_cars'])} static cars"
