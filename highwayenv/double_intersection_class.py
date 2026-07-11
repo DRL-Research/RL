@@ -173,12 +173,8 @@ class DoubleIntersectionEnv(IntersectionEnv):
         # We spawn a generous buffer so _reset() has enough objects to pull from.
         for _ in range(n_vehicles + 10):
             lane_index = ("B_o0", "B_ir0", 0)
-<<<<<<< HEAD
             # Same fix here for the buffer vehicles
             vehicle = Vehicle.make_on_lane(self.road, lane_index, longitudinal=0, speed=0)
-=======
-            vehicle = Vehicle.make_on_lane(self.road, lane_index, 0, speed=0)
->>>>>>> 396c318 (Fix IndexError in double intersection IDM experiment by forcing agent count to 6 and removing debug scenario reassignment)
             self.road.vehicles.append(vehicle)
 
     def _clear_vehicles(self) -> None:
