@@ -151,7 +151,7 @@ class DoubleIntersectionEnv(IntersectionEnv):
 
         # 1. Spawn controlled agents using the environment's action_type
         # to ensure IPPO/RL action bindings work correctly.
-        agent_count = 6  # Force 6 for double intersection as scenarios require it
+        agent_count = 3  # Force 3 for double intersection as scenarios require it
         
         if hasattr(self, "action_type") and hasattr(self.action_type, "vehicle_class"):
             v_class = self.action_type.vehicle_class
@@ -318,6 +318,12 @@ class DoubleIntersectionEnv(IntersectionEnv):
                 vehicle.plan_route_to(destination)
             else:
                 vehicle.route = [lane_key]
+
+        # Clean up any unused vehicles that were not positioned by the scenario
+        used_static_count = len(safe_static_scenario)
+        total_used_vehicles = controlled_count + used_static_count
+        self.road.vehicles = all_vehicles[:total_used_vehicles]
+
 
 
 class MultiAgentDoubleIntersectionEnv(DoubleIntersectionEnv, MultiAgentIntersectionEnv):
