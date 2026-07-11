@@ -276,6 +276,7 @@ class DoubleIntersectionEnv(IntersectionEnv):
             vehicle.lane_index = lane_key
             vehicle.target_lane_index = lane_key
             vehicle.heading = lane.heading_at(vehicle.position)
+            vehicle.speed = 10.0  # Set initial speed so they are moving
             if hasattr(vehicle, 'plan_route_to'):
                 vehicle.plan_route_to(destination)
             else:
@@ -314,6 +315,7 @@ class DoubleIntersectionEnv(IntersectionEnv):
             vehicle.lane_index = lane_key
             vehicle.target_lane_index = lane_key
             vehicle.heading = lane.heading_at(vehicle.position)
+            vehicle.speed = 10.0  # Set initial speed so static vehicles move!
             if hasattr(vehicle, 'plan_route_to'):
                 vehicle.plan_route_to(destination)
             else:
