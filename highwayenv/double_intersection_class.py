@@ -143,6 +143,7 @@ class DoubleIntersectionEnv(IntersectionEnv):
         We initialize the objects on a valid lane here, and _reset() will
         immediately move them to their correct scenario positions.
         """
+        import functools  # Ensure this is imported
         from highway_env.vehicle.kinematics import Vehicle
 
         self.controlled_vehicles = []
@@ -150,23 +151,29 @@ class DoubleIntersectionEnv(IntersectionEnv):
         # 1. Spawn controlled agents using the environment's action_type
         # to ensure IPPO/RL action bindings work correctly.
         agent_count = self.config.get("controlled_vehicles", 3)
+
         if hasattr(self, "action_type") and hasattr(self.action_type, "vehicle_class"):
-            vehicle_class = self.action_type.vehicle_class
+            v_class = self.action_type.vehicle_class
+            # UNWRAP THE PARTIAL HERE
+            if isinstance(v_class, functools.partial):
+                v_class = v_class.func
         else:
-            vehicle_class = Vehicle
+            v_class = Vehicle
 
         # Place agents temporarily at A_o0
         for _ in range(agent_count):
-            lane = self.road.network.get_lane(("A_o0", "A_ir0", 0))
-            vehicle = vehicle_class.make_on_lane(self.road, lane, speed=0)
+            lane_index = ("A_o0", "A_ir0", 0)
+            # Pass lane_index instead of the lane object, and add longitudinal=0
+            vehicle = v_class.make_on_lane(self.road, lane_index, longitudinal=0, speed=0)
             self.controlled_vehicles.append(vehicle)
             self.road.vehicles.append(vehicle)
 
         # 2. Spawn buffer static vehicles for the scenarios to utilize.
         # We spawn a generous buffer so _reset() has enough objects to pull from.
         for _ in range(n_vehicles + 10):
-            lane = self.road.network.get_lane(("B_o0", "B_ir0", 0))
-            vehicle = Vehicle.make_on_lane(self.road, lane, speed=0)
+            lane_index = ("B_o0", "B_ir0", 0)
+            # Same fix here for the buffer vehicles
+            vehicle = Vehicle.make_on_lane(self.road, lane_index, longitudinal=0, speed=0)
             self.road.vehicles.append(vehicle)
 
     def _clear_vehicles(self) -> None:
