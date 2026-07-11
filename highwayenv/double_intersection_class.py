@@ -1,6 +1,7 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import random
+import functools
 
 import numpy as np
 from highway_env.road.lane import AbstractLane, CircularLane, LineType, StraightLane
@@ -150,8 +151,8 @@ class DoubleIntersectionEnv(IntersectionEnv):
 
         # 1. Spawn controlled agents using the environment's action_type
         # to ensure IPPO/RL action bindings work correctly.
-        agent_count = self.config.get("controlled_vehicles", 3)
-
+        agent_count = 6  # Force 6 for double intersection as scenarios require it
+        
         if hasattr(self, "action_type") and hasattr(self.action_type, "vehicle_class"):
             v_class = self.action_type.vehicle_class
             # UNWRAP THE PARTIAL HERE
@@ -172,8 +173,12 @@ class DoubleIntersectionEnv(IntersectionEnv):
         # We spawn a generous buffer so _reset() has enough objects to pull from.
         for _ in range(n_vehicles + 10):
             lane_index = ("B_o0", "B_ir0", 0)
+<<<<<<< HEAD
             # Same fix here for the buffer vehicles
             vehicle = Vehicle.make_on_lane(self.road, lane_index, longitudinal=0, speed=0)
+=======
+            vehicle = Vehicle.make_on_lane(self.road, lane_index, 0, speed=0)
+>>>>>>> 396c318 (Fix IndexError in double intersection IDM experiment by forcing agent count to 6 and removing debug scenario reassignment)
             self.road.vehicles.append(vehicle)
 
     def _clear_vehicles(self) -> None:
