@@ -15,10 +15,10 @@ In this system, a centralized **Master Model** observes the overall environment 
 
 * **Scalable Dual-Loop Coordination**: Master embedding acts as a coordination protocol, eliminating action-space dimensionality explosion when scaling the number of controlled cars.
 * **Deep ResNet Feature Extraction**: The `MasterModel` uses a custom `SimpleResNetExtractor` implementing residual skip connections to preserve gradient flow and model high-fidelity vehicle states.
-* **Custom Highway-Env Layout**: Leverages a highly customized, 4-way intersection layout (`RELintersection-v0`) and a multi-agent control patch.
+* **Custom Highway-Env Layouts**: Leverages highly customized environments including a 4-way intersection layout (`RELintersection-v0`), double intersections, and roundabouts.
 * **Complex Multi-Scenario Rotation**: Automatically generates up to 100 scenario permutations (25 base vehicle distributions × 4 clockwise rotations) to enhance agent generalization.
 * **Cooperative Reward Engineering**: Combined rewards balancing collision penalties, speed limits, vehicle starvation prevention, and destination arrival bonuses.
-* **Production-Ready Visualizations**: Exposes automated Matplotlib plotting utilities mapping Episode Rewards, Master Value Loss, Agent Value Loss, and training progress.
+* **Extensive Baselines**: Includes implementations of COMA, IDM, IPPO, MA-GA-DDPG, VDN, and VN-MA-DDPG for comprehensive comparison.
 
 ---
 
@@ -95,11 +95,17 @@ RL/
 │   ├── CustomControlledVehicle.py # Custom kinematic vehicle properties
 │   ├── custom_action.py        # Custom action spaces and discrete action factories
 │   ├── intersection_class.py   # Core RELintersection-v0 Gymnasium environment
+│   ├── double_intersection_class.py # Double intersection layout environment
+│   ├── roundabout_class.py     # Roundabout layout environment
 │   └── utils.py                # Environment patching and registration utilities
-├── logger/                     # Logging settings and logger tokens
-│   ├── neptune_logger.py       # Custom Neptune metadata tracker integration
-│   └── token.json              # Neptune API Access Token (User configured)
 ├── src/                        # Core codebase logic
+│   ├── baseline/               # Baseline MARL and rule-based algorithms
+│   │   ├── coma.py             # COMA baseline
+│   │   ├── idm.py              # IDM (Intelligent Driver Model) baseline
+│   │   ├── ippo.py             # IPPO baseline
+│   │   ├── ma_ga_ddpg.py       # MA-GA-DDPG algorithm
+│   │   ├── vdn.py              # VDN baseline
+│   │   └── vn_maddpg.py        # VN-MA-DDPG algorithm
 │   ├── experiment/             # Simulation scenarios & environment configs
 │   │   ├── experiment_config.py# Central hyperparameter and experiment class configuration
 │   │   ├── scenarios.py        # Base lane layout and vehicle coordinates
@@ -115,15 +121,7 @@ RL/
 │       ├── general_utils.py    # Model initialization and logger setup
 │       ├── training_handler.py # Orchestrates run modes (Training vs Inference)
 │       └── training_loop_utils.py # Cycles and buffers optimization routines
-├── legacy_scripts/             # Legacy single-agent and comparison runners
-│   ├── compare_algorithms.py   # Legacy sequential comparison script
-│   └── main.py                 # Legacy training / evaluation script with rendering
-├── analyze_results.ipynb       # Jupyter Notebook for result analysis & plotting (Stage 2)
-├── prepare.py                  # Environment patches and validation helper (Immutable)
-├── run_parallel_experiment.py  # Parallel multi-seed experiment runner (Stage 1)
-├── train.py                    # Primary training / hyperparameter tuning script (Mutable)
-├── program.md                  # AutoResearch research manual and constraints
-├── results.tsv                 # Saved performance summary history
+├── run_parallel_experiment.py  # Parallel multi-seed experiment runner
 ├── requirements.txt            # System dependencies
 └── README.md                   # Repository documentation
 ```
@@ -154,65 +152,28 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. Logger Token Setup
-To activate Neptune logging, create a `logger/token.json` file containing your Neptune API credentials:
-
-```json
-{
-    "api_token": "YOUR_NEPTUNE_API_TOKEN_HERE"
-}
-```
-
-> [!NOTE]
-> If Neptune logging is disabled or commented out in your run configuration, the file must still contain valid JSON formatting to satisfy structural imports inside `experiment_config.py`.
-
 ---
 
 ## 🎮 How to Run
 
-The framework provides two primary paths for training and evaluation.
+### Run Parallel Experiments
 
-### Option A: Complete Multi-Seed Algorithm Comparison (2-Stage Workflow)
+This is the recommended workflow to run, evaluate, and compare all cooperative MARL algorithms across multiple seeds.
 
-This is the recommended workflow to run, evaluate, and compare all three cooperative MARL algorithms (`MAPS`, `VN-MA-DDPG`, `MA-GA-DDPG`) across multiple seeds.
-
-#### 1. Stage 1: Run Parallel Experiments
-Execute the parallel runner to train/evaluate the algorithms across all validation seeds (`42`, `100`, `2026`). It automatically skips already completed runs.
+Execute the parallel runner to train/evaluate the algorithms across validation seeds (`42`, `100`, `2026`). It automatically skips already completed runs.
 ```bash
 python run_parallel_experiment.py --episodes 900
 ```
 - `--episodes`: Number of episodes per seed (default: `900`).
 - `--seeds`: Comma-separated list of seeds (default: `42,100,2026`).
+
 The results will be saved as JSON history files under `experiments/histories/`.
-
-#### 2. Stage 2: Analyze Results & Generate Plots
-Open the Jupyter Notebook:
-```bash
-jupyter notebook analyze_results.ipynb
-```
-Run all cells in `analyze_results.ipynb` to:
-- Load the history JSON files.
-- Compute average performance metrics (Success Rate, Collision Rate, Reward, and Steps) across seeds.
-- Display a comprehensive comparison table.
-- Display smoothed convergence plots inline and save the output chart to `plots/algorithm_comparison.png`.
-
----
-
-### Option B: Individual Model Tuning (Mutable Sandbox)
-
-To modify model architectures, reward shaping, or hyperparameters:
-1. Make target adjustments inside [train.py](file:///c:/PycharmProjects/RL/train.py).
-2. Run the single-model training and evaluation script:
-   ```bash
-   python train.py
-   ```
-This script will evaluate your changes against the validation seeds and record performance in `results.tsv`.
 
 ---
 
 ## 🛠️ Hyperparameter & Configuration Guide
 
-You can find and modify all model configs inside [experiment_config.py](file:///c:/PycharmProjects/RL/src/experiment/experiment_config.py).
+You can find and modify all model configs inside [experiment_config.py](file:///Users/gil/PycharmProjects/RL/src/experiment/experiment_config.py).
 
 ### General & Training Settings
 | Configuration Parameter | Type | Default Value | Description |
@@ -257,7 +218,6 @@ Generated plots include:
 
 ## 🤝 Project Credits & Core Classes
 
-* **Master Model**: [master_model.py](file:///c:/PycharmProjects/RL/src/model/master_model.py)
-* **Agent Handler**: [agent_handler.py](file:///c:/PycharmProjects/RL/src/model/agent_handler.py)
-* **Custom Environment**: [intersection_class.py](file:///c:/PycharmProjects/RL/highwayenv/intersection_class.py)
-* **Experiment Setup (Legacy)**: [main.py](file:///c:/PycharmProjects/RL/legacy_scripts/main.py)
+* **Master Model**: [master_model.py](file:///Users/gil/PycharmProjects/RL/src/model/master_model.py)
+* **Agent Handler**: [agent_handler.py](file:///Users/gil/PycharmProjects/RL/src/model/agent_handler.py)
+* **Custom Environment**: [intersection_class.py](file:///Users/gil/PycharmProjects/RL/highwayenv/intersection_class.py)
