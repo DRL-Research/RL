@@ -1,4 +1,4 @@
-# Multi-Agent Autonomous Intersection Control via Latent Master Embeddings
+# Proto Plan Embeddings for Hierarchical Multi Agent Coordination at Unsignalized Intersections
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
 [![Gym 0.21.0](https://img.shields.io/badge/gym-0.21.0-orange.svg)](https://github.com/openai/gym)
@@ -14,7 +14,7 @@ In this system, a centralized **Master Model** observes the overall environment 
 ## 🚀 Key Features
 
 * **Scalable Dual-Loop Coordination**: Master embedding acts as a coordination protocol, eliminating action-space dimensionality explosion when scaling the number of controlled cars.
-* **Deep ResNet Feature Extraction**: The `MasterModel` uses a custom `SimpleResNetExtractor` implementing residual skip connections to preserve gradient flow and model high-fidelity vehicle states.
+* **Deep Attention Feature Extraction**: The `MasterModel` uses a custom `AttentionPolicyNetwork` implementing multi-head attention to capture dependencies across vehicle states.
 * **Custom Highway-Env Layouts**: Leverages highly customized environments including a 4-way intersection layout (`RELintersection-v0`), double intersections, and roundabouts.
 * **Complex Multi-Scenario Rotation**: Automatically generates up to 100 scenario permutations (25 base vehicle distributions × 4 clockwise rotations) to enhance agent generalization.
 * **Cooperative Reward Engineering**: Combined rewards balancing collision penalties, speed limits, vehicle starvation prevention, and destination arrival bonuses.
@@ -35,7 +35,7 @@ graph TD
     end
 
     subgraph Master ["Master Model (SB3 PPO)"]
-        ResNet["SimpleResNetExtractor (ResNet Skip Connections)"]
+        Attention["AttentionPolicyNetwork (Multi-Head Attention)"]
         MasterPPO["Master Policy Net"]
         LatentEmb["Latent Coordination Embedding (Size: 4)"]
     end
@@ -47,8 +47,8 @@ graph TD
     end
 
     %% Relationships
-    EnvState -->|"Flattened State Vector"| ResNet
-    ResNet --> MasterPPO
+    EnvState -->|"Flattened State Vector"| Attention
+    Attention --> MasterPPO
     MasterPPO -->|"Generates"| LatentEmb
 
     LocalObs --> ConcatState
@@ -67,22 +67,22 @@ sequenceDiagram
     participant Env as RELintersection-v0
     participant MM as MasterModel (SB3 PPO)
     participant AM as AgentModel (Local PPO)
-    participant Loop as training_loop (training_handler.py)
+    participant Trainer as training_loop (training_handler.py)
 
-    Note over Loop: Starts Training Cycle
-    Loop->>Env: Reset environment & retrieve initial state
-    Env-->>Loop: Initial Global State
-    Loop->>MM: Prepare global state & forward
-    MM-->>Loop: Latent Coordination Embedding (Size: 4)
+    Note over Trainer: Starts Training Cycle
+    Trainer->>Env: Reset environment & retrieve initial state
+    Env-->>Trainer: Initial Global State
+    Trainer->>MM: Prepare global state & forward
+    MM-->>Trainer: Latent Coordination Embedding (Size: 4)
     
-    Note over Loop: For each controlled car: concat local state with Master Embedding
-    Loop->>AM: Predict action (Slow / Fast throttle control)
-    AM-->>Loop: Multi-Agent Actions (Throttle controls)
+    Note over Trainer: For each controlled car: concat local state with Master Embedding
+    Trainer->>AM: Predict action (Slow / Fast throttle control)
+    AM-->>Trainer: Multi-Agent Actions (Throttle controls)
     
-    Loop->>Env: Step environment with action tuple
-    Env-->>Loop: Next State, Reward, Terminated, Truncated, Info
+    Trainer->>Env: Step environment with action tuple
+    Env-->>Trainer: Next State, Reward, Terminated, Truncated, Info
     
-    Note over Loop: Store step experience in RolloutBuffer & update weights alternately
+    Note over Trainer: Store step experience in RolloutBuffer & update weights alternately
 ```
 
 ---
@@ -200,24 +200,3 @@ You can find and modify all model configs inside [experiment_config.py](file:///
 | `COLLISION_REWARD` | `-300` | Penalty enforced when vehicles collide with other structures or cars |
 | `STARVATION_REWARD` | `-5` | Penalty when speed falls below fixed throttle limit (keeps cars moving) |
 | `HIGH_SPEED_REWARD` | `5` | Reward granted when speed exceeds throttle target without crashes |
-
----
-
-## 📈 Visualizations & Plots
-
-During training, the training handler automatically saves detailed performance plots in:
-`experiments/{date}_{experiment_id}/plots/`
-
-Generated plots include:
-1. `episode_rewards.png`: Average episode rewards accumulated by agents.
-2. `master_value_loss.png` / `master_total_loss.png`: Value function optimization graphs for the master.
-3. `agent_value_loss.png` / `agent_total_loss.png`: Performance of local vehicle controllers.
-4. `combined_losses.png`: Overlay of both models' losses showing training stability.
-
----
-
-## 🤝 Project Credits & Core Classes
-
-* **Master Model**: [master_model.py](file:///Users/gil/PycharmProjects/RL/src/model/master_model.py)
-* **Agent Handler**: [agent_handler.py](file:///Users/gil/PycharmProjects/RL/src/model/agent_handler.py)
-* **Custom Environment**: [intersection_class.py](file:///Users/gil/PycharmProjects/RL/highwayenv/intersection_class.py)
