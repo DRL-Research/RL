@@ -1,0 +1,92 @@
+{
+  "configs": [
+    {
+      "n_int": 1,
+      "n_agents": 3,
+      "n_masters": 1,
+      "arrival_pct_mean": 100.0,
+      "arrival_pct_std": 0.0,
+      "arrival_pct_sem": 0.0,
+      "crash_rate_pct": 0.0,
+      "steps_mean": 11.64,
+      "steps_std": 0.78,
+      "wall_time_sec": 111.4
+    },
+    {
+      "n_int": 2,
+      "n_agents": 6,
+      "n_masters": 2,
+      "arrival_pct_mean": 98.0,
+      "arrival_pct_std": 11.67,
+      "arrival_pct_sem": 1.17,
+      "crash_rate_pct": 3.0,
+      "steps_mean": 14.23,
+      "steps_std": 4.87,
+      "wall_time_sec": 220.9
+    },
+    {
+      "n_int": 4,
+      "n_agents": 12,
+      "n_masters": 4,
+      "arrival_pct_mean": 94.17,
+      "arrival_pct_std": 22.77,
+      "arrival_pct_sem": 2.28,
+      "crash_rate_pct": 7.0,
+      "steps_mean": 18.67,
+      "steps_std": 7.65,
+      "wall_time_sec": 781.9
+    },
+    {
+      "n_int": 6,
+      "n_agents": 18,
+      "n_masters": 6,
+      "arrival_pct_mean": 91.67,
+      "arrival_pct_std": 27.37,
+      "arrival_pct_sem": 2.74,
+      "crash_rate_pct": 9.0,
+      "steps_mean": 19.55,
+      "steps_std": 7.82,
+      "wall_time_sec": 1163.3
+    },
+    {
+      "n_int": 8,
+      "n_agents": 24,
+      "n_masters": 8,
+      "arrival_pct_mean": 92.04,
+      "arrival_pct_std": 25.94,
+      "arrival_pct_sem": 2.59,
+      "crash_rate_pct": 10.0,
+      "steps_mean": 23.09,
+      "steps_std": 8.49,
+      "wall_time_sec": 2060.5
+    },
+    {
+      "n_int": 12,
+      "n_agents": 36,
+      "n_masters": 12,
+      "arrival_pct_mean": 88.72,
+      "arrival_pct_std": 30.43,
+      "arrival_pct_sem": 3.04,
+      "crash_rate_pct": 14.0,
+      "steps_mean": 22.53,
+      "steps_std": 8.43,
+      "wall_time_sec": 3894.6
+    },
+    {
+      "n_int": 16,
+      "n_agents": 48,
+      "n_masters": 16,
+      "arrival_pct_mean": 83.35,
+      "arrival_pct_std": 36.25,
+      "arrival_pct_sem": 3.62,
+      "crash_rate_pct": 19.0,
+      "steps_mean": 22.37,
+      "steps_std": 9.85,
+      "wall_time_sec": 8628.0
+    }
+  ],
+  "n_episodes": 100,
+  "seed": 2026,
+  "connector_length": 150,
+  "agents_per_intersection": 3
+}

@@ -1,0 +1,616 @@
+{
+  "config": {
+    "n_int": 16,
+    "n_agents": 48,
+    "n_masters": 16,
+    "arrival_pct_mean": 87.56,
+    "arrival_pct_std": 32.06,
+    "arrival_pct_sem": 3.21,
+    "crash_rate_pct": 14.0,
+    "steps_mean": 23.12,
+    "steps_std": 8.52,
+    "wall_time_sec": 6059.5
+  },
+  "episodes": [
+    {
+      "episode": 0,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 30
+    },
+    {
+      "episode": 1,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 24
+    },
+    {
+      "episode": 2,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 29
+    },
+    {
+      "episode": 3,
+      "arrival_pct": 0.0,
+      "crashed": 1,
+      "steps": 1
+    },
+    {
+      "episode": 4,
+      "arrival_pct": 0.0,
+      "crashed": 1,
+      "steps": 1
+    },
+    {
+      "episode": 5,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 26
+    },
+    {
+      "episode": 6,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 24
+    },
+    {
+      "episode": 7,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 30
+    },
+    {
+      "episode": 8,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 28
+    },
+    {
+      "episode": 9,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 26
+    },
+    {
+      "episode": 10,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 25
+    },
+    {
+      "episode": 11,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 24
+    },
+    {
+      "episode": 12,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 25
+    },
+    {
+      "episode": 13,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 19
+    },
+    {
+      "episode": 14,
+      "arrival_pct": 0.0,
+      "crashed": 1,
+      "steps": 1
+    },
+    {
+      "episode": 15,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 26
+    },
+    {
+      "episode": 16,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 26
+    },
+    {
+      "episode": 17,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 31
+    },
+    {
+      "episode": 18,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 29
+    },
+    {
+      "episode": 19,
+      "arrival_pct": 29.17,
+      "crashed": 1,
+      "steps": 7
+    },
+    {
+      "episode": 20,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 25
+    },
+    {
+      "episode": 21,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 30
+    },
+    {
+      "episode": 22,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 26
+    },
+    {
+      "episode": 23,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 26
+    },
+    {
+      "episode": 24,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 24
+    },
+    {
+      "episode": 25,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 24
+    },
+    {
+      "episode": 26,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 26
+    },
+    {
+      "episode": 27,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 25
+    },
+    {
+      "episode": 28,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 30
+    },
+    {
+      "episode": 29,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 31
+    },
+    {
+      "episode": 30,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 30
+    },
+    {
+      "episode": 31,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 26
+    },
+    {
+      "episode": 32,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 30
+    },
+    {
+      "episode": 33,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 30
+    },
+    {
+      "episode": 34,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 19
+    },
+    {
+      "episode": 35,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 25
+    },
+    {
+      "episode": 36,
+      "arrival_pct": 0.0,
+      "crashed": 1,
+      "steps": 1
+    },
+    {
+      "episode": 37,
+      "arrival_pct": 0.0,
+      "crashed": 1,
+      "steps": 5
+    },
+    {
+      "episode": 38,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 28
+    },
+    {
+      "episode": 39,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 30
+    },
+    {
+      "episode": 40,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 21
+    },
+    {
+      "episode": 41,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 33
+    },
+    {
+      "episode": 42,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 30
+    },
+    {
+      "episode": 43,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 25
+    },
+    {
+      "episode": 44,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 27
+    },
+    {
+      "episode": 45,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 13
+    },
+    {
+      "episode": 46,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 25
+    },
+    {
+      "episode": 47,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 29
+    },
+    {
+      "episode": 48,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 25
+    },
+    {
+      "episode": 49,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 24
+    },
+    {
+      "episode": 50,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 25
+    },
+    {
+      "episode": 51,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 25
+    },
+    {
+      "episode": 52,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 29
+    },
+    {
+      "episode": 53,
+      "arrival_pct": 10.42,
+      "crashed": 1,
+      "steps": 6
+    },
+    {
+      "episode": 54,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 25
+    },
+    {
+      "episode": 55,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 25
+    },
+    {
+      "episode": 56,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 27
+    },
+    {
+      "episode": 57,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 20
+    },
+    {
+      "episode": 58,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 27
+    },
+    {
+      "episode": 59,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 29
+    },
+    {
+      "episode": 60,
+      "arrival_pct": 0.0,
+      "crashed": 1,
+      "steps": 1
+    },
+    {
+      "episode": 61,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 25
+    },
+    {
+      "episode": 62,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 25
+    },
+    {
+      "episode": 63,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 29
+    },
+    {
+      "episode": 64,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 28
+    },
+    {
+      "episode": 65,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 26
+    },
+    {
+      "episode": 66,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 30
+    },
+    {
+      "episode": 67,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 25
+    },
+    {
+      "episode": 68,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 25
+    },
+    {
+      "episode": 69,
+      "arrival_pct": 18.75,
+      "crashed": 1,
+      "steps": 6
+    },
+    {
+      "episode": 70,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 26
+    },
+    {
+      "episode": 71,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 29
+    },
+    {
+      "episode": 72,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 30
+    },
+    {
+      "episode": 73,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 26
+    },
+    {
+      "episode": 74,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 24
+    },
+    {
+      "episode": 75,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 30
+    },
+    {
+      "episode": 76,
+      "arrival_pct": 14.58,
+      "crashed": 1,
+      "steps": 6
+    },
+    {
+      "episode": 77,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 25
+    },
+    {
+      "episode": 78,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 21
+    },
+    {
+      "episode": 79,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 23
+    },
+    {
+      "episode": 80,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 30
+    },
+    {
+      "episode": 81,
+      "arrival_pct": 83.33,
+      "crashed": 1,
+      "steps": 13
+    },
+    {
+      "episode": 82,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 25
+    },
+    {
+      "episode": 83,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 19
+    },
+    {
+      "episode": 84,
+      "arrival_pct": 0.0,
+      "crashed": 1,
+      "steps": 1
+    },
+    {
+      "episode": 85,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 25
+    },
+    {
+      "episode": 86,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 24
+    },
+    {
+      "episode": 87,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 30
+    },
+    {
+      "episode": 88,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 25
+    },
+    {
+      "episode": 89,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 30
+    },
+    {
+      "episode": 90,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 25
+    },
+    {
+      "episode": 91,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 29
+    },
+    {
+      "episode": 92,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 28
+    },
+    {
+      "episode": 93,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 30
+    },
+    {
+      "episode": 94,
+      "arrival_pct": 0.0,
+      "crashed": 1,
+      "steps": 1
+    },
+    {
+      "episode": 95,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 26
+    },
+    {
+      "episode": 96,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 25
+    },
+    {
+      "episode": 97,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 25
+    },
+    {
+      "episode": 98,
+      "arrival_pct": 100.0,
+      "crashed": 0,
+      "steps": 27
+    },
+    {
+      "episode": 99,
+      "arrival_pct": 0.0,
+      "crashed": 1,
+      "steps": 1
+    }
+  ]
+}
