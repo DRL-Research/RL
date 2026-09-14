@@ -1,20 +1,6 @@
 # Hierarchical Multi-Agent RL — Scalable Coordinated Driving
 
-A 3-level master-agent hierarchy trained with PPO on custom `highway-env` layouts. The core claim: one pair of trained checkpoints (master + agent), deployed at any scale from 3 to 48 agents across independent or connected intersections, consistently reduces crash rates compared to running agents without a master signal.
-
-## Two separate models, two kinds of sharing
-
-The system uses **two distinct PPO models** with different architectures, observation spaces, and action spaces:
-
-| | Master model | Agent model |
-|---|---|---|
-| Observation | 25-D (5 slots × 5) | 8-D (4-D state + 4-D embedding) |
-| Output | 4-D continuous embedding | discrete {slow, fast} |
-| Network | ResNet (25→128→128→4) | MLP wide (8→256→256→2) |
-
-What is shared within each role: all Local Masters and the Global Master run the **same single MasterModel instance** (one set of weights for all masters). All agents run the **same single agent model instance** (one set of weights for all agents). There is no parameter sharing between the master model and the agent model.
-
-This is why the system scales: adding more intersections means running the same master model on more inputs, not introducing new parameters. When the system grows beyond 5 Local Masters, intermediate masters group them in sets of ≤5 recursively, forming a tree of depth ⌈log₅(N\_LMs)⌉ — all running the same master weights.
+one pair of trained models (master + agent), deployed at any scale from 3 to 48 agents across independent or connected intersections, consistently reduces crash rates compared to running agents without a master signal.
 
 ## Architecture
 
