@@ -112,13 +112,20 @@ class MasterModel:
         self.model.save(path)
 
     def embeddings(self, inputs: list[np.ndarray], deterministic: bool) -> list[np.ndarray]:
+        actions, _, _ = self.act(inputs, deterministic)
+        return [actions[i].reshape(-1)[: self.embedding_size] for i in range(actions.shape[0])]
+
+    def act(self, inputs: list[np.ndarray], deterministic: bool) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         if not inputs:
-            return []
-        obs_t = torch.as_tensor(np.asarray(inputs, dtype=np.float32))
+            empty = np.zeros((0, self.embedding_size), dtype=np.float32)
+            return empty, np.zeros(0, dtype=np.float32), np.zeros(0, dtype=np.float32)
+        obs_t = torch.as_tensor(np.asarray(inputs, dtype=np.float32), device=self.model.device)
         with torch.no_grad():
-            actions, _, _ = self.model.policy.forward(obs_t, deterministic=deterministic)
-        arr = actions.detach().cpu().numpy().astype(np.float32)
-        return [arr[i].reshape(-1)[: self.embedding_size] for i in range(arr.shape[0])]
+            actions, values, log_probs = self.model.policy.forward(obs_t, deterministic=deterministic)
+        act = actions.detach().cpu().numpy().astype(np.float32)
+        val = values.detach().cpu().numpy().reshape(-1).astype(np.float32)
+        lp = log_probs.detach().cpu().numpy().reshape(-1).astype(np.float32)
+        return act, val, lp
 
 
 def load_models(agent_path: str, master_path: str):

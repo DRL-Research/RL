@@ -11,16 +11,12 @@ from hdmaps.statistics.tables import format_table, published_staggered_table, si
 
 def reproduce(*, smoke: bool = False, out_dir: Path | None = None) -> dict:
     sim_rows = simultaneous_table()
+    stag_rows = published_staggered_table()
     if smoke:
         sim_rows = sim_rows[:1]
-    stag_rows = published_staggered_table()
+        stag_rows = stag_rows[:1]
     payload = {
         "simultaneous": sim_rows,
-        "staggered": stag_rows,
-        "staggered_note": (
-            "Staggered crash columns are the published reference. "
-            "No frozen per-episode suite matched Table 6.4; run evaluate --protocol staggered to regenerate."
-        ),
         "published": [
             {
                 "fleet": r.fleet,
@@ -28,10 +24,10 @@ def reproduce(*, smoke: bool = False, out_dir: Path | None = None) -> dict:
                 "sim_crash": r.sim_crash_pct,
                 "sim_arrival": r.sim_arrival_pct,
                 "stag_crash": r.stag_crash_pct,
-                "stag_zero": r.stag_zero_crash_pct,
             }
             for r in PUBLISHED_TABLE
         ],
+        "note": "Simultaneous crash/arrival are rebuilt from frozen suite files. Staggered crash in this table is the published reference; live staggered is python -m hdmaps evaluate --protocol staggered.",
         "table": format_table(sim_rows, stag_rows),
     }
     dest = out_dir or (repo_root() / "outputs" / "reproduce")

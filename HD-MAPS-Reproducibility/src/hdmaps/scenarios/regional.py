@@ -64,18 +64,20 @@ def generate_scenario(
     ep_go_east = go_east
     counts = [0] * n_int
     remaining = n_agents
+    cap = 4 if n_int == 1 else 3
     for i in range(n_int):
-        max_here = min(3, remaining - (n_int - 1 - i))
-        min_here = max(1, remaining - 3 * (n_int - 1 - i))
-        c = int(rng.integers(max(1, min_here), max_here + 1))
+        max_here = min(cap, remaining - (n_int - 1 - i))
+        min_here = max(1, remaining - cap * (n_int - 1 - i))
+        max_here = max(min_here, max_here)
+        c = int(rng.integers(min_here, max_here + 1))
         counts[i] = c
         remaining -= c
     while remaining > 0:
         for i in range(n_int):
-            if counts[i] < 3 and remaining > 0:
+            if counts[i] < cap and remaining > 0:
                 counts[i] += 1
                 remaining -= 1
-        if remaining > 0 and all(c >= 3 for c in counts):
+        if remaining > 0 and all(c >= cap for c in counts):
             break
 
     for i in range(n_int):
@@ -109,8 +111,46 @@ def generate_scenario(
                 agents.append((_approach(i, 0), f"I{i}_o2", -60.0 + float(rng.uniform(-5, 5))))
             else:
                 agents.append((_approach(i, 2), f"I{i}_o0", -60.0 + float(rng.uniform(-5, 5))))
+        if k >= 4:
+            if car1_south:
+                agents.append((_approach(i, 2), f"I{i}_o0", -60.0 + float(rng.uniform(-5, 5))))
+            else:
+                agents.append((_approach(i, 0), f"I{i}_o2", -60.0 + float(rng.uniform(-5, 5))))
     return {"agents": agents[:n_agents], "static": [], "connector_length": SIM_CONNECTOR_M}
 
 
 def generate_suite(n_int: int, n_agents: int, n_episodes: int, rng: np.random.Generator, *, varied: bool) -> list[dict]:
     return [generate_scenario(n_int, n_agents, rng, varied=varied) for _ in range(n_episodes)]
+
+
+def generate_single_intersection(n_agents: int, rng: np.random.Generator, *, mixed: bool = False, jitter: float = SIM_JITTER_M) -> dict:
+    rot = int(rng.integers(0, 4))
+
+    def _lane(corner: int) -> tuple:
+        c = (int(corner) + rot) % 4
+        return (f"I0_o{c}", f"I0_ir{c}", 0)
+
+    def _dest(corner: int) -> str:
+        c = (int(corner) + rot) % 4
+        return f"I0_o{c}"
+
+    def _jit() -> float:
+        return float(rng.uniform(-jitter, jitter))
+
+    n_agents = max(1, int(n_agents))
+    agents: list[tuple] = []
+    if mixed:
+        corners = [0, 2, 1, 3]
+        dests = [2, 3, 0, 1]
+        for i in range(n_agents):
+            off = _jit() if i < 3 else -60.0 + float(rng.uniform(-5, 5))
+            agents.append((_lane(corners[i % 4]), _dest(dests[i % 4]), off))
+    else:
+        agents.append((_lane(0), _dest(2), _jit()))
+        if n_agents >= 2:
+            agents.append((_lane(2), _dest(0), _jit()))
+        if n_agents >= 3:
+            agents.append((_lane(1), _dest(3), min(_jit(), 25.0)))
+        if n_agents >= 4:
+            agents.append((_lane(0), _dest(2), -60.0 + float(rng.uniform(-5, 5))))
+    return {"agents": agents[:n_agents], "static": [], "connector_length": SIM_CONNECTOR_M}

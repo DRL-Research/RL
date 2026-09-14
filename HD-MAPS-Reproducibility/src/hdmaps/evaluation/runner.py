@@ -46,8 +46,17 @@ def _summarize(rows: list[dict], n_int: int, n_agents: int) -> dict:
     }
 
 
-def evaluate_simultaneous(*, smoke: bool = False, out_dir: Path | None = None) -> list[dict]:
-    master, agent = load_models(str(agent_checkpoint()), str(master_checkpoint()))
+def evaluate_simultaneous(
+    *,
+    smoke: bool = False,
+    out_dir: Path | None = None,
+    agent_path: Path | None = None,
+    master_path: Path | None = None,
+) -> list[dict]:
+    master, agent = load_models(
+        str(agent_path or agent_checkpoint()),
+        str(master_path or master_checkpoint()),
+    )
     configs = SCALE_CONFIGS[:1] if smoke else SCALE_CONFIGS
     n_ep = 1 if smoke else 100
     results = []
@@ -65,16 +74,31 @@ def evaluate_simultaneous(*, smoke: bool = False, out_dir: Path | None = None) -
                 break
         cell.close()
         results.append(_summarize(rows, n_int, n_agents))
+        print(
+            "simultaneous fleet=%d crash=%.1f arrival=%.1f n=%d"
+            % (n_agents, results[-1]["crash_pct"], results[-1]["arrival_pct"], results[-1]["n_episodes"]),
+            flush=True,
+        )
+        if out_dir is not None:
+            out_dir.mkdir(parents=True, exist_ok=True)
+            saved = [{k: v for k, v in row.items() if k != "episodes"} for row in results]
+            (out_dir / "simultaneous_eval.json").write_text(json.dumps(saved, indent=2, default=float), encoding="utf-8")
         if smoke:
             break
-    if out_dir is not None:
-        out_dir.mkdir(parents=True, exist_ok=True)
-        (out_dir / "simultaneous_eval.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
     return results
 
 
-def evaluate_staggered(*, smoke: bool = False, out_dir: Path | None = None) -> list[dict]:
-    master, agent = load_models(str(agent_checkpoint()), str(master_checkpoint()))
+def evaluate_staggered(
+    *,
+    smoke: bool = False,
+    out_dir: Path | None = None,
+    agent_path: Path | None = None,
+    master_path: Path | None = None,
+) -> list[dict]:
+    master, agent = load_models(
+        str(agent_path or agent_checkpoint()),
+        str(master_path or master_checkpoint()),
+    )
     configs = SCALE_CONFIGS[:1] if smoke else SCALE_CONFIGS
     n_ep = 1 if smoke else STAG_EPISODES
     results = []
@@ -84,31 +108,27 @@ def evaluate_staggered(*, smoke: bool = False, out_dir: Path | None = None) -> l
         connector = int(scenarios[0]["connector_length"])
         duration = int(scenarios[0]["max_steps"])
         cell = Corridor(n_int, n_agents, connector_length=connector, duration=max(SIM_DURATION, duration))
-        full_rows = []
-        zero_rows = []
+        rows = []
         for sc in scenarios:
             horizon = int(sc.get("max_steps") or horizon_for_connector(connector))
-            full_rows.append(
+            rows.append(
                 run_staggered_episode(
                     cell, sc, master, agent, max_steps=horizon, condition="normal", coord_radius=STAG_COORD_RADIUS_M
-                )
-            )
-            zero_rows.append(
-                run_staggered_episode(
-                    cell, sc, master, agent, max_steps=horizon, condition="zero_master", coord_radius=STAG_COORD_RADIUS_M
                 )
             )
             if smoke:
                 break
         cell.close()
-        summary = _summarize(full_rows, n_int, n_agents)
-        zero = _summarize(zero_rows, n_int, n_agents)
-        summary["zero_crash_pct"] = zero["crash_pct"]
-        summary["zero_crash_k"] = zero["crash_k"]
-        results.append(summary)
+        results.append(_summarize(rows, n_int, n_agents))
+        print(
+            "staggered fleet=%d crash=%.1f n=%d"
+            % (n_agents, results[-1]["crash_pct"], results[-1]["n_episodes"]),
+            flush=True,
+        )
+        if out_dir is not None:
+            out_dir.mkdir(parents=True, exist_ok=True)
+            saved = [{k: v for k, v in row.items() if k != "episodes"} for row in results]
+            (out_dir / "staggered_eval.json").write_text(json.dumps(saved, indent=2, default=float), encoding="utf-8")
         if smoke:
             break
-    if out_dir is not None:
-        out_dir.mkdir(parents=True, exist_ok=True)
-        (out_dir / "staggered_eval.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
     return results

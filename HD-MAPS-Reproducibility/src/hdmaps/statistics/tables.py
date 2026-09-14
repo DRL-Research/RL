@@ -59,7 +59,6 @@ def published_staggered_table() -> list[dict]:
                 "crash_pct": row.stag_crash_pct,
                 "crash_lo": row.stag_crash_lo,
                 "crash_hi": row.stag_crash_hi,
-                "zero_crash_pct": row.stag_zero_crash_pct,
                 "source": "published_reference",
             }
         )
@@ -67,19 +66,27 @@ def published_staggered_table() -> list[dict]:
 
 
 def format_table(sim_rows: list[dict], stag_rows: list[dict] | None = None) -> str:
-    stag_rows = stag_rows or published_staggered_table()
-    stag_by_fleet = {r["fleet"]: r for r in stag_rows}
     lines = [
-        "Fleet  Hierarchy    Sim crash              Sim arrival         Stag crash           Stag crash (no master)",
-        "-" * 110,
+        "Fleet  Hierarchy    Sim crash              Sim arrival         Stag crash",
+        "-" * 88,
     ]
+    stag_by_fleet = {r["fleet"]: r for r in (stag_rows or [])}
     for row in sim_rows:
-        stag = stag_by_fleet[row["fleet"]]
+        stag = stag_by_fleet.get(row["fleet"])
+        stag_txt = ""
+        if stag is not None:
+            stag_txt = f"{stag['crash_pct']:4.1f} [{stag['crash_lo']:4.1f}, {stag['crash_hi']:4.1f}]"
         lines.append(
             f"{row['fleet']:>5}  {row['hierarchy']:<12} "
             f"{row['crash_pct']:4.1f} [{row['crash_lo']:4.1f}, {row['crash_hi']:4.1f}]   "
-            f"{row['arrival_pct']:5.1f} ± {row['arrival_sem']:3.1f}     "
-            f"{stag['crash_pct']:3.0f} [{stag['crash_lo']:3.1f}, {stag['crash_hi']:4.1f}]    "
-            f"{stag['zero_crash_pct']:5.0f}"
+            f"{row['arrival_pct']:5.1f} +/- {row['arrival_sem']:3.1f}     "
+            f"{stag_txt}"
         )
+    if not sim_rows and stag_rows:
+        lines = ["Fleet  Hierarchy    Stag crash", "-" * 40]
+        for stag in stag_rows:
+            lines.append(
+                f"{stag['fleet']:>5}  {stag.get('hierarchy',''):<12} "
+                f"{stag['crash_pct']:4.1f} [{stag['crash_lo']:4.1f}, {stag['crash_hi']:4.1f}]"
+            )
     return "\n".join(lines)

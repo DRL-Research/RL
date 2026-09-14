@@ -127,7 +127,27 @@ class Corridor:
         return self.read_state()
 
     def n_arrived(self) -> int:
-        return sum(1 for v in self._inner().controlled_vehicles if getattr(v, "is_arrived", False))
+        return int(np.sum(self.arrived_mask()))
+
+    def arrived_mask(self) -> np.ndarray:
+        return np.asarray(
+            [bool(getattr(v, "is_arrived", False)) for v in self._inner().controlled_vehicles],
+            dtype=bool,
+        )
+
+    def crashed_mask(self) -> np.ndarray:
+        return np.asarray(
+            [bool(getattr(v, "crashed", False)) for v in self._inner().controlled_vehicles],
+            dtype=bool,
+        )
+
+    def speeds(self) -> np.ndarray:
+        inner = self._inner()
+        out = []
+        for v in inner.controlled_vehicles:
+            vel = v.velocity if hasattr(v, "velocity") else np.zeros(2)
+            out.append(float(np.linalg.norm(vel)))
+        return np.asarray(out, dtype=np.float32)
 
     def close(self) -> None:
         try:

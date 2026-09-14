@@ -1,0 +1,29 @@
+{
+  "stage1": {
+    "stage": "stage1",
+    "episodes": 5000,
+    "seed": 42,
+    "lr": 5e-05,
+    "master_init": "C:\\Users\\glebb\\Downloads\\RL-highway-feature-exp6_3_agents_100_scenarios (1)\\RL-highway-feature-exp6_3_agents_100_scenarios\\HD-MAPS-Reproducibility\\artifacts\\published\\v1\\checkpoints\\master_base.pth",
+    "agent_init": "C:\\Users\\glebb\\Downloads\\RL-highway-feature-exp6_3_agents_100_scenarios (1)\\RL-highway-feature-exp6_3_agents_100_scenarios\\HD-MAPS-Reproducibility\\artifacts\\published\\v1\\checkpoints\\agent.pth",
+    "elapsed_sec": 1390.2442088127136,
+    "mean_arrival": 86.935,
+    "crash_rate": 14.760000000000002
+  },
+  "stage2": {
+    "stage": "stage2",
+    "episodes": 2500,
+    "seed": 142,
+    "lr": 8e-05,
+    "master_init": "outputs\\paper\\train\\stage1\\master.pth",
+    "agent_init": "C:\\Users\\glebb\\Downloads\\RL-highway-feature-exp6_3_agents_100_scenarios (1)\\RL-highway-feature-exp6_3_agents_100_scenarios\\HD-MAPS-Reproducibility\\artifacts\\published\\v1\\checkpoints\\agent.pth",
+    "elapsed_sec": 3701.432417154312,
+    "resumed_from": 0,
+    "mean_arrival": 99.84,
+    "crash_rate": 0.32,
+    "max_n_int": 2,
+    "max_n_agents": 6
+  },
+  "master": "outputs\\paper\\train\\master.pth",
+  "agent": "outputs\\paper\\train\\agent.pth"
+}
