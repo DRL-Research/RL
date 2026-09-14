@@ -12,6 +12,7 @@ venv/
 env/
 
 # Generated outputs (re-created by the scripts; not part of the source)
+outputs/
 EVALUATION_RESULTS/
 MODELS_EVALUATION/
 PROFESSOR_RESULTS/
